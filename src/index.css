@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Custom scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.6);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8);
+}
+
+/* ── Base styles ──────────────────────────────────────────────── */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans antialiased;
+    background: linear-gradient(135deg, #0a0a0f 0%, #111827 50%, #0f172a 100%);
+    min-height: 100vh;
+  }
+
+  /* Form elements dark theme */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  select,
+  textarea {
+    @apply bg-gray-800/80 border border-gray-700/50 text-gray-100 rounded-xl px-4 py-3
+           focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 focus:outline-none
+           transition-all duration-200 placeholder-gray-500 w-full;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  /* Hide native number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Range slider custom styling */
+  input[type="range"] {
+    @apply w-full h-2 rounded-lg appearance-none cursor-pointer;
+    background: linear-gradient(to right, #10b981, #059669);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    @apply appearance-none w-5 h-5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30
+           cursor-pointer;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    border: none;
+    cursor: pointer;
+  }
+}
+
+/* ── Component utilities ──────────────────────────────────────── */
+@layer components {
+  .glass-card {
+    @apply bg-gray-800/40 backdrop-blur-sm border border-gray-700/40 rounded-2xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:bg-gray-800/60 hover:border-gray-600/50 transition-all duration-300;
+  }
+
+  .glass-nav {
+    @apply bg-gray-900/95 backdrop-blur-xl border-gray-800/50;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold
+           py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/25
+           hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40
+           active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-700/50 text-gray-300 font-medium
+           py-2.5 px-5 rounded-xl border border-gray-600/50
+           hover:bg-gray-700/80 hover:text-white
+           active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-red-500/20 text-red-400 font-medium
+           py-2.5 px-5 rounded-xl border border-red-500/30
+           hover:bg-red-500/30 hover:text-red-300
+           active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply text-gray-400 font-medium py-2 px-4 rounded-lg
+           hover:bg-gray-800/50 hover:text-gray-200
+           active:scale-[0.98] transition-all duration-200;
+  }
+
+  .metric-glow-earth {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+  }
+
+  .metric-glow-bark {
+    box-shadow: 0 0 20px rgba(217, 155, 78, 0.08);
+  }
+
+  .metric-glow-sky {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.08);
+  }
+
+  .metric-glow-danger {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.08);
+  }
+
+  /* Table styles */
+  .table-dark {
+    @apply w-full text-sm text-left;
+  }
+
+  .table-dark thead {
+    @apply text-xs text-gray-400 uppercase tracking-wider;
+  }
+
+  .table-dark thead th {
+    @apply px-4 py-3 font-medium bg-gray-800/60 first:rounded-tl-xl last:rounded-tr-xl;
+  }
+
+  .table-dark tbody tr {
+    @apply border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors duration-150;
+  }
+
+  .table-dark tbody td {
+    @apply px-4 py-3;
+  }
+
+  /* Animated gradient background for special sections */
+  .gradient-animated {
+    background: linear-gradient(135deg, 
+      rgba(16, 185, 129, 0.05) 0%, 
+      rgba(56, 189, 248, 0.05) 50%, 
+      rgba(217, 155, 78, 0.05) 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+}
+
+/* ── Responsive padding for main content ──────────────────────── */
+.main-content {
+  @apply px-4 py-6 pb-24 lg:pl-72 lg:pb-6;
+  min-height: 100vh;
+}
+
+/* ── Toast animation ──────────────────────────────────────────── */
+.toast-enter {
+  animation: toastIn 0.3s ease-out forwards;
+}
+
+@keyframes toastIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-exit {
+  animation: toastOut 0.3s ease-in forwards;
+}
+
+@keyframes toastOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+}
