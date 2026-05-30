@@ -29,7 +29,7 @@
 
   body {
     @apply bg-gray-950 text-gray-100 font-sans antialiased;
-    background: linear-gradient(135deg, #0a0a0f 0%, #111827 50%, #0f172a 100%);
+    background: linear-gradient(135deg, #050d03 0%, #091806 50%, #060f04 100%);
     min-height: 100vh;
   }
 
@@ -41,8 +41,18 @@
   select,
   textarea {
     @apply bg-gray-800/80 border border-gray-700/50 text-gray-100 rounded-xl px-4 py-3
-           focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 focus:outline-none
+           focus:outline-none
            transition-all duration-200 placeholder-gray-500 w-full;
+    --tw-ring-color: rgba(77, 142, 30, 0.45);
+  }
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  input[type="date"]:focus,
+  input[type="email"]:focus,
+  select:focus,
+  textarea:focus {
+    border-color: rgba(77, 142, 30, 0.5);
+    box-shadow: 0 0 0 2px rgba(77, 142, 30, 0.25);
   }
 
   input[type="date"]::-webkit-calendar-picker-indicator {
@@ -62,26 +72,25 @@
   /* Range slider custom styling */
   input[type="range"] {
     @apply w-full h-2 rounded-lg appearance-none cursor-pointer;
-    background: linear-gradient(to right, #10b981, #059669);
+    background: linear-gradient(to right, #4d8e1e, #3e7218);
   }
 
   input[type="range"]::-webkit-slider-thumb {
-    @apply appearance-none w-5 h-5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30
-           cursor-pointer;
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #34d399;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    background: #6aae35;
+    box-shadow: 0 0 12px rgba(77, 142, 30, 0.45);
+    cursor: pointer;
   }
 
   input[type="range"]::-moz-range-thumb {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #34d399;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    background: #6aae35;
+    box-shadow: 0 0 12px rgba(77, 142, 30, 0.45);
     border: none;
     cursor: pointer;
   }
@@ -90,15 +99,23 @@
 /* ── Component utilities ──────────────────────────────────────── */
 @layer components {
   .glass-card {
-    @apply bg-gray-800/40 backdrop-blur-sm border border-gray-700/40 rounded-2xl;
+    @apply backdrop-blur-sm rounded-2xl;
+    background: rgba(10, 22, 6, 0.50);
+    border: 1px solid rgba(77, 142, 30, 0.15);
   }
 
   .glass-card-hover {
-    @apply glass-card hover:bg-gray-800/60 hover:border-gray-600/50 transition-all duration-300;
+    @apply glass-card transition-all duration-300;
+  }
+  .glass-card-hover:hover {
+    background: rgba(14, 30, 8, 0.70);
+    border-color: rgba(77, 142, 30, 0.28);
   }
 
   .glass-nav {
-    @apply bg-gray-900/95 backdrop-blur-xl border-gray-800/50;
+    @apply backdrop-blur-xl;
+    background: rgba(6, 14, 3, 0.97);
+    border-color: rgba(77, 142, 30, 0.18);
   }
 
   .btn-primary {
@@ -129,19 +146,19 @@
   }
 
   .metric-glow-earth {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+    box-shadow: 0 0 22px rgba(77, 142, 30, 0.14);
   }
 
   .metric-glow-bark {
-    box-shadow: 0 0 20px rgba(217, 155, 78, 0.08);
+    box-shadow: 0 0 22px rgba(196, 71, 42, 0.14);
   }
 
   .metric-glow-sky {
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.08);
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.10);
   }
 
   .metric-glow-danger {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.08);
+    box-shadow: 0 0 22px rgba(239, 68, 68, 0.10);
   }
 
   /* Table styles */
@@ -167,10 +184,10 @@
 
   /* Animated gradient background for special sections */
   .gradient-animated {
-    background: linear-gradient(135deg, 
-      rgba(16, 185, 129, 0.05) 0%, 
-      rgba(56, 189, 248, 0.05) 50%, 
-      rgba(217, 155, 78, 0.05) 100%);
+    background: linear-gradient(135deg,
+      rgba(77, 142, 30, 0.07) 0%,
+      rgba(196, 71, 42, 0.04) 50%,
+      rgba(240, 229, 204, 0.03) 100%);
     background-size: 200% 200%;
     animation: gradientShift 8s ease infinite;
   }
@@ -184,7 +201,7 @@
 
 /* ── Responsive padding for main content ──────────────────────── */
 .main-content {
-  @apply px-4 py-6 pb-24 lg:pl-72 lg:pb-6;
+  @apply px-4 pt-16 pb-24 lg:pl-72 lg:pb-6 lg:pt-6;
   min-height: 100vh;
 }
 

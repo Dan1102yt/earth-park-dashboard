@@ -6,8 +6,9 @@ import {
   ChefHat,
   BedDouble,
   TrendingUp,
-  TreePine,
 } from "lucide-react";
+
+const LOGO_URL = `${import.meta.env.BASE_URL}logo-earth-park.png`;
 
 const tabs = [
   { path: "/nueva",      label: "Nueva",      icon: PlusCircle   },
@@ -29,17 +30,20 @@ export default function NavBar() {
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col glass-nav border-r z-40">
         {/* Logo */}
-        <div className="px-6 py-8 border-b border-gray-800/50">
+        <div className="px-6 py-6 border-b" style={{ borderColor: 'rgba(77,142,30,0.2)' }}>
           <Link to="/reservas" className="flex items-center gap-3 group">
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
-              <TreePine className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src={LOGO_URL}
+              alt="Earth Park"
+              className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-2 transition-all duration-300"
+              style={{ ringColor: 'rgba(77,142,30,0.35)', boxShadow: '0 0 0 2px rgba(77,142,30,0.30)' }}
+            />
             <div>
-              <h1 className="font-display text-lg font-bold text-white">
+              <h1 className="font-display text-lg font-bold text-white leading-tight">
                 Earth Park
               </h1>
               <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                Dashboard
+                Parque Temático · Macanal
               </p>
             </div>
           </Link>
@@ -83,6 +87,30 @@ export default function NavBar() {
           </p>
         </div>
       </aside>
+
+      {/* ── Mobile Top Header ───────────────────────────────────── */}
+      <header
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-2.5 border-b glass-nav"
+        style={{ borderColor: 'rgba(77,142,30,0.2)' }}
+      >
+        <Link to="/reservas" className="flex items-center gap-2.5">
+          <img
+            src={LOGO_URL}
+            alt="Earth Park"
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+            style={{ boxShadow: '0 0 0 1.5px rgba(77,142,30,0.40)' }}
+          />
+          <div>
+            <h1 className="font-display text-sm font-bold text-white leading-tight">Earth Park</h1>
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight">Parque Temático · Macanal</p>
+          </div>
+        </Link>
+        {reservasCount > 0 && (
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+            {reservasCount} reservas
+          </span>
+        )}
+      </header>
 
       {/* ── Mobile Bottom Bar ───────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 glass-nav border-t z-40 safe-area-bottom">
