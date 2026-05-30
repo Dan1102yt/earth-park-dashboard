@@ -30,6 +30,66 @@ const categoryDisplay = {
   stock:            { label: 'Stock — Verificar',   color: 'border-l-gray-500' },
 };
 
+/* ─────────────────────────────────────────────
+   Menú de referencia — datos hardcodeados
+   ───────────────────────────────────────────── */
+
+const MENU_REF = [
+  {
+    id: 'desayuno',
+    titulo: 'Desayuno',
+    horario: '7:00 AM – 9:00 AM',
+    Icono: Coffee,
+    colorBorder: 'border-l-amber-400',
+    colorText: 'text-amber-400',
+    colorBg: 'bg-amber-500/10',
+    platos: [
+      {
+        nombre: 'Caldo de Costilla Earth Park',
+        descripcion: 'Caldo de costilla de res con papa criolla, arveja verde y cilantro fresco. Preparado desde las 6:00 AM. Menú único del desayuno.',
+        acompanamiento: 'Bebida caliente (chocolate Colanta o aromática de hierbas), arepa dorada en budare y fruta de temporada.',
+        estrella: true,
+      },
+      {
+        nombre: 'Arepa con Queso y Mantequilla',
+        descripcion: 'Arepa de maíz cocida en budare seco, servida caliente con queso campesino y mantequilla artesanal.',
+        acompanamiento: 'Tinto o aromática.',
+      },
+      {
+        nombre: 'Huevos al Gusto',
+        descripcion: 'Revueltos, fritos o pericos con tomate y cebolla cabezona. Preparados al momento de la orden.',
+        acompanamiento: 'Arepa y bebida caliente.',
+      },
+    ],
+  },
+  {
+    id: 'cena',
+    titulo: 'Cena',
+    horario: '7:00 PM – 9:00 PM',
+    Icono: UtensilsCrossed,
+    colorBorder: 'border-l-emerald-500',
+    colorText: 'text-emerald-400',
+    colorBg: 'bg-emerald-500/10',
+    platos: [
+      {
+        nombre: 'Hamburguesa Earth Park',
+        descripcion: 'Ranchera 130g a la plancha, pan tostado, queso La Pampa, lechuga fresca y salsas al gusto. Acompañada de papa frita o en cascos.',
+        alerta: 'Sin tomate',
+        estrella: true,
+      },
+      {
+        nombre: 'Pechuga a la Plancha',
+        descripcion: 'Pechuga marinada 30 min con limón, ajo y especias. Cocida a fuego medio-alto hasta cocción interna completa. Papa frita o en cascos.',
+        alerta: 'Sin tomate',
+      },
+      {
+        nombre: 'Cena del Valle',
+        descripcion: 'Plato del chef con ingredientes locales de temporada: carnes al caldero, mazamorra chiquita o proteína del día. Consultar disponibilidad al check-in.',
+      },
+    ],
+  },
+];
+
 /* Extras chips disponibles por plato */
 const EXTRAS_DISPONIBLES = {
   hamburguesa: ['Extra queso', 'Extra carne', 'Sin lechuga', 'Bebida'],
@@ -502,6 +562,98 @@ function ListaCompras({ reservaSimulada }) {
 }
 
 /* ─────────────────────────────────────────────
+   MenuExpandible — cards de Desayuno y Cena
+   ───────────────────────────────────────────── */
+
+function MenuCard({ seccion }) {
+  const [open, setOpen] = useState(false);
+  const { Icono } = seccion;
+
+  return (
+    <div className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 border-l-4 ${seccion.colorBorder} rounded-2xl overflow-hidden`}>
+      {/* Cabecera — siempre visible */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-700/20 transition-colors duration-200 group"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${seccion.colorBg}`}>
+            <Icono className={`w-5 h-5 ${seccion.colorText}`} />
+          </div>
+          <div className="min-w-0">
+            <h4 className="font-display font-semibold text-gray-100 text-base">
+              {seccion.titulo}
+            </h4>
+            <p className="text-xs text-gray-500 mt-0.5">{seccion.horario}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full hidden sm:inline-block ${seccion.colorBg} ${seccion.colorText}`}>
+            {seccion.platos.length} platos
+          </span>
+          {open
+            ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-colors" />
+            : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-colors" />
+          }
+        </div>
+      </button>
+
+      {/* Cuerpo expandible */}
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="px-5 pb-5 border-t border-gray-700/30 pt-4 space-y-3">
+          {seccion.platos.map((plato, i) => (
+            <div key={i} className="bg-gray-900/40 rounded-xl px-4 py-3 space-y-1.5">
+              {/* Nombre + badge estrella */}
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-semibold text-gray-100 text-sm leading-snug">{plato.nombre}</p>
+                {plato.estrella && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${seccion.colorBg} ${seccion.colorText}`}>
+                    ★ Estrella
+                  </span>
+                )}
+              </div>
+              {/* Descripción */}
+              <p className="text-xs text-gray-400 leading-relaxed">{plato.descripcion}</p>
+              {/* Acompañamiento */}
+              {plato.acompanamiento && (
+                <p className="text-xs text-gray-500">
+                  <span className={`font-medium ${seccion.colorText}`}>Acompañamiento: </span>
+                  {plato.acompanamiento}
+                </p>
+              )}
+              {/* Alerta */}
+              {plato.alerta && (
+                <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 rounded-lg px-2.5 py-1">
+                  <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+                  <span className="text-xs font-medium text-red-400">{plato.alerta}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MenuExpandible() {
+  return (
+    <section className="animate-slide-up">
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <ChefHat className="w-4 h-4" />
+        Menú del día
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {MENU_REF.map((seccion) => (
+          <MenuCard key={seccion.id} seccion={seccion} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────
    CocinaPage  — Main page component
    ───────────────────────────────────────────── */
 
@@ -580,13 +732,16 @@ export default function CocinaPage() {
       <PageHeader
         title="Cocina"
         subtitle="Planificación de menú, insumos y lista de compras"
-        action={
-          <ReservaSelector
-            reservas={reservas}
-            selectedId={selectedId}
-            onChange={setSelectedId}
-          />
-        }
+      />
+
+      {/* Menú del día — Desayuno y Cena (arriba del selector de reserva) */}
+      <MenuExpandible />
+
+      {/* Selector de reserva */}
+      <ReservaSelector
+        reservas={reservas}
+        selectedId={selectedId}
+        onChange={setSelectedId}
       />
 
       {!selectedReserva ? (
