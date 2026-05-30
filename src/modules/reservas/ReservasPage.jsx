@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useReservas } from "../../context/ReservasContext";
 import { CONFIG } from "../../data/config";
@@ -25,6 +25,9 @@ import {
   Pencil,
   Check,
   XCircle,
+  Camera,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -65,6 +68,11 @@ export default function ReservasPage() {
   const [nuevoEgreso, setNuevoEgreso] = useState({ ...emptyEgreso });
   const [editingEgresoId, setEditingEgresoId] = useState(null);
   const [editingEgresoData, setEditingEgresoData] = useState(null);
+
+  // ── Scan receipt state ──
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const fileInputRef = useRef(null);
 
   // Calendar
   const [year, month] = selectedMonth.split("-").map(Number);
@@ -175,6 +183,98 @@ export default function ReservasPage() {
     });
     setEditingEgresoId(null);
     setEditingEgresoData(null);
+  };
+
+  // ── Scan receipt helpers ──
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleScanRecibo = async (file) => {
+    if (!file) return;
+    setScanLoading(true);
+    setScanError('');
+
+    try {
+      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new Error('API key no configurada. Agrega VITE_ANTHROPIC_API_KEY en el archivo .env');
+      }
+
+      const base64 = await fileToBase64(file);
+      const mediaType = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg';
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64 },
+              },
+              {
+                type: 'text',
+                text: `Analiza este recibo o factura de compra colombiano y extrae los datos. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código.
+
+Si la imagen ES legible devuelve:
+{"legible":true,"fecha":"YYYY-MM-DD","monto":número_entero_sin_puntos,"categoria":"cocina"|"desayuno"|"cena"|"bebida"|"evento"|"transporte"|"guía"|"mantenimiento"|"insumos"|"otro","descripcion":"descripción breve del gasto","proveedor":"nombre del establecimiento o proveedor"}
+
+Si la imagen NO es legible (borrosa, mal iluminada, cortada, o no es un recibo) devuelve:
+{"legible":false,"error":"descripción específica del problema"}`,
+              },
+            ],
+          }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `Error de API (${response.status})`);
+      }
+
+      const data = await response.json();
+      const rawText = data.content?.[0]?.text || '';
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Respuesta inesperada del modelo');
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      if (!parsed.legible) {
+        setScanError(parsed.error || 'La imagen no es legible. Toma otra foto con mejor iluminación y enfoque.');
+        return;
+      }
+
+      setNuevoEgreso({
+        item: parsed.descripcion || '',
+        categoria: CATEGORIAS_EGRESO.includes(parsed.categoria) ? parsed.categoria : 'otro',
+        tipo: 'operativo',
+        valor_cop: Number.isFinite(parsed.monto) ? Math.round(parsed.monto) : 0,
+        tiene_recibo: true,
+        proveedor: parsed.proveedor || '',
+        notas: parsed.fecha ? `Fecha recibo: ${parsed.fecha}` : '',
+      });
+      setShowEgresoForm(true);
+
+    } catch (err) {
+      setScanError(err.message || 'Error al procesar la imagen. Intenta de nuevo.');
+    } finally {
+      setScanLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // Inline field helpers
@@ -564,6 +664,16 @@ export default function ReservasPage() {
                   <p className="text-xs text-gray-600 italic">Sin egresos registrados</p>
                 )}
 
+                {/* Hidden file input for receipt scanning */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => handleScanRecibo(e.target.files?.[0])}
+                />
+
                 {/* Add egreso form */}
                 {showEgresoForm ? (
                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 space-y-2 animate-fade-in">
@@ -628,20 +738,43 @@ export default function ReservasPage() {
                       <button type="button" onClick={handleAddEgreso} className="flex-1 bg-emerald-500/20 text-emerald-400 text-xs py-1.5 rounded-lg hover:bg-emerald-500/30 flex items-center justify-center gap-1 transition-colors">
                         <Check className="w-3 h-3" /> Guardar
                       </button>
-                      <button type="button" onClick={() => { setShowEgresoForm(false); setNuevoEgreso({ ...emptyEgreso }); }} className="flex-1 bg-gray-700/50 text-gray-400 text-xs py-1.5 rounded-lg hover:bg-gray-700/70 flex items-center justify-center gap-1 transition-colors">
+                      <button type="button" onClick={() => { setShowEgresoForm(false); setNuevoEgreso({ ...emptyEgreso }); setScanError(''); }} className="flex-1 bg-gray-700/50 text-gray-400 text-xs py-1.5 rounded-lg hover:bg-gray-700/70 flex items-center justify-center gap-1 transition-colors">
                         <XCircle className="w-3 h-3" /> Cancelar
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowEgresoForm(true)}
-                    className="w-full flex items-center justify-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 py-2 border border-dashed border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 transition-all"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    Agregar egreso manual
-                  </button>
+                  <div className="space-y-2">
+                    {scanError && (
+                      <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 animate-fade-in">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-300 leading-relaxed">{scanError}</p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setScanError(''); setShowEgresoForm(true); }}
+                        className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 py-2 border border-dashed border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 transition-all"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        Manual
+                      </button>
+                      <button
+                        type="button"
+                        disabled={scanLoading}
+                        onClick={() => { setScanError(''); fileInputRef.current?.click(); }}
+                        className="flex items-center justify-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 py-2 border border-dashed border-sky-500/30 rounded-lg hover:bg-sky-500/5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {scanLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Camera className="w-3.5 h-3.5" />
+                        )}
+                        {scanLoading ? 'Analizando…' : 'Escanear recibo'}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 

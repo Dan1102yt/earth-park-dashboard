@@ -6,16 +6,18 @@ import {
   ChefHat,
   BedDouble,
   TrendingUp,
+  Bot,
 } from "lucide-react";
 
 const LOGO_URL = `${import.meta.env.BASE_URL}logo-earth-park.png`;
 
 const tabs = [
-  { path: "/nueva",      label: "Nueva",      icon: PlusCircle   },
-  { path: "/reservas",   label: "Reservas",   icon: CalendarDays },
-  { path: "/cocina",     label: "Cocina",     icon: ChefHat      },
-  { path: "/hospedaje",  label: "Hospedaje",  icon: BedDouble    },
-  { path: "/financiero", label: "Financiero", icon: TrendingUp   },
+  { path: "/nueva",       label: "Nueva",      icon: PlusCircle   },
+  { path: "/reservas",    label: "Reservas",   icon: CalendarDays },
+  { path: "/cocina",      label: "Cocina",     icon: ChefHat      },
+  { path: "/hospedaje",   label: "Hospedaje",  icon: BedDouble    },
+  { path: "/financiero",  label: "Financiero", icon: TrendingUp   },
+  { path: "/asistente",   label: "Asistente",  icon: Bot          },
 ];
 
 export default function NavBar() {
