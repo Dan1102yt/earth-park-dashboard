@@ -106,9 +106,9 @@ export default function AsistentePage() {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      setError("VITE_ANTHROPIC_API_KEY no está configurada en el archivo .env");
+    const workerUrl = import.meta.env.VITE_WORKER_URL;
+    if (!workerUrl) {
+      setError("VITE_WORKER_URL no está configurada. Despliega el Cloudflare Worker y agrega su URL al .env");
       return;
     }
 
@@ -120,12 +120,10 @@ export default function AsistentePage() {
     setError(null);
 
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch(workerUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
           model: MODEL,
