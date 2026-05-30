@@ -106,8 +106,8 @@ export default function NavBar() {
           </div>
         </Link>
         {reservasCount > 0 && (
-          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-            {reservasCount} reservas
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 flex-shrink-0">
+            {reservasCount}
           </span>
         )}
       </header>

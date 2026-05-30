@@ -176,12 +176,12 @@ const PIE_COLORS = ['#0ea5e9', '#f59e0b'];
 
 function PeriodoTabs({ periodo, onChange }) {
   return (
-    <div className="flex bg-gray-800/70 border border-gray-700/50 rounded-xl p-1 gap-0.5">
+    <div className="flex flex-wrap bg-gray-800/70 border border-gray-700/50 rounded-xl p-1 gap-0.5">
       {PERIOD_TABS.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onChange(tab.key)}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+          className={`px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-lg whitespace-nowrap transition-all duration-200
             ${periodo === tab.key
               ? 'bg-gray-900 text-white shadow-md'
               : 'bg-transparent text-gray-400 border border-transparent hover:text-gray-200 hover:bg-gray-700/40'
@@ -379,10 +379,11 @@ function GraficoIngresos({ reservas }) {
               height={data.length > 6 ? 60 : 30}
             />
             <YAxis
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              tick={{ fill: '#9ca3af', fontSize: 10 }}
               axisLine={{ stroke: '#4b5563' }}
               tickLine={{ stroke: '#4b5563' }}
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              width={32}
             />
             <Tooltip content={<CustomBarTooltip />} />
             <Legend
@@ -598,8 +599,8 @@ function GraficoEgresos({ egresos, filteredIds }) {
                 paddingAngle={4}
                 dataKey="value"
                 stroke="none"
-                label={({ name, pct }) => `${name}: ${pct.toFixed(1)}%`}
-                labelLine={{ stroke: '#6b7280' }}
+                label={({ pct }) => `${pct.toFixed(0)}%`}
+                labelLine={false}
                 onClick={(_, idx) => handlePieClick(data[idx])}
                 cursor="pointer"
               >
@@ -1045,11 +1046,9 @@ export default function FinancieroPage() {
         title="Financiero"
         subtitle={`Panel de control — ${periodoLabel}`}
         action={
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <PeriodoTabs periodo={periodo} onChange={setPeriodo} />
-            <div className="self-end">
-              <ExportButton />
-            </div>
+            <ExportButton />
           </div>
         }
       />
