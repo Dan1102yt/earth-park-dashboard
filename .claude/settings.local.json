@@ -5,7 +5,20 @@
       "PowerShell(npm run *)",
       "PowerShell($env:Path = \"C:\\\\Program Files\\\\Git\\\\cmd;C:\\\\Program Files\\\\GitHub CLI;\" + $env:Path; git status 2>&1 | Select-Object -First 10)",
       "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" run build 2>&1 | Select-Object -Last 30)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5177/earth-park-dashboard/)",
+      "PowerShell(Receive-Job *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(npx --yes playwright@latest install chromium --with-deps 2>&1 | Select-Object -Last 5)",
+      "PowerShell(npm install *)",
+      "PowerShell(npm list *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git push *)",
+      "Bash(npx vite *)",
+      "Skill(claude-api)",
+      "Bash(git commit *)"
     ]
   }
 }
