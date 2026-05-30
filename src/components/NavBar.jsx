@@ -6,16 +6,18 @@ import {
   ChefHat,
   BedDouble,
   TrendingUp,
+  Utensils,
 } from "lucide-react";
 
 const LOGO_URL = `${import.meta.env.BASE_URL}logo-earth-park.png`;
 
 const tabs = [
-  { path: "/nueva",      label: "Nueva",      icon: PlusCircle   },
-  { path: "/reservas",   label: "Reservas",   icon: CalendarDays },
-  { path: "/cocina",     label: "Cocina",     icon: ChefHat      },
-  { path: "/hospedaje",  label: "Hospedaje",  icon: BedDouble    },
-  { path: "/financiero", label: "Financiero", icon: TrendingUp   },
+  { path: "/nueva",        label: "Nueva",      icon: PlusCircle   },
+  { path: "/reservas",     label: "Reservas",   icon: CalendarDays },
+  { path: "/cocina",       label: "Cocina",     icon: ChefHat      },
+  { path: "/gastronomia",  label: "Menú",       icon: Utensils     },
+  { path: "/hospedaje",    label: "Hospedaje",  icon: BedDouble    },
+  { path: "/financiero",   label: "Financiero", icon: TrendingUp   },
 ];
 
 export default function NavBar() {
@@ -122,7 +124,7 @@ export default function NavBar() {
               <Link
                 key={tab.path}
                 to={tab.path}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl min-w-[56px] transition-all duration-200
+                className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-xl min-w-0 flex-1 transition-all duration-200
                   ${active
                     ? "text-emerald-400"
                     : "text-gray-500 hover:text-gray-300"
