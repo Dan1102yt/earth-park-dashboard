@@ -171,7 +171,7 @@
   }
 
   .table-dark thead th {
-    @apply px-4 py-3 font-medium bg-gray-800/60 first:rounded-tl-xl last:rounded-tr-xl;
+    @apply px-3 py-2.5 sm:px-4 sm:py-3 font-medium bg-gray-800/60 first:rounded-tl-xl last:rounded-tr-xl;
   }
 
   .table-dark tbody tr {
@@ -179,7 +179,7 @@
   }
 
   .table-dark tbody td {
-    @apply px-4 py-3;
+    @apply px-3 py-2.5 sm:px-4 sm:py-3;
   }
 
   /* Animated gradient background for special sections */

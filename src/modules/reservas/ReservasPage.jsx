@@ -277,7 +277,7 @@ export default function ReservasPage() {
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="table-dark">
+                <table className="table-dark min-w-[480px]">
                   <thead>
                     <tr>
                       <th>ID</th>
@@ -338,7 +338,7 @@ export default function ReservasPage() {
         {/* ── Detail Panel ───────────────────── */}
         <div className="xl:col-span-1">
           {selectedReserva ? (
-            <div className="glass-card p-6 sticky top-6 animate-slide-in-right space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="glass-card p-5 sm:p-6 lg:sticky lg:top-6 animate-slide-in-right space-y-5 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-display text-xl font-bold text-white">{selectedReserva.cliente}</h3>

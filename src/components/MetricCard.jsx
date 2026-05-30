@@ -10,21 +10,21 @@ export default function MetricCard({ label, value, sub, icon: Icon, colorVariant
 
   return (
     <div
-      className={`glass-card border-l-4 ${c.border} ${c.glow} p-5 animate-slide-up ${className}`}
+      className={`glass-card border-l-4 ${c.border} ${c.glow} p-4 sm:p-5 animate-slide-up ${className}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
+          <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
             {label}
           </p>
-          <p className="text-2xl font-bold text-white truncate">{value}</p>
+          <p className="text-xl sm:text-2xl font-bold text-white truncate">{value}</p>
           {sub && (
-            <p className="text-sm text-gray-400 mt-1 truncate">{sub}</p>
+            <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">{sub}</p>
           )}
         </div>
         {Icon && (
-          <div className={`${c.bg} p-3 rounded-xl ml-3 flex-shrink-0`}>
-            <Icon className={`w-5 h-5 ${c.text}`} />
+          <div className={`${c.bg} p-2.5 sm:p-3 rounded-xl ml-2 sm:ml-3 flex-shrink-0`}>
+            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${c.text}`} />
           </div>
         )}
       </div>
