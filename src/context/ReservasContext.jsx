@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect } from "react";
-import { SEED_RESERVAS, SEED_EGRESOS } from "../data/seedData";
+import { DATOS_HISTORICOS } from "../data/datosHistoricos";
 
 const STORAGE_KEY = "earthpark_v1";
 
@@ -71,19 +71,30 @@ export function ReservasProvider({ children }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        dispatch({ type: "LOAD_STATE", payload: JSON.parse(saved) });
-      } else {
-        // Load seed data if localStorage is empty
+        const savedState = JSON.parse(saved);
+
+        // Fusiona registros del CSV que aún no estén en localStorage.
+        // Esto garantiza que nuevas filas agregadas al CSV en futuras
+        // actualizaciones aparezcan automáticamente sin borrar datos manuales.
+        const reservaIds = new Set(savedState.reservas.map(r => r.reserva_id));
+        const egresoIds  = new Set(savedState.egresos.map(e => e.egreso_id));
+
+        const nuevasReservas = DATOS_HISTORICOS.reservas.filter(r => !reservaIds.has(r.reserva_id));
+        const nuevosEgresos  = DATOS_HISTORICOS.egresos.filter(e => !egresoIds.has(e.egreso_id));
+
         dispatch({
           type: "LOAD_STATE",
-          payload: { reservas: SEED_RESERVAS, egresos: SEED_EGRESOS },
+          payload: {
+            reservas: [...savedState.reservas, ...nuevasReservas],
+            egresos:  [...savedState.egresos,  ...nuevosEgresos],
+          },
         });
+      } else {
+        // Primera visita: carga directamente los CSVs históricos.
+        dispatch({ type: "LOAD_STATE", payload: DATOS_HISTORICOS });
       }
     } catch (_) {
-      dispatch({
-        type: "LOAD_STATE",
-        payload: { reservas: SEED_RESERVAS, egresos: SEED_EGRESOS },
-      });
+      dispatch({ type: "LOAD_STATE", payload: DATOS_HISTORICOS });
     }
   }, []);
 
