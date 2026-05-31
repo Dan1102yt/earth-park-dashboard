@@ -9,6 +9,24 @@ import {
   Bot,
 } from "lucide-react";
 
+function InstagramIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function TikTokIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.31 6.31 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.71a8.18 8.18 0 0 0 4.79 1.53V6.8a4.85 4.85 0 0 1-1.03-.11z" />
+    </svg>
+  );
+}
+
 const LOGO_URL = `${import.meta.env.BASE_URL}logo-earth-park.png`;
 
 const tabs = [
@@ -84,9 +102,31 @@ export default function NavBar() {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-800/50">
-          <p className="text-[10px] text-gray-600 text-center">
-            Macanal, Boyacá 🇨🇴
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-600">
+              Macanal, Boyacá 🇨🇴
+            </p>
+            <div className="flex items-center gap-1">
+              <a
+                href="https://www.instagram.com/earthpark.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="text-gray-600 hover:text-pink-400 transition-colors duration-200 p-1.5 rounded-lg hover:bg-pink-500/10"
+              >
+                <InstagramIcon className="w-4 h-4" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@earthpark.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TikTok"
+                className="text-gray-600 hover:text-gray-200 transition-colors duration-200 p-1.5 rounded-lg hover:bg-gray-700/50"
+              >
+                <TikTokIcon className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -104,14 +144,34 @@ export default function NavBar() {
           />
           <div>
             <h1 className="font-display text-sm font-bold text-white leading-tight">Earth Park</h1>
-            <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight">Parque Temático · Macanal</p>
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight">Parque Tem&aacute;tico &middot; Macanal</p>
           </div>
         </Link>
-        {reservasCount > 0 && (
-          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 flex-shrink-0">
-            {reservasCount}
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+          <a
+            href="https://www.instagram.com/earthpark.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+            className="text-gray-600 hover:text-pink-400 transition-colors duration-200 p-1.5 rounded-lg"
+          >
+            <InstagramIcon className="w-4 h-4" />
+          </a>
+          <a
+            href="https://www.tiktok.com/@earthpark.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="TikTok"
+            className="text-gray-600 hover:text-gray-300 transition-colors duration-200 p-1.5 rounded-lg"
+          >
+            <TikTokIcon className="w-4 h-4" />
+          </a>
+          {reservasCount > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+              {reservasCount}
+            </span>
+          )}
+        </div>
       </header>
 
       {/* ── Mobile Bottom Bar ───────────────────────────────────── */}
