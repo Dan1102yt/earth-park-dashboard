@@ -15,19 +15,6 @@ function getIngresosReserva(r) {
   return calcularIngresos(r).total;
 }
 
-function getEgresosForReserva(egresos, reservaId) {
-  if (!egresos || !Array.isArray(egresos)) return 0;
-  return egresos
-    .filter((e) => e.reserva_id === reservaId)
-    .reduce((sum, e) => sum + (e.valor_cop || 0), 0);
-}
-
-function getEgresosOperativos(egresos, reservaIds) {
-  if (!egresos || !Array.isArray(egresos)) return 0;
-  return egresos
-    .filter((e) => reservaIds.includes(e.reserva_id) && (e.tipo || 'operativo').toLowerCase() === 'operativo')
-    .reduce((sum, e) => sum + (e.valor_cop || 0), 0);
-}
 
 /* ─────────────────────────────────────────────
    Strategy generation
@@ -102,20 +89,20 @@ export default function ReporteEstrategias({ reservasFiltradas, egresosFiltrados
   const reporte = useMemo(() => {
     if (!reservas || reservas.length === 0) return null;
 
-    const reservaIds = reservas.map((r) => r.reserva_id);
-
     let ingresosTotal = 0;
-    let egresosTotal = 0;
     let totalPersonas = 0;
 
     reservas.forEach((r) => {
       ingresosTotal += getIngresosReserva(r);
-      egresosTotal += getEgresosForReserva(egresos, r.reserva_id);
       totalPersonas += r.total_personas || 0;
     });
 
+    // Use the full filtered egresos set passed as prop — same source as FinancieroPage.
+    const egresosTotal = (egresos || []).reduce((sum, e) => sum + (e.valor_cop || 0), 0);
     const margen = ingresosTotal > 0 ? (ingresosTotal - egresosTotal) / ingresosTotal : 0;
-    const egresosOp = getEgresosOperativos(egresos, reservaIds);
+    const egresosOp = (egresos || [])
+      .filter((e) => (e.tipo || 'operativo').toLowerCase() === 'operativo')
+      .reduce((sum, e) => sum + (e.valor_cop || 0), 0);
     const costoPerPersona = totalPersonas > 0 ? egresosOp / totalPersonas : 0;
 
     // Top client
