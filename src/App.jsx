@@ -8,6 +8,7 @@ import CocinaPage from "./modules/cocina/CocinaPage";
 import HospedajePage from "./modules/hospedaje/HospedajePage";
 import FinancieroPage from "./modules/financiero/FinancieroPage";
 import AsistentePage from "./modules/asistente/AsistentePage";
+import MarketingPage from "./modules/marketing/MarketingPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
                 <Route path="/hospedaje" element={<HospedajePage />} />
                 <Route path="/financiero" element={<FinancieroPage />} />
                 <Route path="/asistente" element={<AsistentePage />} />
+                <Route path="/marketing" element={<MarketingPage />} />
                 <Route path="*" element={<Navigate to="/reservas" replace />} />
               </Routes>
             </main>
