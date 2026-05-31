@@ -7,6 +7,7 @@ import {
   BedDouble,
   TrendingUp,
   Bot,
+  Megaphone,
 } from "lucide-react";
 
 function InstagramIcon({ className }) {
@@ -36,6 +37,7 @@ const tabs = [
   { path: "/hospedaje",   label: "Hospedaje",  icon: BedDouble    },
   { path: "/financiero",  label: "Financiero", icon: TrendingUp   },
   { path: "/asistente",   label: "Asistente",  icon: Bot          },
+  { path: "/marketing",   label: "Marketing",  icon: Megaphone    },
 ];
 
 export default function NavBar() {
