@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useReservas } from "../../context/ReservasContext";
 import { formatCOP } from "../../utils/formatCOP";
+import { calcularIngresos } from "../../utils/calcularInsumos";
 import { Bot, Send, User, Loader2, Sparkles, RotateCcw } from "lucide-react";
 
 const MODEL = "claude-sonnet-4-5";
@@ -9,10 +10,24 @@ function buildSistema(state) {
   const hoy = new Date().toISOString().split("T")[0];
   const { reservas, egresos } = state;
 
-  const ingresoTotal = reservas.reduce((s, r) => s + (Number(r.ingreso_total) || 0), 0);
-  const egresoTotal  = egresos.reduce((s, e) => s + (Number(e.monto) || 0), 0);
-  const utilidad     = ingresoTotal - egresoTotal;
-  const margenPct    = ingresoTotal > 0 ? ((utilidad / ingresoTotal) * 100).toFixed(1) : "0.0";
+  const ingresoTotal = reservas.reduce((s, r) => {
+    if (r.es_historico) return s + (Number(r.ingreso_total) || 0);
+    return s + calcularIngresos(r).total;
+  }, 0);
+  const egresoTotal = egresos.reduce((s, e) => s + (Number(e.valor_cop) || 0), 0);
+  const utilidad    = ingresoTotal - egresoTotal;
+  const margenPct   = ingresoTotal > 0 ? ((utilidad / ingresoTotal) * 100).toFixed(1) : "0.0";
+
+  // Breakdown de egresos por categoría
+  const porCategoria = {};
+  egresos.forEach(e => {
+    const cat = e.categoria || "otros";
+    porCategoria[cat] = (porCategoria[cat] || 0) + (Number(e.valor_cop) || 0);
+  });
+  const resumenCategorias = Object.entries(porCategoria)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, total]) => `  ${cat}: ${formatCOP(total)}`)
+    .join("\n");
 
   const hoyLlegadas = reservas.filter(r => r.fecha_inicio === hoy);
   const hoySalidas  = reservas.filter(r => r.fecha_fin === hoy);
@@ -21,17 +36,20 @@ function buildSistema(state) {
     .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
     .slice(0, 15);
 
-  const fmtR = (r) =>
-    `[${r.fecha_inicio || "?"}] ${r.nombre_grupo || r.contacto || r.reserva_id} · ` +
-    `${r.total_personas || "?"}p · Plan ${r.plan || "?"} · ` +
-    `Ingreso: ${formatCOP(r.ingreso_total)}` +
-    (r.fecha_fin ? ` · hasta ${r.fecha_fin}` : "") +
-    (r.es_historico ? " · [histórico]" : "");
+  const fmtR = (r) => {
+    const ing = r.es_historico ? (r.ingreso_total || 0) : calcularIngresos(r).total;
+    return `[${r.fecha_inicio || "?"}] ${r.nombre_grupo || r.contacto || r.cliente || r.reserva_id} · ` +
+      `${r.total_personas || "?"}p · Plan ${r.plan || "?"} · ` +
+      `Ingreso: ${formatCOP(ing)}` +
+      (r.fecha_fin ? ` · hasta ${r.fecha_fin}` : "") +
+      (r.es_historico ? " · [histórico]" : "");
+  };
 
   const resumenReservas = reservas.slice(0, 100).map(fmtR).join("\n");
-  const resumenEgresos = egresos.slice(0, 50).map(e =>
-    `[${e.fecha || "?"}] ${e.descripcion || "Sin descripción"} · ${formatCOP(e.monto)}` +
-    (e.reserva_id ? ` · Reserva: ${e.reserva_id}` : "")
+  const resumenEgresos  = egresos.slice(0, 100).map(e =>
+    `[${e.fecha || "?"}] ${e.proveedor || "?"} · ${e.item || "Sin descripción"} · ${formatCOP(e.valor_cop)}` +
+    (e.reserva_id && e.reserva_id !== "SIN_ASIGNAR" ? ` · Reserva: ${e.reserva_id}` : "") +
+    (e.categoria ? ` · [${e.categoria}]` : "")
   ).join("\n");
 
   return `Eres el asesor financiero experto y consultor de negocios de Earth Park, parque temático de ecoturismo en Macanal, Boyacá, Colombia. Tu rol es dar análisis financieros rigurosos, recomendaciones de inversión y gestión operativa con enfoque en rentabilidad y sostenibilidad.
@@ -48,9 +66,12 @@ Precios: Experiencias $212.000/p · Alimentación $90.000/p · Alojamiento $90.0
 - Utilidad neta acumulada: ${formatCOP(utilidad)}
 - Margen de utilidad: ${margenPct}% (benchmark mínimo objetivo: 85%)
 
+## Egresos por categoría
+${resumenCategorias || "Sin datos"}
+
 ## Actividad de hoy (${hoy})
-Llegadas: ${hoyLlegadas.length > 0 ? hoyLlegadas.map(r => `${r.nombre_grupo || r.contacto || r.reserva_id} (${r.total_personas}p, plan ${r.plan})`).join("; ") : "Ninguna"}
-Salidas: ${hoySalidas.length > 0 ? hoySalidas.map(r => `${r.nombre_grupo || r.contacto || r.reserva_id} (${r.total_personas}p)`).join("; ") : "Ninguna"}
+Llegadas: ${hoyLlegadas.length > 0 ? hoyLlegadas.map(r => `${r.nombre_grupo || r.contacto || r.cliente || r.reserva_id} (${r.total_personas}p, plan ${r.plan})`).join("; ") : "Ninguna"}
+Salidas: ${hoySalidas.length > 0 ? hoySalidas.map(r => `${r.nombre_grupo || r.contacto || r.cliente || r.reserva_id} (${r.total_personas}p)`).join("; ") : "Ninguna"}
 
 ## Próximas ${proximas.length} reservas
 ${proximas.length > 0 ? proximas.map(fmtR).join("\n") : "Sin reservas futuras registradas"}
@@ -58,7 +79,7 @@ ${proximas.length > 0 ? proximas.map(fmtR).join("\n") : "Sin reservas futuras re
 ## Historial completo de reservas (hasta 100)
 ${resumenReservas || "Sin datos"}
 
-## Egresos registrados (hasta 50)
+## Egresos registrados (hasta 100)
 ${resumenEgresos || "Sin egresos registrados"}
 
 ## Instrucciones de comportamiento
@@ -79,6 +100,75 @@ const SUGERENCIAS = [
   "Analiza la viabilidad financiera del negocio",
   "¿Cuánto se generó en ingresos este año?",
 ];
+
+/* ─────────────────────────────────────────────
+   Markdown renderer (inline + block)
+   ───────────────────────────────────────────── */
+
+function inlineToJsx(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4)
+      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i} className="italic text-gray-300">{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2)
+      return <code key={i} className="bg-gray-700/60 px-1 py-0.5 rounded text-[11px] font-mono text-emerald-300">{part.slice(1, -1)}</code>;
+    return part || null;
+  });
+}
+
+function MdContent({ text }) {
+  const lines = text.split("\n");
+  const result = [];
+  const listBuf = [];
+
+  const flushList = () => {
+    if (!listBuf.length) return;
+    result.push(
+      <ul key={`ul-${result.length}`} className="my-1 space-y-0.5 list-none">
+        {listBuf.splice(0)}
+      </ul>
+    );
+  };
+
+  lines.forEach((line, i) => {
+    if (/^###\s/.test(line)) {
+      flushList();
+      result.push(<p key={i} className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider mt-3 mb-0.5">{inlineToJsx(line.slice(4))}</p>);
+    } else if (/^##\s/.test(line)) {
+      flushList();
+      result.push(<p key={i} className="text-sm font-bold text-emerald-200 mt-3 mb-1">{inlineToJsx(line.slice(3))}</p>);
+    } else if (/^#\s/.test(line)) {
+      flushList();
+      result.push(<p key={i} className="text-sm font-bold text-white mt-3 mb-1">{inlineToJsx(line.slice(2))}</p>);
+    } else if (/^[-*]\s/.test(line)) {
+      listBuf.push(
+        <li key={i} className="flex gap-2 text-sm text-gray-200 leading-relaxed">
+          <span className="text-emerald-400 flex-shrink-0 select-none mt-px">•</span>
+          <span>{inlineToJsx(line.slice(2))}</span>
+        </li>
+      );
+    } else if (/^\d+\.\s/.test(line)) {
+      const num = line.match(/^(\d+)\./)[1];
+      listBuf.push(
+        <li key={i} className="flex gap-2 text-sm text-gray-200 leading-relaxed">
+          <span className="text-emerald-400 flex-shrink-0 font-mono text-xs w-4 text-right select-none mt-px">{num}.</span>
+          <span>{inlineToJsx(line.replace(/^\d+\.\s/, ""))}</span>
+        </li>
+      );
+    } else if (!line.trim()) {
+      flushList();
+      result.push(<div key={i} className="h-1.5" />);
+    } else {
+      flushList();
+      result.push(<p key={i} className="text-sm text-gray-200 leading-relaxed">{inlineToJsx(line)}</p>);
+    }
+  });
+
+  flushList();
+  return <div className="space-y-0.5 min-w-0">{result}</div>;
+}
 
 export default function AsistentePage() {
   const { state } = useReservas();
@@ -294,7 +384,10 @@ export default function AsistentePage() {
             >
               {msg.content ? (
                 <>
-                  <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                  {msg.role === "assistant"
+                    ? <MdContent text={msg.content} />
+                    : <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                  }
                   {msg.streaming && (
                     <span className="inline-block w-0.5 h-4 bg-emerald-400 animate-pulse ml-0.5 align-middle" />
                   )}
