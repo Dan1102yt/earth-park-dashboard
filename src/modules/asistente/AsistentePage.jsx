@@ -10,6 +10,7 @@ const USUARIO  = "earth-park-owner";
 const TABLE    = "chat_historial";
 
 async function cargarHistorial() {
+  if (!supabase) return [];
   try {
     const { data, error } = await supabase
       .from(TABLE)
@@ -25,6 +26,7 @@ async function cargarHistorial() {
 }
 
 async function persistirHistorial(mensajes) {
+  if (!supabase) return;
   try {
     await supabase
       .from(TABLE)
