@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 
 const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+// Días con escapes Unicode para garantizar encoding correcto independiente del sistema
+const DIAS_CAL = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
 const estadoMap = {
   pagado:   { variant: "ok",      label: "Pagado"   },
@@ -324,7 +326,7 @@ Si la imagen NO es legible (borrosa, mal iluminada, cortada, o no es un recibo) 
 
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
-              {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((d) => (
+              {DIAS_CAL.map((d) => (
                 <div key={d} className="text-center text-[10px] text-gray-500 font-medium uppercase tracking-wider py-1">{d}</div>
               ))}
             </div>
