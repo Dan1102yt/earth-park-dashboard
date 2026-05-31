@@ -2,9 +2,40 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useReservas } from "../../context/ReservasContext";
 import { formatCOP } from "../../utils/formatCOP";
 import { calcularIngresos } from "../../utils/calcularInsumos";
+import { supabase } from "../../lib/supabaseClient";
 import { Bot, Send, User, Loader2, Sparkles, RotateCcw } from "lucide-react";
 
-const MODEL = "claude-sonnet-4-5";
+const MODEL    = "claude-sonnet-4-5";
+const USUARIO  = "earth-park-owner";
+const TABLE    = "chat_historial";
+
+async function cargarHistorial() {
+  try {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select("mensajes")
+      .eq("usuario", USUARIO)
+      .maybeSingle();
+    if (error) throw error;
+    return Array.isArray(data?.mensajes) ? data.mensajes : [];
+  } catch (e) {
+    console.warn("[chat] cargarHistorial:", e.message);
+    return [];
+  }
+}
+
+async function persistirHistorial(mensajes) {
+  try {
+    await supabase
+      .from(TABLE)
+      .upsert(
+        { usuario: USUARIO, mensajes, actualizado_at: new Date().toISOString() },
+        { onConflict: "usuario" },
+      );
+  } catch (e) {
+    console.warn("[chat] persistirHistorial:", e.message);
+  }
+}
 
 function buildSistema(state) {
   const hoy = new Date().toISOString().split("T")[0];
@@ -192,6 +223,13 @@ export default function AsistentePage() {
     el.style.height = Math.min(el.scrollHeight, 128) + "px";
   }, [input]);
 
+  // Cargar historial desde Supabase al montar
+  useEffect(() => {
+    cargarHistorial().then(msgs => {
+      if (msgs.length > 0) setMessages(msgs);
+    });
+  }, []);
+
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
@@ -258,11 +296,9 @@ export default function AsistentePage() {
         }
       }
 
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: accumulated };
-        return updated;
-      });
+      const finalMessages = [...history, { role: "assistant", content: accumulated }];
+      setMessages(finalMessages);
+      persistirHistorial(finalMessages.map(({ role, content }) => ({ role, content })));
     } catch (err) {
       setMessages(prev => prev.slice(0, -1));
       setError(err.message || "Error al conectar con el asistente");
@@ -303,7 +339,7 @@ export default function AsistentePage() {
 
         {messages.length > 0 && (
           <button
-            onClick={() => { setMessages([]); setError(null); }}
+            onClick={() => { setMessages([]); setError(null); persistirHistorial([]); }}
             className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 px-2.5 py-1.5 rounded-lg hover:bg-gray-800/50 transition-all"
           >
             <RotateCcw className="w-3 h-3" />
