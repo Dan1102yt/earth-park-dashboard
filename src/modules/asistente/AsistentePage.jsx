@@ -3,7 +3,7 @@ import { useReservas } from "../../context/ReservasContext";
 import { formatCOP } from "../../utils/formatCOP";
 import { Bot, Send, User, Loader2, Sparkles, RotateCcw } from "lucide-react";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-5";
 
 function buildSistema(state) {
   const hoy = new Date().toISOString().split("T")[0];
