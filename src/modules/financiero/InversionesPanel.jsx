@@ -38,9 +38,6 @@ const INVERSIONES = [
   { id: "INV-020", descripcion: "Materiales varios EP", valor: 1000000, fecha: "2026-05-15", categoria: "Infraestructura" },
 ];
 
-const TOTAL_HARDCODED = 46035035;
-const COUNT_HARDCODED = 39;
-const PERIODO_LABEL = "Oct 2025 – May 2026";
 const BAR_COLOR = "#1B4332";
 
 const CATEGORIA_COLORS = {
@@ -84,8 +81,25 @@ export default function InversionesPanel() {
   // Combine hardcoded + extra
   const inversiones = useMemo(
     () => [...INVERSIONES, ...extraInversiones],
-    [extraInversiones]
+    [extraInversiones],
   );
+
+  const totalInvertido = useMemo(
+    () => inversiones.reduce((sum, i) => sum + i.valor, 0),
+    [inversiones],
+  );
+
+  const { periodoLabel, periodoMeses } = useMemo(() => {
+    const dates = inversiones.map((i) => i.fecha).filter(Boolean).sort();
+    if (!dates.length) return { periodoLabel: '—', periodoMeses: 0 };
+    const d1 = new Date(dates[0] + 'T12:00:00');
+    const d2 = new Date(dates[dates.length - 1] + 'T12:00:00');
+    const fmt = (d) => `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    const l1 = fmt(d1);
+    const l2 = fmt(d2);
+    const meses = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()) + 1;
+    return { periodoLabel: l1 === l2 ? l1 : `${l1} – ${l2}`, periodoMeses: meses };
+  }, [inversiones]);
 
   // ROI dinámico desde el contexto
   const roi = useMemo(() => {
@@ -93,9 +107,9 @@ export default function InversionesPanel() {
       if (r.es_historico) return sum + (r.ingreso_total || 0);
       return sum + calcularIngresos(r).total;
     }, 0);
-    if (TOTAL_HARDCODED <= 0) return 0;
-    return ((ingresos - TOTAL_HARDCODED) / TOTAL_HARDCODED) * 100;
-  }, [state.reservas]);
+    if (totalInvertido <= 0) return 0;
+    return ((ingresos - totalInvertido) / totalInvertido) * 100;
+  }, [state.reservas, totalInvertido]);
 
   // Categorías únicas para filtro
   const categorias = useMemo(() => {
@@ -155,7 +169,7 @@ export default function InversionesPanel() {
             <Wallet className="w-4 h-4 text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-gray-100 tabular-nums">
-            {formatCOP(TOTAL_HARDCODED)}
+            {formatCOP(totalInvertido)}
           </p>
           <p className="text-xs text-gray-500 mt-1">capital total</p>
         </div>
@@ -165,7 +179,7 @@ export default function InversionesPanel() {
             <span className="text-xs text-gray-400 uppercase tracking-wider">Inversiones</span>
             <TrendingUp className="w-4 h-4 text-sky-400" />
           </div>
-          <p className="text-2xl font-bold text-gray-100 tabular-nums">{COUNT_HARDCODED}</p>
+          <p className="text-2xl font-bold text-gray-100 tabular-nums">{inversiones.length}</p>
           <p className="text-xs text-gray-500 mt-1">operaciones</p>
         </div>
 
@@ -174,8 +188,8 @@ export default function InversionesPanel() {
             <span className="text-xs text-gray-400 uppercase tracking-wider">Período</span>
             <Calendar className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-lg font-bold text-gray-100">{PERIODO_LABEL}</p>
-          <p className="text-xs text-gray-500 mt-1">8 meses</p>
+          <p className="text-lg font-bold text-gray-100">{periodoLabel}</p>
+          <p className="text-xs text-gray-500 mt-1">{periodoMeses} {periodoMeses === 1 ? 'mes' : 'meses'}</p>
         </div>
 
         <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-5">

@@ -133,28 +133,30 @@ function filterReservasByPeriod(reservas, periodo) {
   });
 }
 
+function egresoEnPeriodo(e, periodo) {
+  if (periodo === 'todo') return true;
+  const now = new Date();
+  const fechaStr = e.fecha || '';
+  if (!fechaStr) return false;
+  const d = new Date(fechaStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return false;
+  if (periodo === 'semana') {
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return d >= weekAgo && d <= now;
+  }
+  if (periodo === 'mes') {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+  if (periodo === 'año') {
+    return d.getFullYear() === now.getFullYear();
+  }
+  return true;
+}
+
 function filterEgresosByPeriod(egresos, periodo) {
   if (!egresos || !Array.isArray(egresos)) return [];
-  if (periodo === 'todo') return egresos;
-  const now = new Date();
-  return egresos.filter((e) => {
-    const fechaStr = e.fecha || '';
-    if (!fechaStr) return periodo === 'todo';
-    const d = new Date(fechaStr + 'T12:00:00');
-    if (isNaN(d.getTime())) return false;
-    if (periodo === 'semana') {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return d >= weekAgo && d <= now;
-    }
-    if (periodo === 'mes') {
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }
-    if (periodo === 'año') {
-      return d.getFullYear() === now.getFullYear();
-    }
-    return true;
-  });
+  return egresos.filter((e) => egresoEnPeriodo(e, periodo));
 }
 
 /* ─────────────────────────────────────────────
@@ -986,8 +988,17 @@ export default function FinancieroPage() {
   /* ── SINGLE useMemo: all filtered data ── */
   const datosFiltrados = useMemo(() => {
     const filteredReservas = filterReservasByPeriod(reservas, periodo);
-    const filteredEgresos = filterEgresosByPeriod(egresos, periodo);
     const filteredIds = filteredReservas.map((r) => r.reserva_id);
+    const filteredIdSet = new Set(filteredIds);
+
+    // Egresos linked to a reserva in the period travel with that reserva.
+    // Unlinked egresos (SIN_ASIGNAR) are filtered by their own date.
+    const filteredEgresos = (egresos || []).filter((e) => {
+      if (periodo === 'todo') return true;
+      const rid = e.reserva_id;
+      if (rid && rid !== 'SIN_ASIGNAR') return filteredIdSet.has(rid);
+      return egresoEnPeriodo(e, periodo);
+    });
 
     // Aggregate totals
     let ingBrutos = 0;
