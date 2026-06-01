@@ -18,7 +18,8 @@
       "Bash(git push *)",
       "Bash(npx vite *)",
       "Skill(claude-api)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npm install *)"
     ]
   }
 }
