@@ -28,6 +28,7 @@ import { CONFIG } from '../../data/config';
 import { COSTOS_PRODUCTOS } from '../../data/costosConfig';
 import ReporteEstrategias from './ReporteEstrategias';
 import InversionesPanel from './InversionesPanel';
+import FinancialAlerts from '../../components/FinancialAlerts';
 
 /* ─────────────────────────────────────────────
    Helpers
@@ -107,6 +108,14 @@ const PERIOD_TABS = [
   { key: 'mes', label: 'Este mes' },
   { key: 'año', label: 'Este año' },
   { key: 'todo', label: 'Todo' },
+];
+
+const PERIODO_REPORTE_TABS = [
+  { key: 'todo',     label: 'Todo' },
+  { key: 'mes',      label: 'Por mes' },
+  { key: '3meses',   label: 'Últimos 3 meses' },
+  { key: 'semestre', label: 'Semestre' },
+  { key: 'año',      label: 'Año completo' },
 ];
 
 function filterReservasByPeriod(reservas, periodo) {
@@ -248,11 +257,6 @@ function DetalleReservas({ reservas, egresos }) {
 
   return (
     <section className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-        <FileBarChart className="w-4 h-4" />
-        Detalle por reserva
-      </h3>
-
       <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -903,11 +907,6 @@ function RentabilidadProductos({ reservas }) {
 
   return (
     <section className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-        <ShoppingBag className="w-4 h-4" />
-        Rentabilidad por producto
-      </h3>
-
       <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -984,6 +983,11 @@ export default function FinancieroPage() {
   const { reservas, egresos } = state;
 
   const [periodo, setPeriodo] = useState('mes');
+  const [periodoReporte, setPeriodoReporte] = useState('todo');
+  const [mesReporte, setMesReporte] = useState('');
+  const [openRentabilidad, setOpenRentabilidad] = useState(true);
+  const [openDetalleReservas, setOpenDetalleReservas] = useState(true);
+  const [openDetalleInversiones, setOpenDetalleInversiones] = useState(true);
 
   /* ── SINGLE useMemo: all filtered data ── */
   const datosFiltrados = useMemo(() => {
@@ -1033,6 +1037,67 @@ export default function FinancieroPage() {
       hayDatos: filteredReservas.length > 0 || filteredEgresos.length > 0,
     };
   }, [periodo, reservas, egresos]);
+
+  const mesesDisponibles = useMemo(() => {
+    const keys = new Set();
+    datosFiltrados.reservas.forEach(r => {
+      const key = (r.fecha_inicio || r.fecha || '').substring(0, 7);
+      if (key.length >= 7) keys.add(key);
+    });
+    return Array.from(keys).sort();
+  }, [datosFiltrados.reservas]);
+
+  const reservasParaReporte = useMemo(() => {
+    const base = datosFiltrados.reservas;
+    if (periodoReporte === 'todo') return base;
+    if (periodoReporte === 'mes') {
+      if (!mesReporte) return base;
+      return base.filter(r => (r.fecha_inicio || r.fecha || '').startsWith(mesReporte));
+    }
+    const now = new Date();
+    const mesesAtras = periodoReporte === '3meses' ? 3 : periodoReporte === 'semestre' ? 6 : null;
+    if (mesesAtras !== null) {
+      const cutoff = new Date(now);
+      cutoff.setMonth(cutoff.getMonth() - mesesAtras);
+      return base.filter(r => {
+        const f = r.fecha_inicio || r.fecha || '';
+        return f && new Date(f + 'T12:00:00') >= cutoff;
+      });
+    }
+    if (periodoReporte === 'año') {
+      return base.filter(r => {
+        const f = r.fecha_inicio || r.fecha || '';
+        return f && new Date(f + 'T12:00:00').getFullYear() === now.getFullYear();
+      });
+    }
+    return base;
+  }, [datosFiltrados.reservas, periodoReporte, mesReporte]);
+
+  const egresosParaReporte = useMemo(() => {
+    const base = datosFiltrados.egresos;
+    if (periodoReporte === 'todo') return base;
+    if (periodoReporte === 'mes') {
+      if (!mesReporte) return base;
+      return base.filter(e => (e.fecha || '').startsWith(mesReporte));
+    }
+    const now = new Date();
+    const mesesAtras = periodoReporte === '3meses' ? 3 : periodoReporte === 'semestre' ? 6 : null;
+    if (mesesAtras !== null) {
+      const cutoff = new Date(now);
+      cutoff.setMonth(cutoff.getMonth() - mesesAtras);
+      return base.filter(e => {
+        const f = e.fecha || '';
+        return f && new Date(f + 'T12:00:00') >= cutoff;
+      });
+    }
+    if (periodoReporte === 'año') {
+      return base.filter(e => {
+        const f = e.fecha || '';
+        return f && new Date(f + 'T12:00:00').getFullYear() === now.getFullYear();
+      });
+    }
+    return base;
+  }, [datosFiltrados.egresos, periodoReporte, mesReporte]);
 
   /* ── Empty state (no reservas at all) ── */
   if (!reservas || reservas.length === 0) {
@@ -1107,27 +1172,99 @@ export default function FinancieroPage() {
             </div>
           </section>
 
-          {/* Charts grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <GraficoIngresos reservas={datosFiltrados.reservas} />
-            <GraficoEgresos egresos={datosFiltrados.egresos} filteredIds={null} />
-          </div>
+          {/* 1. Alertas financieras */}
+          <FinancialAlerts />
 
-          {/* Benchmark */}
+          {/* 2. Benchmark */}
           <BenchmarkCard actualPct={datosFiltrados.actualOpPct} egresosOperativosPct={datosFiltrados.egresosOperativosPct} />
 
-          {/* Rentabilidad por producto */}
-          <RentabilidadProductos reservas={datosFiltrados.reservas} />
+          {/* 3. Reporte de estrategias con filtro de período */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {PERIODO_REPORTE_TABS.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setPeriodoReporte(tab.key); if (tab.key !== 'mes') setMesReporte(''); }}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    periodoReporte === tab.key
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              {periodoReporte === 'mes' && (
+                <select
+                  value={mesReporte}
+                  onChange={e => setMesReporte(e.target.value)}
+                  className="bg-gray-800/60 border border-gray-700/60 text-gray-200 text-sm rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                >
+                  <option value="">Selecciona un mes</option>
+                  {mesesDisponibles.map(key => (
+                    <option key={key} value={key}>{getMonthLabel(key)}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <ReporteEstrategias
+              reservasFiltradas={reservasParaReporte}
+              egresosFiltrados={egresosParaReporte}
+            />
+          </div>
 
-          {/* Reporte de estrategias — receives filtered data */}
-          <ReporteEstrategias
-            reservasFiltradas={datosFiltrados.reservas}
-            egresosFiltrados={datosFiltrados.egresos}
-          />
-
-          {/* Detail table */}
-          <DetalleReservas reservas={datosFiltrados.reservas} egresos={datosFiltrados.egresos} />
+          {/* 4. Inversiones Earth Park */}
           <InversionesPanel />
+
+          {/* 5. Rentabilidad por producto — colapsable */}
+          <section className="animate-slide-up">
+            <button
+              onClick={() => setOpenRentabilidad(o => !o)}
+              className="w-full flex items-center justify-between cursor-pointer mb-4"
+            >
+              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4" />
+                Rentabilidad por producto
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${!openRentabilidad ? 'rotate-180' : ''}`} />
+            </button>
+            {openRentabilidad && <RentabilidadProductos reservas={datosFiltrados.reservas} />}
+          </section>
+
+          {/* 6. Detalle por reserva — colapsable */}
+          <section className="animate-slide-up">
+            <button
+              onClick={() => setOpenDetalleReservas(o => !o)}
+              className="w-full flex items-center justify-between cursor-pointer mb-4"
+            >
+              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <FileBarChart className="w-4 h-4" />
+                Detalle por reserva
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${!openDetalleReservas ? 'rotate-180' : ''}`} />
+            </button>
+            {openDetalleReservas && <DetalleReservas reservas={datosFiltrados.reservas} egresos={datosFiltrados.egresos} />}
+          </section>
+
+          {/* 7. Detalle de inversiones — colapsable (gráficos) */}
+          <section className="animate-slide-up">
+            <button
+              onClick={() => setOpenDetalleInversiones(o => !o)}
+              className="w-full flex items-center justify-between cursor-pointer mb-4"
+            >
+              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Detalle de inversiones
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${!openDetalleInversiones ? 'rotate-180' : ''}`} />
+            </button>
+            {openDetalleInversiones && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <GraficoIngresos reservas={datosFiltrados.reservas} />
+                <GraficoEgresos egresos={datosFiltrados.egresos} filteredIds={null} />
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>
