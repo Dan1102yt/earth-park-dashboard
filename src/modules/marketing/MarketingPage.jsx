@@ -113,57 +113,36 @@ function extraerJSON(texto) {
   return null;
 }
 
-async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) {
-  let accumulated = "";
-  try {
-    const resp = await fetch(workerUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        stream: true,
-        system: SISTEMA,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+async function llamarClaude(workerUrl, userPrompt) {
+  const response = await fetch(workerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 4096,
+      system: SISTEMA,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Error HTTP ${resp.status}`);
-    }
-
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") break;
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta") {
-            accumulated += parsed.delta.text;
-            onProgress(accumulated);
-          }
-        } catch (_) {}
-      }
-    }
-
-    console.log("RESPUESTA CRUDA:", accumulated.substring(0, 500));
-    onDone(accumulated);
-  } catch (err) {
-    console.error("llamarClaude error:", err);
-    console.log("RESPUESTA CRUDA:", accumulated.substring(0, 500));
-    onError(err.message || "Error al conectar con la API");
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Worker error ${response.status}: ${errText}`);
   }
+
+  const data = await response.json();
+
+  const texto = data?.content?.[0]?.text || "";
+  if (!texto) throw new Error("Respuesta vacía del modelo");
+
+  const parsed = extraerJSON(texto);
+  if (!parsed) {
+    throw new Error(
+      "No se pudo interpretar la respuesta. Primeros 300 chars: " +
+      texto.substring(0, 300)
+    );
+  }
+  return parsed;
 }
 
 /* ─── Componente CopiarBtn ─────────────────────────────────── */
@@ -419,7 +398,6 @@ export default function MarketingPage() {
   const [generacionId, setGeneracionId] = useState(0);
   const [loadingSemana, setLoadingSemana] = useState(false);
   const [errorSemana, setErrorSemana] = useState(null);
-  const [progresoSemana, setProgresoSemana] = useState(0);
 
   const [inputPost, setInputPost] = useState("");
   const [postGenerado, setPostGenerado] = useState(null);
@@ -436,7 +414,6 @@ export default function MarketingPage() {
     setLoadingSemana(true);
     setErrorSemana(null);
     setSemana([]);
-    setProgresoSemana(0);
 
     const prompt = `Genera el calendario de contenido completo para esta semana de Earth Park en Instagram y TikTok (@earthpark.co).
 
@@ -452,31 +429,19 @@ Para cada post incluye:
 Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de código markdown:
 [{"dia":"Lunes","pilar":"...","copy":"...","hashtags":["#..."],"instrucciones_foto":"...","instrucciones_canva":"..."},...]`;
 
-    let chars = 0;
-    await llamarClaude(
-      workerUrl,
-      prompt,
-      (acc) => {
-        chars = acc.length;
-        setProgresoSemana(Math.min(Math.round((chars / 3500) * 100), 95));
-      },
-      (final) => {
-        setProgresoSemana(100);
-        const parsed = extraerJSON(final);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSemana(parsed);
-          setGeneracionId(id => id + 1);
-        } else {
-          const rawPreview = typeof parsed === "string" ? ` — Respuesta recibida: "${parsed.slice(0, 250)}"` : "";
-          setErrorSemana(`No se pudo interpretar la respuesta. Intenta de nuevo.${rawPreview}`);
-        }
-        setLoadingSemana(false);
-      },
-      (errMsg) => {
-        setErrorSemana(errMsg);
-        setLoadingSemana(false);
+    try {
+      const parsed = await llamarClaude(workerUrl, prompt);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setSemana(parsed);
+        setGeneracionId(id => id + 1);
+      } else {
+        setErrorSemana("No se pudo interpretar la respuesta. Intenta de nuevo.");
       }
-    );
+    } catch (err) {
+      setErrorSemana(err.message);
+    } finally {
+      setLoadingSemana(false);
+    }
   }, [workerUrl]);
 
   const generarPost = useCallback(async () => {
@@ -492,25 +457,19 @@ El usuario describe lo que quiere: "${inputPost.trim()}"
 Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
 {"copy":"...","hashtags":["#..."],"instrucciones_foto":"...","instrucciones_canva":"..."}`;
 
-    await llamarClaude(
-      workerUrl,
-      prompt,
-      () => {},
-      (final) => {
-        const parsed = extraerJSON(final);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.copy) {
-          setPostGenerado(parsed);
-        } else {
-          const rawPreview = typeof parsed === "string" ? ` — Respuesta recibida: "${parsed.slice(0, 250)}"` : "";
-          setErrorPost(`No se pudo interpretar la respuesta. Intenta de nuevo.${rawPreview}`);
-        }
-        setLoadingPost(false);
-      },
-      (errMsg) => {
-        setErrorPost(errMsg);
-        setLoadingPost(false);
+    try {
+      const parsed = await llamarClaude(workerUrl, prompt);
+      const post = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (post && post.copy) {
+        setPostGenerado(post);
+      } else {
+        setErrorPost("No se pudo interpretar la respuesta. Intenta de nuevo.");
       }
-    );
+    } catch (err) {
+      setErrorPost(err.message);
+    } finally {
+      setLoadingPost(false);
+    }
   }, [inputPost, workerUrl]);
 
   return (
@@ -558,7 +517,7 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
               {loadingSemana ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generando… {progresoSemana < 100 ? `${progresoSemana}%` : ""}
+                  Generando contenido... ⏳
                 </>
               ) : (
                 <>
@@ -584,18 +543,10 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
             </div>
           )}
 
-          {/* Barra de progreso */}
+          {/* Skeleton cards mientras carga */}
           {loadingSemana && (
-            <div className="space-y-2">
-              <div className="w-full h-1.5 rounded-full bg-gray-800/60 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${progresoSemana}%`, background: "linear-gradient(90deg, #2D6A4F, #81C784)" }}
-                />
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                {DIAS_SEMANA.map((_, i) => <SkeletonCard key={i} />)}
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {DIAS_SEMANA.map((_, i) => <SkeletonCard key={i} />)}
             </div>
           )}
 
