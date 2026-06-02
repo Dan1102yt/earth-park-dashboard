@@ -114,6 +114,7 @@ function extraerJSON(texto) {
 }
 
 async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) {
+  let accumulated = "";
   try {
     const resp = await fetch(workerUrl, {
       method: "POST",
@@ -135,7 +136,6 @@ async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) 
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let accumulated = "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -157,9 +157,11 @@ async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) 
       }
     }
 
+    console.log("RESPUESTA CRUDA:", accumulated.substring(0, 500));
     onDone(accumulated);
   } catch (err) {
     console.error("llamarClaude error:", err);
+    console.log("RESPUESTA CRUDA:", accumulated.substring(0, 500));
     onError(err.message || "Error al conectar con la API");
   }
 }
