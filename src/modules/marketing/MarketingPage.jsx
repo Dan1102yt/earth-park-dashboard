@@ -24,83 +24,96 @@ de Instagram de 0 a 10.000 seguidores en 3 meses usando contenido viral.
 CONTEXTO DEL NEGOCIO:
 - Ubicación: Boyacá, Colombia — naturaleza, silencio, desconexión
 - Servicios: hospedaje glamping, gastronomía local, artesanías, cauchos moldeados
-- Precio promedio por noche: consultar datos del dashboard
 - Audiencia objetivo: familias, parejas, millennials urbanos que buscan escapar
 - Diferenciador: experiencia completa de naturaleza con comodidad
 
 PILARES DE CONTENIDO SEMANAL:
-Lunes → Inspiración (paisajes, amanecer, naturaleza)
-Martes → Detrás de cámaras (cocina, preparación, equipo)
-Miércoles → Testimonio/reseña de huésped
-Jueves → Educativo (flora, fauna, cultura boyacense)
-Viernes → Oferta o paquete del fin de semana
-Sábado → Experiencia en vivo (stories, reels del momento)
-Domingo → Reflexión + CTA de reserva
+Lunes: Inspiración (paisajes, amanecer, naturaleza)
+Martes: Detrás de cámaras (cocina, preparación, equipo)
+Miércoles: Testimonio o reseña de huésped
+Jueves: Educativo (flora, fauna, cultura boyacense)
+Viernes: Oferta o paquete del fin de semana
+Sábado: Experiencia en vivo (stories, reels del momento)
+Domingo: Reflexión más CTA de reserva
 
 ESTRUCTURA VIRAL OBLIGATORIA para cada post:
-1. HOOK (primera línea): debe generar curiosidad o emoción en 0.3 segundos
-   Formatos que funcionan: pregunta provocadora, dato sorprendente,
-   afirmación contraintuitiva, "Esto que nadie te dice sobre..."
+1. HOOK: primera línea que genera curiosidad o emoción en 0.3 segundos
 2. DESARROLLO: 3-5 líneas que amplían el hook con valor real
 3. CTA claro: una acción específica (reserva, comenta, comparte, guarda)
-4. HASHTAGS: 20-25 hashtags en español, mezcla de:
-   - Nicho (#glamping #boyaca #turismocolombia)
-   - Masivos (#naturaleza #escapada #colombia)
-   - Locales (#villadeleyva #tunja #boyacamagica)
+4. HASHTAGS: 20-25 hashtags en español mezclando nicho, masivos y locales
 
 REGLAS DE ESCRITURA:
-- Voz: cercana, evocadora, sin tecnicismos
-- Emojis: 2-4 por post, estratégicos no decorativos
-- Nunca mencionar precios exactos en el copy del post
+- Voz cercana, evocadora, sin tecnicismos
+- Emojis: 2-4 por post, estratégicos
+- Nunca usar comillas dobles en el texto de los posts
 - Siempre en español colombiano natural
 
-FORMATO DE RESPUESTA — CRÍTICO:
-Debes responder ÚNICAMENTE con un array JSON válido, sin texto antes
-ni después, sin bloques de código markdown, sin explicaciones.
-El array tiene exactamente 7 objetos con esta estructura:
+FORMATO DE RESPUESTA — ABSOLUTAMENTE CRÍTICO:
+Debes responder ÚNICAMENTE con un array JSON.
+USA COMILLAS SIMPLES dentro de los textos si necesitas citar algo.
+NUNCA uses comillas dobles dentro de los valores de los campos.
+El array tiene exactamente 7 objetos con esta estructura exacta:
+
 [
   {
     "dia": "Lunes",
     "pilar": "Inspiración",
     "emoji": "🌄",
-    "hook": "primera línea del post (el gancho)",
-    "copy": "texto completo del post listo para publicar en Instagram",
-    "hashtags": ["hashtag1", "hashtag2"],
-    "instrucciones_foto": "descripción de la foto ideal para este post",
-    "instrucciones_canva": "instrucciones de diseño: colores, tipografía, composición"
+    "hook": "primera línea del post sin comillas dobles internas",
+    "copy": "texto completo del post. Usa saltos de línea reales no barras n. Sin comillas dobles internas.",
+    "hashtags": ["glamping", "boyaca", "naturaleza"],
+    "instrucciones_foto": "descripción de la foto ideal sin comillas dobles",
+    "instrucciones_canva": "instrucciones de diseño sin comillas dobles"
   }
 ]
 
-IMPORTANTE: No uses bloques de código markdown. No escribas \`\`\`json ni \`\`\`.
-Responde DIRECTAMENTE con el array JSON puro, empezando con [ y terminando con ].`;
+No escribas nada antes ni después del array JSON.
+No uses bloques de codigo markdown.
+Empieza directamente con el corchete de apertura: [`;
+
+function limpiarMarkdown(texto) {
+  return texto.trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+}
 
 function extraerJSON(texto) {
   if (!texto) return null;
+  const limpio = limpiarMarkdown(texto);
 
-  let candidato = texto.trim();
+  // Intento 1: parse directo
+  try {
+    const r = JSON.parse(limpio);
+    return Array.isArray(r) ? r : [r];
+  } catch {}
 
-  // Limpiar bloques de markdown al inicio y al final
-  candidato = candidato.replace(/^```(?:json)?\s*/i, "");
-  candidato = candidato.replace(/\s*```\s*$/, "");
-  candidato = candidato.trim();
-
-  // Intento 1: parsear directo tras limpiar markdown
-  try { return JSON.parse(candidato); } catch {}
-
-  // Intento 2: extraer desde el primer [ hasta el último ]
-  const fb = candidato.indexOf("[");
-  const lb = candidato.lastIndexOf("]");
+  // Intento 2: extraer entre primer [ y último ]
+  const fb = limpio.indexOf("[");
+  const lb = limpio.lastIndexOf("]");
   if (fb !== -1 && lb > fb) {
-    try { return JSON.parse(candidato.slice(fb, lb + 1)); } catch {}
+    try {
+      const r = JSON.parse(limpio.slice(fb, lb + 1));
+      return Array.isArray(r) ? r : [r];
+    } catch {}
   }
 
-  // Intento 3: extraer desde el primer { hasta el último }
-  const fc = candidato.indexOf("{");
-  const lc = candidato.lastIndexOf("}");
-  if (fc !== -1 && lc > fc) {
+  // Intento 3: construir objetos manualmente desde separadores conocidos
+  const bloques = limpio.split(/\},\s*\{/);
+  if (bloques.length >= 2) {
     try {
-      const obj = JSON.parse(candidato.slice(fc, lc + 1));
-      return Array.isArray(obj) ? obj : [obj];
+      const reconstruido = bloques
+        .map((b, i) => {
+          let bloque = b.trim();
+          if (i === 0) bloque = bloque.replace(/^\[?\s*\{?/, "{");
+          else bloque = "{" + bloque;
+          if (i === bloques.length - 1) bloque = bloque.replace(/\}?\s*\]?$/, "}");
+          else bloque = bloque + "}";
+          return bloque;
+        })
+        .map(b => { try { return JSON.parse(b); } catch { return null; } })
+        .filter(Boolean);
+      if (reconstruido.length > 0) return reconstruido;
     } catch {}
   }
 
