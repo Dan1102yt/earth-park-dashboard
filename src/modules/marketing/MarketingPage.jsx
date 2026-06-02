@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Megaphone, Loader2, Sparkles, Calendar, Wand2,
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
@@ -166,7 +166,27 @@ function CopiarBtn({ texto, className = "" }) {
 /* ─── Componente PostCard ──────────────────────────────────── */
 function PostCard({ post, index }) {
   const [copiado, setCopiado] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [fotoUrl, setFotoUrl] = useState(null);
+  const inputRef = useRef(null);
   const info = DIAS_SEMANA[index] || {};
+
+  useEffect(() => {
+    return () => { if (fotoUrl) URL.revokeObjectURL(fotoUrl); };
+  }, [fotoUrl]);
+
+  const handleFoto = (file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+    setFoto(file);
+    setFotoUrl(URL.createObjectURL(file));
+  };
+
+  const quitarFoto = () => {
+    if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+    setFoto(null);
+    setFotoUrl(null);
+  };
 
   const diaLabel = post.dia || info.dia || "";
   const pilarLabel = post.pilar || info.pilar || "";
@@ -175,6 +195,9 @@ function PostCard({ post, index }) {
     ? post.hashtags.map(h => (h.startsWith("#") ? h : `#${h}`)).join(" ")
     : (post.hashtags || "");
 
+  const fotoLinea = foto
+    ? `\n\n📎 FOTO ADJUNTA: ${foto.name} (${(foto.size / 1024).toFixed(0)} KB)`
+    : "";
   const textoCompleto = `--- POST ${diaLabel} — ${pilarLabel} ${emojiLabel} ---
 
 ${post.copy || ""}
@@ -183,7 +206,7 @@ ${hashtagsTexto}
 
 ---
 📸 FOTO: ${post.instrucciones_foto || ""}
-🎨 CANVA: ${post.instrucciones_canva || ""}`;
+🎨 CANVA: ${post.instrucciones_canva || ""}${fotoLinea}`;
 
   const copiarPost = () => {
     navigator.clipboard.writeText(textoCompleto).then(() => {
@@ -221,7 +244,7 @@ ${hashtagsTexto}
         </div>
       </div>
 
-      {/* Hook — FIX 3 */}
+      {/* Hook */}
       {post.hook && (
         <div className="space-y-1">
           <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">🎣 Hook</p>
@@ -289,11 +312,43 @@ ${hashtagsTexto}
         </div>
       </div>
 
-      {/* Botones copiar + descargar — FIX 2 */}
+      {/* Upload foto para este post — PASO 1 */}
+      <div className="space-y-2">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">📸 Tu foto para este post</p>
+        {!fotoUrl ? (
+          <div
+            className="border-2 border-dashed border-gray-600 rounded-xl p-4 text-center hover:border-green-400 hover:bg-green-900/10 transition cursor-pointer"
+            onClick={() => inputRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); handleFoto(e.dataTransfer.files[0]); }}
+          >
+            <p className="text-sm text-gray-400">Haz clic o arrastra tu foto aquí</p>
+          </div>
+        ) : (
+          <div className="relative mt-2">
+            <img src={fotoUrl} alt="preview" className="max-h-48 rounded-lg object-cover w-full" />
+            <button
+              onClick={quitarFoto}
+              className="absolute top-1 right-1 bg-white rounded-full shadow w-6 h-6 flex items-center justify-center text-gray-500 text-xs hover:text-red-500 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => handleFoto(e.target.files?.[0])}
+        />
+      </div>
+
+      {/* Botones copiar + descargar */}
       <div className="flex gap-2 mt-4">
         <button
           onClick={copiarPost}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors"
+          className="border rounded-lg px-3 py-1.5 text-sm transition-colors"
           style={{ color: copiado ? "#059669" : "#d1d5db", borderColor: copiado ? "#059669" : "#4b5563" }}
         >
           {copiado ? "✓ Copiado" : "📋 Copiar post completo"}
@@ -334,6 +389,7 @@ function SkeletonCard() {
 /* ─── Componente principal ─────────────────────────────────── */
 export default function MarketingPage() {
   const [semana, setSemana] = useState([]);
+  const [generacionId, setGeneracionId] = useState(0);
   const [loadingSemana, setLoadingSemana] = useState(false);
   const [errorSemana, setErrorSemana] = useState(null);
   const [progresoSemana, setProgresoSemana] = useState(0);
@@ -382,6 +438,7 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de cód
         const parsed = extraerJSON(final);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setSemana(parsed);
+          setGeneracionId(id => id + 1);
         } else {
           const rawPreview = typeof parsed === "string" ? ` — Respuesta recibida: "${parsed.slice(0, 250)}"` : "";
           setErrorSemana(`No se pudo interpretar la respuesta. Intenta de nuevo.${rawPreview}`);
@@ -528,7 +585,7 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
           {semana.length > 0 && !loadingSemana && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {semana.map((post, i) => (
-                <PostCard key={i} post={post} index={i} />
+                <PostCard key={`${post.dia}-${generacionId}`} post={post} index={i} />
               ))}
             </div>
           )}
