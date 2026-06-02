@@ -17,28 +17,59 @@ const DIAS_SEMANA = [
   { dia: "Domingo",   pilar: "Reel cierre con llamado a reservar",    emoji: "✨" },
 ];
 
-const SISTEMA = `Eres el estratega de contenido digital de Earth Park, parque temático de ecoturismo en Macanal, Boyacá, Colombia. Instagram y TikTok: @earthpark.co
+const SISTEMA = `Eres el agente de marketing digital de Earth Park,
+un glamping ecológico en Boyacá, Colombia. Tu misión es llevar la cuenta
+de Instagram de 0 a 10.000 seguidores en 3 meses usando contenido viral.
 
-## Identidad de marca
-- Tono: cercano, familiar, educativo y auténtico colombiano
-- Diferenciadores: mariposas vivas, ecosistema natural, hospedaje privado, gastronomía campesina
-- Planes: Visita 1 día · 2D1N $340.000/persona · 3D2N $870.000/persona
-- Público: familias colombianas, parejas, grupos de amigos
-- Meta: 10.000 seguidores generando reservas reales
-- Valores: naturaleza, educación, sostenibilidad, autenticidad colombiana
+CONTEXTO DEL NEGOCIO:
+- Ubicación: Boyacá, Colombia — naturaleza, silencio, desconexión
+- Servicios: hospedaje glamping, gastronomía local, artesanías, cauchos moldeados
+- Precio promedio por noche: consultar datos del dashboard
+- Audiencia objetivo: familias, parejas, millennials urbanos que buscan escapar
+- Diferenciador: experiencia completa de naturaleza con comodidad
 
-## Paleta de colores Canva
-- Verde oscuro: #1B4332 (fondos principales)
-- Verde medio: #2D6A4F (elementos secundarios)
-- Verde claro: #81C784 (acentos y CTA)
-- Blanco: #FFFFFF (texto sobre fondos oscuros)
+PILARES DE CONTENIDO SEMANAL:
+Lunes → Inspiración (paisajes, amanecer, naturaleza)
+Martes → Detrás de cámaras (cocina, preparación, equipo)
+Miércoles → Testimonio/reseña de huésped
+Jueves → Educativo (flora, fauna, cultura boyacense)
+Viernes → Oferta o paquete del fin de semana
+Sábado → Experiencia en vivo (stories, reels del momento)
+Domingo → Reflexión + CTA de reserva
 
-## Reglas de contenido
-- Escribe en español colombiano auténtico, nunca suena corporativo
-- El copy debe conectar emocionalmente con la familia colombiana
-- Hashtags: 10-15 mezclados español/inglés, específicos para ecoturismo Colombia
-- Instrucciones de foto: ángulo exacto, tipo de luz, composición, qué elemento protagoniza
-- Instrucciones Canva: colores exactos de la paleta, tipografía (Sans Bold para títulos, Regular para cuerpo), posición de elementos, iconos o ilustraciones sugeridos`;
+ESTRUCTURA VIRAL OBLIGATORIA para cada post:
+1. HOOK (primera línea): debe generar curiosidad o emoción en 0.3 segundos
+   Formatos que funcionan: pregunta provocadora, dato sorprendente,
+   afirmación contraintuitiva, "Esto que nadie te dice sobre..."
+2. DESARROLLO: 3-5 líneas que amplían el hook con valor real
+3. CTA claro: una acción específica (reserva, comenta, comparte, guarda)
+4. HASHTAGS: 20-25 hashtags en español, mezcla de:
+   - Nicho (#glamping #boyaca #turismocolombia)
+   - Masivos (#naturaleza #escapada #colombia)
+   - Locales (#villadeleyva #tunja #boyacamagica)
+
+REGLAS DE ESCRITURA:
+- Voz: cercana, evocadora, sin tecnicismos
+- Emojis: 2-4 por post, estratégicos no decorativos
+- Nunca mencionar precios exactos en el copy del post
+- Siempre en español colombiano natural
+
+FORMATO DE RESPUESTA — CRÍTICO:
+Debes responder ÚNICAMENTE con un array JSON válido, sin texto antes
+ni después, sin bloques de código markdown, sin explicaciones.
+El array tiene exactamente 7 objetos con esta estructura:
+[
+  {
+    "dia": "Lunes",
+    "pilar": "Inspiración",
+    "emoji": "🌄",
+    "hook": "primera línea del post (el gancho)",
+    "copy": "texto completo del post listo para publicar en Instagram",
+    "hashtags": ["hashtag1", "hashtag2"],
+    "instrucciones_foto": "descripción de la foto ideal para este post",
+    "instrucciones_canva": "instrucciones de diseño: colores, tipografía, composición"
+  }
+]`;
 
 function extraerJSON(texto) {
   const matchBlock = texto.match(/```json\s*([\s\S]*?)\s*```/);
@@ -54,7 +85,7 @@ function extraerJSON(texto) {
     try { return JSON.parse(matchObj[1]); } catch (_) {}
   }
   try { return JSON.parse(texto.trim()); } catch (_) {}
-  return null;
+  return texto.trim();
 }
 
 async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) {
@@ -103,6 +134,7 @@ async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) 
 
     onDone(accumulated);
   } catch (err) {
+    console.error("llamarClaude error:", err);
     onError(err.message || "Error al conectar con la API");
   }
 }
@@ -133,7 +165,43 @@ function CopiarBtn({ texto, className = "" }) {
 
 /* ─── Componente PostCard ──────────────────────────────────── */
 function PostCard({ post, index }) {
+  const [copiado, setCopiado] = useState(false);
   const info = DIAS_SEMANA[index] || {};
+
+  const diaLabel = post.dia || info.dia || "";
+  const pilarLabel = post.pilar || info.pilar || "";
+  const emojiLabel = post.emoji || info.emoji || "📅";
+  const hashtagsTexto = Array.isArray(post.hashtags)
+    ? post.hashtags.map(h => (h.startsWith("#") ? h : `#${h}`)).join(" ")
+    : (post.hashtags || "");
+
+  const textoCompleto = `--- POST ${diaLabel} — ${pilarLabel} ${emojiLabel} ---
+
+${post.copy || ""}
+
+${hashtagsTexto}
+
+---
+📸 FOTO: ${post.instrucciones_foto || ""}
+🎨 CANVA: ${post.instrucciones_canva || ""}`;
+
+  const copiarPost = () => {
+    navigator.clipboard.writeText(textoCompleto).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+
+  const descargar = () => {
+    const blob = new Blob([textoCompleto], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `earthpark-post-${diaLabel}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div
       className="rounded-2xl p-4 space-y-3 flex flex-col"
@@ -145,13 +213,23 @@ function PostCard({ post, index }) {
       {/* Header del día */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{info.emoji || "📅"}</span>
+          <span className="text-lg">{emojiLabel}</span>
           <div>
-            <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{post.dia || info.dia}</p>
-            <p className="text-[10px] text-gray-500">{post.pilar || info.pilar}</p>
+            <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{diaLabel}</p>
+            <p className="text-[10px] text-gray-500">{pilarLabel}</p>
           </div>
         </div>
       </div>
+
+      {/* Hook — FIX 3 */}
+      {post.hook && (
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">🎣 Hook</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-sm font-medium italic text-amber-900">{post.hook}</p>
+          </div>
+        </div>
+      )}
 
       {/* Copy */}
       <div className="space-y-1">
@@ -172,14 +250,14 @@ function PostCard({ post, index }) {
             <Hash className="w-3 h-3 text-emerald-400/70" />
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Hashtags</span>
           </div>
-          <CopiarBtn texto={Array.isArray(post.hashtags) ? post.hashtags.join(" ") : (post.hashtags || "")} />
+          <CopiarBtn texto={hashtagsTexto} />
         </div>
         <div className="flex flex-wrap gap-1">
           {Array.isArray(post.hashtags)
             ? post.hashtags.map((h, i) => (
                 <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md text-emerald-300"
                   style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
-                  {h}
+                  {h.startsWith("#") ? h : `#${h}`}
                 </span>
               ))
             : <span className="text-xs text-gray-400">{post.hashtags}</span>
@@ -209,6 +287,23 @@ function PostCard({ post, index }) {
               style={{ background: c }} />
           ))}
         </div>
+      </div>
+
+      {/* Botones copiar + descargar — FIX 2 */}
+      <div className="flex gap-2 mt-4">
+        <button
+          onClick={copiarPost}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors"
+          style={{ color: copiado ? "#059669" : "#d1d5db", borderColor: copiado ? "#059669" : "#4b5563" }}
+        >
+          {copiado ? "✓ Copiado" : "📋 Copiar post completo"}
+        </button>
+        <button
+          onClick={descargar}
+          className="bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-green-700 transition-colors"
+        >
+          ⬇️ Descargar como .txt
+        </button>
       </div>
     </div>
   );
@@ -288,7 +383,8 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de cód
         if (Array.isArray(parsed) && parsed.length > 0) {
           setSemana(parsed);
         } else {
-          setErrorSemana("No se pudo interpretar la respuesta. Intenta de nuevo.");
+          const rawPreview = typeof parsed === "string" ? ` — Respuesta recibida: "${parsed.slice(0, 250)}"` : "";
+          setErrorSemana(`No se pudo interpretar la respuesta. Intenta de nuevo.${rawPreview}`);
         }
         setLoadingSemana(false);
       },
@@ -318,10 +414,11 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
       () => {},
       (final) => {
         const parsed = extraerJSON(final);
-        if (parsed && parsed.copy) {
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.copy) {
           setPostGenerado(parsed);
         } else {
-          setErrorPost("No se pudo interpretar la respuesta. Intenta de nuevo.");
+          const rawPreview = typeof parsed === "string" ? ` — Respuesta recibida: "${parsed.slice(0, 250)}"` : "";
+          setErrorPost(`No se pudo interpretar la respuesta. Intenta de nuevo.${rawPreview}`);
         }
         setLoadingPost(false);
       },
