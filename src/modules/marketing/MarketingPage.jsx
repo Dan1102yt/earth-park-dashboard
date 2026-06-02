@@ -69,23 +69,48 @@ El array tiene exactamente 7 objetos con esta estructura:
     "instrucciones_foto": "descripción de la foto ideal para este post",
     "instrucciones_canva": "instrucciones de diseño: colores, tipografía, composición"
   }
-]`;
+]
+
+IMPORTANTE: No uses bloques de código markdown. No escribas \`\`\`json ni \`\`\`.
+Responde DIRECTAMENTE con el array JSON puro, empezando con [ y terminando con ].`;
 
 function extraerJSON(texto) {
-  const matchBlock = texto.match(/```json\s*([\s\S]*?)\s*```/);
-  if (matchBlock) {
-    try { return JSON.parse(matchBlock[1]); } catch (_) {}
+  if (!texto) return null;
+
+  // Intento 1: extraer contenido dentro de ```json ... ```
+  const matchJson = texto.match(/```json\s*([\s\S]*?)```/i);
+  if (matchJson) {
+    try { return JSON.parse(matchJson[1].trim()); } catch {}
   }
-  const matchArray = texto.match(/(\[[\s\S]*\])/);
-  if (matchArray) {
-    try { return JSON.parse(matchArray[1]); } catch (_) {}
+
+  // Intento 2: extraer contenido dentro de ``` ... ``` genérico
+  const matchCode = texto.match(/```\s*([\s\S]*?)```/);
+  if (matchCode) {
+    try { return JSON.parse(matchCode[1].trim()); } catch {}
   }
-  const matchObj = texto.match(/(\{[\s\S]*\})/);
-  if (matchObj) {
-    try { return JSON.parse(matchObj[1]); } catch (_) {}
+
+  // Intento 3: buscar el primer [ hasta el último ]
+  const firstBracket = texto.indexOf('[');
+  const lastBracket = texto.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    try { return JSON.parse(texto.slice(firstBracket, lastBracket + 1)); } catch {}
   }
-  try { return JSON.parse(texto.trim()); } catch (_) {}
-  return texto.trim();
+
+  // Intento 4: buscar el primer { hasta el último }
+  const firstBrace = texto.indexOf('{');
+  const lastBrace = texto.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      const obj = JSON.parse(texto.slice(firstBrace, lastBrace + 1));
+      return Array.isArray(obj) ? obj : [obj];
+    } catch {}
+  }
+
+  // Intento 5: JSON.parse directo
+  try { return JSON.parse(texto.trim()); } catch {}
+
+  // Fallo total: retornar null (el caller maneja el error)
+  return null;
 }
 
 async function llamarClaude(workerUrl, userPrompt, onProgress, onDone, onError) {
