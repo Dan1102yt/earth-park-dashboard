@@ -77,39 +77,33 @@ Responde DIRECTAMENTE con el array JSON puro, empezando con [ y terminando con ]
 function extraerJSON(texto) {
   if (!texto) return null;
 
-  // Intento 1: extraer contenido dentro de ```json ... ```
-  const matchJson = texto.match(/```json\s*([\s\S]*?)```/i);
-  if (matchJson) {
-    try { return JSON.parse(matchJson[1].trim()); } catch {}
+  let candidato = texto.trim();
+
+  // Limpiar bloques de markdown al inicio y al final
+  candidato = candidato.replace(/^```(?:json)?\s*/i, "");
+  candidato = candidato.replace(/\s*```\s*$/, "");
+  candidato = candidato.trim();
+
+  // Intento 1: parsear directo tras limpiar markdown
+  try { return JSON.parse(candidato); } catch {}
+
+  // Intento 2: extraer desde el primer [ hasta el último ]
+  const fb = candidato.indexOf("[");
+  const lb = candidato.lastIndexOf("]");
+  if (fb !== -1 && lb > fb) {
+    try { return JSON.parse(candidato.slice(fb, lb + 1)); } catch {}
   }
 
-  // Intento 2: extraer contenido dentro de ``` ... ``` genérico
-  const matchCode = texto.match(/```\s*([\s\S]*?)```/);
-  if (matchCode) {
-    try { return JSON.parse(matchCode[1].trim()); } catch {}
-  }
-
-  // Intento 3: buscar el primer [ hasta el último ]
-  const firstBracket = texto.indexOf('[');
-  const lastBracket = texto.lastIndexOf(']');
-  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-    try { return JSON.parse(texto.slice(firstBracket, lastBracket + 1)); } catch {}
-  }
-
-  // Intento 4: buscar el primer { hasta el último }
-  const firstBrace = texto.indexOf('{');
-  const lastBrace = texto.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+  // Intento 3: extraer desde el primer { hasta el último }
+  const fc = candidato.indexOf("{");
+  const lc = candidato.lastIndexOf("}");
+  if (fc !== -1 && lc > fc) {
     try {
-      const obj = JSON.parse(texto.slice(firstBrace, lastBrace + 1));
+      const obj = JSON.parse(candidato.slice(fc, lc + 1));
       return Array.isArray(obj) ? obj : [obj];
     } catch {}
   }
 
-  // Intento 5: JSON.parse directo
-  try { return JSON.parse(texto.trim()); } catch {}
-
-  // Fallo total: retornar null (el caller maneja el error)
   return null;
 }
 
