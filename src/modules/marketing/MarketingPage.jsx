@@ -238,141 +238,111 @@ ${hashtagsTexto}
     URL.revokeObjectURL(url);
   };
 
+  const background = "rgba(10,22,6,0.75)";
+  const border = "1px solid rgba(77,142,30,0.18)";
+
   return (
-    <div
-      className="rounded-2xl p-4 space-y-3 flex flex-col"
-      style={{
-        background: "rgba(10,22,6,0.75)",
-        border: "1px solid rgba(77,142,30,0.18)",
-      }}
-    >
-      {/* Header del día */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{emojiLabel}</span>
-          <div>
-            <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{diaLabel}</p>
-            <p className="text-[10px] text-gray-500">{pilarLabel}</p>
-          </div>
+    <div className="rounded-2xl p-4 space-y-3 flex flex-col" style={{ background, border }}>
+
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <span className="text-2xl">{emojiLabel}</span>
+        <div>
+          <p className="font-bold text-sm text-white uppercase tracking-wide">{diaLabel}</p>
+          <p className="text-xs text-gray-400">{pilarLabel}</p>
         </div>
       </div>
 
       {/* Hook */}
       {post.hook && (
-        <div className="space-y-1">
-          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">🎣 Hook</p>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <p className="text-sm font-medium italic text-amber-900">{post.hook}</p>
-          </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-xs font-bold text-amber-600 uppercase mb-1">🎣 Hook</p>
+          <p className="text-sm font-medium italic text-amber-900">{post.hook}</p>
         </div>
       )}
 
       {/* Copy */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <FileText className="w-3 h-3 text-emerald-400/70" />
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Copy</span>
-          </div>
-          <CopiarBtn texto={post.copy || ""} />
-        </div>
-        <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">{post.copy}</p>
+      <div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Copy</p>
+        <p className="text-sm text-gray-200 whitespace-pre-line">{post.copy}</p>
       </div>
 
       {/* Hashtags */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Hash className="w-3 h-3 text-emerald-400/70" />
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Hashtags</span>
+      {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Hashtags</p>
+          <div className="flex flex-wrap gap-1">
+            {post.hashtags.map((h, i) => (
+              <span key={i} className="bg-green-900/40 text-green-300 text-xs px-2 py-0.5 rounded-full">
+                {h.startsWith("#") ? h : `#${h}`}
+              </span>
+            ))}
           </div>
-          <CopiarBtn texto={hashtagsTexto} />
         </div>
-        <div className="flex flex-wrap gap-1">
-          {Array.isArray(post.hashtags)
-            ? post.hashtags.map((h, i) => (
-                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md text-emerald-300"
-                  style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
-                  {h.startsWith("#") ? h : `#${h}`}
-                </span>
-              ))
-            : <span className="text-xs text-gray-400">{post.hashtags}</span>
-          }
-        </div>
-      </div>
+      )}
 
       {/* Instrucciones foto */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Camera className="w-3 h-3 text-emerald-400/70" />
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Instrucciones de foto</span>
+      {post.instrucciones_foto && (
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">📸 Foto ideal</p>
+          <p className="text-xs text-gray-300">{post.instrucciones_foto}</p>
         </div>
-        <p className="text-xs text-gray-300 leading-relaxed">{post.instrucciones_foto}</p>
-      </div>
+      )}
 
       {/* Instrucciones Canva */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Palette className="w-3 h-3 text-emerald-400/70" />
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Instrucciones Canva</span>
+      {post.instrucciones_canva && (
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">🎨 Diseño Canva</p>
+          <p className="text-xs text-gray-300">{post.instrucciones_canva}</p>
         </div>
-        <p className="text-xs text-gray-300 leading-relaxed">{post.instrucciones_canva}</p>
-        <div className="flex gap-1.5 mt-1">
-          {["#1B4332", "#2D6A4F", "#81C784", "#FFFFFF"].map(c => (
-            <div key={c} title={c} className="w-5 h-5 rounded-full ring-1 ring-gray-700/60 flex-shrink-0"
-              style={{ background: c }} />
-          ))}
-        </div>
-      </div>
+      )}
 
-      {/* Upload foto para este post — PASO 1 */}
-      <div className="space-y-2">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">📸 Tu foto para este post</p>
+      {/* Upload de foto */}
+      <div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">📸 Tu foto para este post</p>
         {!fotoUrl ? (
           <div
-            className="border-2 border-dashed border-gray-600 rounded-xl p-4 text-center hover:border-green-400 hover:bg-green-900/10 transition cursor-pointer"
+            className="border-2 border-dashed border-gray-600 rounded-xl p-4 text-center hover:border-green-400 hover:bg-green-900/20 transition cursor-pointer"
             onClick={() => inputRef.current?.click()}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); handleFoto(e.dataTransfer.files[0]); }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); handleFoto(e.dataTransfer.files[0]); }}
           >
-            <p className="text-sm text-gray-400">Haz clic o arrastra tu foto aquí</p>
+            <p className="text-sm text-gray-500">Haz clic o arrastra tu foto aquí</p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFoto(e.target.files[0])}
+            />
           </div>
         ) : (
-          <div className="relative mt-2">
+          <div className="relative">
             <img src={fotoUrl} alt="preview" className="max-h-48 rounded-lg object-cover w-full" />
             <button
               onClick={quitarFoto}
-              className="absolute top-1 right-1 bg-white rounded-full shadow w-6 h-6 flex items-center justify-center text-gray-500 text-xs hover:text-red-500 transition-colors"
-            >
-              ✕
-            </button>
+              className="absolute top-1 right-1 bg-white rounded-full shadow px-1.5 py-0.5 text-gray-600 text-xs hover:bg-red-50"
+            >✕</button>
           </div>
         )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={e => handleFoto(e.target.files?.[0])}
-        />
       </div>
 
-      {/* Botones copiar + descargar */}
-      <div className="flex gap-2 mt-4">
+      {/* Botones */}
+      <div className="flex gap-2 mt-auto pt-2">
         <button
           onClick={copiarPost}
-          className="border rounded-lg px-3 py-1.5 text-sm transition-colors"
-          style={{ color: copiado ? "#059669" : "#d1d5db", borderColor: copiado ? "#059669" : "#4b5563" }}
+          className="flex-1 border border-gray-500 rounded-lg px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
         >
-          {copiado ? "✓ Copiado" : "📋 Copiar post completo"}
+          {copiado ? "✓ Copiado" : "📋 Copiar post"}
         </button>
         <button
           onClick={descargar}
-          className="bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-green-700 transition-colors"
+          className="flex-1 bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-green-700 transition"
         >
-          ⬇️ Descargar como .txt
+          ⬇️ Descargar .txt
         </button>
       </div>
+
     </div>
   );
 }
