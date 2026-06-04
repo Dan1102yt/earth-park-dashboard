@@ -4,7 +4,6 @@ import {
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
   AlertCircle,
 } from "lucide-react";
-import html2canvas from "html2canvas";
 import { useMarketingStorage } from "./useMarketingStorage";
 
 const MODEL = "claude-sonnet-4-5";
@@ -242,82 +241,159 @@ ${hashtagsTexto}
   };
 
   const generarImagenPost = async () => {
-    if (!cardRef.current) return;
-    try {
-      // Ocultar botones temporalmente para que no salgan en la imagen
-      const botones = cardRef.current.querySelector(".botones-export");
-      if (botones) botones.style.display = "none";
+    const W = 1080;
+    const H = 1080;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
 
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: null,
-        width: cardRef.current.offsetWidth,
-        height: cardRef.current.offsetHeight,
-      });
+    // ── Helpers ──────────────────────────────────────────────
+    const wrap = (texto, x, y, maxW, lineH) => {
+      const palabras = String(texto || "").split(" ");
+      let linea = "";
+      let cy = y;
+      for (const p of palabras) {
+        const prueba = linea + p + " ";
+        if (ctx.measureText(prueba).width > maxW && linea) {
+          ctx.fillText(linea.trim(), x, cy);
+          linea = p + " ";
+          cy += lineH;
+        } else linea = prueba;
+      }
+      if (linea.trim()) { ctx.fillText(linea.trim(), x, cy); cy += lineH; }
+      return cy;
+    };
 
-      // Restaurar botones
-      if (botones) botones.style.display = "";
+    const roundRect = (x, y, w, h, r, fill) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    };
 
-      // Crear canvas cuadrado 1080x1080 con la tarjeta centrada
-      const output = document.createElement("canvas");
-      output.width = 1080;
-      output.height = 1080;
-      const ctx = output.getContext("2d");
-
-      // Fondo
-      ctx.fillStyle = "#0D1F0F";
-      ctx.fillRect(0, 0, 1080, 1080);
-
-      // Si hay foto del usuario, usarla como fondo completo con overlay
-      const dibujarFoto = () => new Promise((resolve) => {
-        if (!fotoUrl) { resolve(); return; }
+    // ── 1. Fondo con foto o gradiente ────────────────────────
+    await new Promise((resolve) => {
+      if (!fotoUrl) {
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, "#0a1a0a");
+        grad.addColorStop(0.5, "#1a3a1a");
+        grad.addColorStop(1, "#0a1a0a");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+        resolve();
+      } else {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          // Foto como fondo completo con cover
-          const ratio = Math.max(1080 / img.width, 1080 / img.height);
-          const w = img.width * ratio;
-          const h = img.height * ratio;
-          const x = (1080 - w) / 2;
-          const y = (1080 - h) / 2;
-          ctx.drawImage(img, x, y, w, h);
-          // Overlay oscuro para legibilidad
-          ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-          ctx.fillRect(0, 0, 1080, 1080);
+          const r = Math.max(W / img.width, H / img.height);
+          const iw = img.width * r;
+          const ih = img.height * r;
+          ctx.drawImage(img, (W - iw) / 2, (H - ih) / 2, iw, ih);
+          // Overlay degradado fuerte para legibilidad
+          const ov = ctx.createLinearGradient(0, 0, 0, H);
+          ov.addColorStop(0, "rgba(0,0,0,0.55)");
+          ov.addColorStop(0.4, "rgba(0,0,0,0.30)");
+          ov.addColorStop(1, "rgba(0,0,0,0.80)");
+          ctx.fillStyle = ov;
+          ctx.fillRect(0, 0, W, H);
           resolve();
         };
         img.onerror = resolve;
         img.src = fotoUrl;
-      });
+      }
+    });
 
-      await dibujarFoto();
+    const PAD = 72;
+    const ANCHO = W - PAD * 2;
 
-      // Dibujar la tarjeta capturada centrada
-      const scale = Math.min(1080 / canvas.width, 900 / canvas.height);
-      const dw = canvas.width * scale;
-      const dh = canvas.height * scale;
-      const dx = (1080 - dw) / 2;
-      const dy = (1080 - dh) / 2;
-      ctx.drawImage(canvas, dx, dy, dw, dh);
+    // ── 2. Chip día/pilar arriba ──────────────────────────────
+    roundRect(PAD, 60, 260, 48, 24, "rgba(45,80,22,0.85)");
+    ctx.font = "bold 22px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "left";
+    ctx.fillText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, PAD + 20, 91);
 
-      // Banda inferior con marca
-      ctx.fillStyle = "rgba(45, 80, 22, 0.95)";
-      ctx.fillRect(0, 1080 - 70, 1080, 70);
-      ctx.font = "bold 28px sans-serif";
-      ctx.fillStyle = "#FFFFFF";
-      ctx.textAlign = "center";
-      ctx.fillText("🦋 Earth Park · @earthpark.co · Macanal, Boyacá", 540, 1080 - 24);
+    ctx.font = "18px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fillText(pilarLabel, PAD, 135);
 
-      // Descargar
-      const link = document.createElement("a");
-      link.download = `earthpark-${diaLabel}-post.png`;
-      link.href = output.toDataURL("image/png");
-      link.click();
-
-    } catch (err) {
-      console.error("Error generando imagen:", err);
+    // ── 3. Hook destacado ─────────────────────────────────────
+    let y = 180;
+    if (post.hook) {
+      const hookTexto = String(post.hook).substring(0, 120);
+      ctx.font = "bold italic 44px sans-serif";
+      ctx.fillStyle = "#F6E05E";
+      ctx.textAlign = "left";
+      // Línea decorativa izquierda
+      ctx.fillStyle = "#4CAF50";
+      ctx.fillRect(PAD, y, 6, 120);
+      ctx.fillStyle = "#F6E05E";
+      y = wrap(hookTexto, PAD + 24, y + 44, ANCHO - 24, 52);
+      y += 32;
     }
+
+    // ── 4. Copy ───────────────────────────────────────────────
+    const copyTexto = String(post.copy || "").substring(0, 280);
+    ctx.font = "28px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.textAlign = "left";
+    y = wrap(copyTexto, PAD, y, ANCHO, 40);
+    y += 32;
+
+    // ── 5. Separador ──────────────────────────────────────────
+    ctx.strokeStyle = "rgba(76,175,80,0.5)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+    y += 28;
+
+    // ── 6. Hashtags (1 línea) ─────────────────────────────────
+    const tags = Array.isArray(post.hashtags)
+      ? post.hashtags.slice(0, 8).map(h => h.startsWith("#") ? h : `#${h}`).join("  ")
+      : "";
+    ctx.font = "22px sans-serif";
+    ctx.fillStyle = "#81C784";
+    ctx.fillText(tags, PAD, y + 22);
+    y += 56;
+
+    // ── 7. CTA pill ───────────────────────────────────────────
+    roundRect(PAD, y, 360, 52, 26, "rgba(76,175,80,0.9)");
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.fillText("📍 Reserva en el link de la bio", PAD + 180, y + 34);
+    ctx.textAlign = "left";
+
+    // ── 8. Marca inferior ─────────────────────────────────────
+    const gradBar = ctx.createLinearGradient(0, H - 90, 0, H);
+    gradBar.addColorStop(0, "rgba(45,80,22,0)");
+    gradBar.addColorStop(0.3, "rgba(45,80,22,0.95)");
+    gradBar.addColorStop(1, "rgba(45,80,22,1)");
+    ctx.fillStyle = gradBar;
+    ctx.fillRect(0, H - 90, W, 90);
+
+    ctx.font = "bold 30px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.fillText("🦋 Earth Park  ·  @earthpark.co", W / 2, H - 32);
+
+    // ── Descargar ─────────────────────────────────────────────
+    const link = document.createElement("a");
+    link.download = `earthpark-${diaLabel}-post.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   };
 
   const background = "rgba(10,22,6,0.75)";
