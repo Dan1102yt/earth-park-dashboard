@@ -363,14 +363,14 @@ ${hashtagsTexto}
       ctx.restore();
     };
 
-    dibujarMariposa(80, 80, 28, 0.18, 0.3);
-    dibujarMariposa(980, 120, 22, 0.15, -0.5);
-    dibujarMariposa(950, 950, 32, 0.20, 0.8);
-    dibujarMariposa(100, 960, 24, 0.16, -0.3);
-    dibujarMariposa(540, 40, 18, 0.12, 0.1);
-    dibujarMariposa(200, 500, 16, 0.10, 0.6);
-    dibujarMariposa(880, 500, 20, 0.12, -0.4);
-    dibujarMariposa(700, 80, 14, 0.10, 0.2);
+    dibujarMariposa(80, 80, 28, 0.35, 0.3);
+    dibujarMariposa(980, 120, 22, 0.30, -0.5);
+    dibujarMariposa(950, 950, 32, 0.38, 0.8);
+    dibujarMariposa(100, 960, 24, 0.32, -0.3);
+    dibujarMariposa(540, 40, 18, 0.25, 0.1);
+    dibujarMariposa(200, 500, 16, 0.22, 0.6);
+    dibujarMariposa(880, 500, 20, 0.28, -0.4);
+    dibujarMariposa(700, 80, 14, 0.20, 0.2);
 
     // ── 3. Borde elegante ─────────────────────────────────────
     ctx.strokeStyle = "rgba(76,175,80,0.3)";
@@ -379,7 +379,7 @@ ${hashtagsTexto}
 
     const PAD = 72;
     const ANCHO = W - PAD * 2;
-    let y = 72;
+    let y = 60;
 
     // ── 4. Chip pilar (SIN el día) ────────────────────────────
     ctx.font = "bold 20px sans-serif";
@@ -389,7 +389,7 @@ ${hashtagsTexto}
     ctx.fillStyle = "#A5D6A7";
     ctx.textAlign = "left";
     ctx.fillText(chipTexto, PAD + 18, y + 28);
-    y += 68;
+    y += 80;
 
     // ── 5. Hook grande y llamativo ────────────────────────────
     if (post.hook) {
@@ -408,11 +408,21 @@ ${hashtagsTexto}
         ANCHO - 22,
         50
       );
-      y += 28;
+      y += 48;
     }
 
     // ── 6. Copy ───────────────────────────────────────────────
     let copyRaw = String(post.copy || "");
+    if (post.hook) {
+      const hookCorto = String(post.hook).substring(0, 40).toLowerCase().trim();
+      const copyInicio = copyRaw.substring(0, 60).toLowerCase().trim();
+      if (copyInicio.startsWith(hookCorto.substring(0, 30))) {
+        const primerPunto = copyRaw.indexOf(".");
+        if (primerPunto > 0 && primerPunto < 120) {
+          copyRaw = copyRaw.substring(primerPunto + 1).trim();
+        }
+      }
+    }
     if (copyRaw.length > 320) {
       const corte = copyRaw.lastIndexOf(".", 320);
       copyRaw = corte > 100
@@ -428,7 +438,7 @@ ${hashtagsTexto}
       ANCHO,
       33
     );
-    y += 36;
+    y += 60;
 
     // ── 7. CTA pill izquierda ─────────────────────────────────
     roundRect(PAD, y, 340, 44, 22, "rgba(46,125,50,0.75)");
@@ -440,13 +450,13 @@ ${hashtagsTexto}
     ctx.fillText("🌿 Reserva tu escape · link en bio", PAD + 16, y + 28);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
-    y += 64;
+    y += 80;
 
     // ── 8. Ubicación discreta ─────────────────────────────────
     ctx.font = "italic 19px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.38)";
     ctx.textAlign = "center";
-    ctx.fillText("📍 Macanal, Boyacá · Colombia", W / 2, H - 110);
+    ctx.fillText("📍 Macanal, Boyacá · Colombia", W / 2, H - 115);
     ctx.textAlign = "left";
 
     // ── 9. Banda marca inferior ───────────────────────────────
