@@ -414,13 +414,16 @@ ${hashtagsTexto}
     // ── 6. Copy ───────────────────────────────────────────────
     let copyRaw = String(post.copy || "");
     if (post.hook) {
-      const hookCorto = String(post.hook).substring(0, 40).toLowerCase().trim();
-      const copyInicio = copyRaw.substring(0, 60).toLowerCase().trim();
-      if (copyInicio.startsWith(hookCorto.substring(0, 30))) {
+      const hookWords = String(post.hook).toLowerCase().split(" ").slice(0, 5).join(" ");
+      const copyStart = copyRaw.toLowerCase().substring(0, 80);
+      if (copyStart.includes(hookWords.substring(0, 20))) {
         const primerPunto = copyRaw.indexOf(".");
-        if (primerPunto > 0 && primerPunto < 120) {
-          copyRaw = copyRaw.substring(primerPunto + 1).trim();
-        }
+        const primerSalto = copyRaw.indexOf("\n");
+        const corte = Math.min(
+          primerPunto > 0 ? primerPunto : 999,
+          primerSalto > 0 ? primerSalto : 999
+        );
+        if (corte < 150) copyRaw = copyRaw.substring(corte + 1).trim();
       }
     }
     if (copyRaw.length > 320) {
@@ -441,16 +444,18 @@ ${hashtagsTexto}
     y += 60;
 
     // ── 7. CTA fijo cerca de la marca ────────────────────────
-    const ctaY = H - 155;
-    roundRect(PAD, ctaY, 340, 44, 22, "rgba(46,125,50,0.75)");
-    ctx.font = "20px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.90)";
-    ctx.textAlign = "left";
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 6;
-    ctx.fillText("🌿 Reserva tu escape · link en bio", PAD + 16, ctaY + 28);
+    const ctaW = 340;
+    const ctaY = H - 175;
+    roundRect((W - ctaW) / 2, ctaY, ctaW, 44, 22, "rgba(46,125,50,0.65)");
+    ctx.font = "italic 19px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.80)";
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.4)";
+    ctx.shadowBlur = 4;
+    ctx.fillText("🌿 Tu escape perfecto te espera · link en bio", W / 2, ctaY + 28);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
+    ctx.textAlign = "left";
 
     // ── 8. Ubicación discreta entre CTA y marca ───────────────
     ctx.font = "italic 19px sans-serif";
