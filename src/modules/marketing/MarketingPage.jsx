@@ -248,14 +248,14 @@ ${hashtagsTexto}
     canvas.height = H;
     const ctx = canvas.getContext("2d");
 
-    // ── Helpers ──────────────────────────────────────────────
     const shadowText = (texto, x, y, fuente, color, maxW, lineH) => {
       ctx.font = fuente;
-      ctx.shadowColor = "rgba(0,0,0,0.9)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(0,0,0,0.95)";
+      ctx.shadowBlur = 12;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       ctx.fillStyle = color;
+      ctx.shadowColor = "transparent";
       if (maxW) {
         const palabras = String(texto || "").split(" ");
         let linea = "";
@@ -263,22 +263,30 @@ ${hashtagsTexto}
         for (const p of palabras) {
           const prueba = linea + p + " ";
           if (ctx.measureText(prueba).width > maxW && linea) {
+            ctx.shadowColor = "rgba(0,0,0,0.95)";
             ctx.fillText(linea.trim(), x, cy);
+            ctx.shadowColor = "transparent";
             linea = p + " ";
             cy += lineH;
           } else linea = prueba;
         }
-        if (linea.trim()) { ctx.fillText(linea.trim(), x, cy); cy += lineH; }
-        ctx.shadowColor = "transparent";
-        return cy;
+        if (linea.trim()) {
+          ctx.shadowColor = "rgba(0,0,0,0.95)";
+          ctx.fillText(linea.trim(), x, cy);
+          ctx.shadowColor = "transparent";
+        }
+        return cy + lineH;
       } else {
+        ctx.shadowColor = "rgba(0,0,0,0.95)";
         ctx.fillText(String(texto || ""), x, y);
         ctx.shadowColor = "transparent";
         return y + (lineH || 0);
       }
     };
 
-    const roundRect = (x, y, w, h, r, fill) => {
+    const roundRect = (x, y, w, h, r, fill, alpha = 1) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.moveTo(x + r, y);
       ctx.lineTo(x + w - r, y);
@@ -292,15 +300,16 @@ ${hashtagsTexto}
       ctx.closePath();
       ctx.fillStyle = fill;
       ctx.fill();
+      ctx.restore();
     };
 
-    // ── 1. Fondo con foto o gradiente ────────────────────────
+    // ── 1. Fondo ─────────────────────────────────────────────
     await new Promise((resolve) => {
       if (!fotoUrl) {
-        const grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0, "#0a1a0a");
-        grad.addColorStop(0.5, "#1a3a1a");
-        grad.addColorStop(1, "#0a1a0a");
+        const grad = ctx.createLinearGradient(0, 0, W, H);
+        grad.addColorStop(0, "#071a07");
+        grad.addColorStop(0.5, "#0f2e0f");
+        grad.addColorStop(1, "#071a07");
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
         resolve();
@@ -312,11 +321,10 @@ ${hashtagsTexto}
           const iw = img.width * r;
           const ih = img.height * r;
           ctx.drawImage(img, (W - iw) / 2, (H - ih) / 2, iw, ih);
-          // Overlay degradado fuerte para legibilidad
           const ov = ctx.createLinearGradient(0, 0, 0, H);
-          ov.addColorStop(0, "rgba(0,0,0,0.55)");
-          ov.addColorStop(0.4, "rgba(0,0,0,0.30)");
-          ov.addColorStop(1, "rgba(0,0,0,0.80)");
+          ov.addColorStop(0, "rgba(0,10,0,0.60)");
+          ov.addColorStop(0.45, "rgba(0,10,0,0.35)");
+          ov.addColorStop(1, "rgba(0,10,0,0.85)");
           ctx.fillStyle = ov;
           ctx.fillRect(0, 0, W, H);
           resolve();
@@ -326,66 +334,130 @@ ${hashtagsTexto}
       }
     });
 
+    // ── 2. Mariposas decorativas (SVG-style con Canvas) ──────
+    const dibujarMariposa = (x, y, size, alpha, angle = 0) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.ellipse(-size * 0.6, -size * 0.3, size * 0.7, size * 0.45, -0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#4CAF50";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(size * 0.6, -size * 0.3, size * 0.7, size * 0.45, 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#66BB6A";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(-size * 0.45, size * 0.25, size * 0.5, size * 0.3, -0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "#388E3C";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(size * 0.45, size * 0.25, size * 0.5, size * 0.3, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "#43A047";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 0.08, size * 0.55, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#1B5E20";
+      ctx.fill();
+      ctx.restore();
+    };
+
+    dibujarMariposa(80, 80, 28, 0.18, 0.3);
+    dibujarMariposa(980, 120, 22, 0.15, -0.5);
+    dibujarMariposa(950, 950, 32, 0.20, 0.8);
+    dibujarMariposa(100, 960, 24, 0.16, -0.3);
+    dibujarMariposa(540, 40, 18, 0.12, 0.1);
+    dibujarMariposa(200, 500, 16, 0.10, 0.6);
+    dibujarMariposa(880, 500, 20, 0.12, -0.4);
+    dibujarMariposa(700, 80, 14, 0.10, 0.2);
+
+    // ── 3. Borde elegante ─────────────────────────────────────
+    ctx.strokeStyle = "rgba(76,175,80,0.3)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(24, 24, W - 48, H - 48);
+
     const PAD = 72;
     const ANCHO = W - PAD * 2;
+    let y = 72;
 
-    // ── 2. Chip día/pilar arriba ──────────────────────────────
-    roundRect(PAD, 60, 260, 48, 24, "rgba(45,80,22,0.85)");
+    // ── 4. Chip pilar (SIN el día) ────────────────────────────
+    roundRect(PAD, y, 280, 44, 22, "rgba(27,94,32,0.85)");
+    ctx.font = "bold 20px sans-serif";
+    ctx.fillStyle = "#A5D6A7";
     ctx.textAlign = "left";
-    shadowText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, PAD + 20, 91, "bold 22px sans-serif", "#FFFFFF");
-    shadowText(pilarLabel, PAD, 135, "18px sans-serif", "rgba(255,255,255,0.7)");
+    ctx.shadowColor = "transparent";
+    ctx.fillText(`${emojiLabel}  ${pilarLabel}`, PAD + 18, y + 28);
+    y += 68;
 
-    // ── 3. Hook destacado ─────────────────────────────────────
-    let y = 180;
+    // ── 5. Hook grande y llamativo ────────────────────────────
     if (post.hook) {
-      const hookTexto = String(post.hook).substring(0, 120);
-      ctx.textAlign = "left";
-      // Línea decorativa izquierda (sin sombra — es una forma)
       ctx.fillStyle = "#4CAF50";
-      ctx.fillRect(PAD, y, 6, 120);
-      y = shadowText(hookTexto, PAD + 24, y + 44, "bold italic 44px sans-serif", "#F6E05E", ANCHO - 24, 52);
-      y += 32;
+      ctx.shadowColor = "rgba(76,175,80,0.6)";
+      ctx.shadowBlur = 10;
+      ctx.fillRect(PAD, y, 5, 160);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+
+      y = shadowText(
+        String(post.hook).substring(0, 100),
+        PAD + 22, y + 38,
+        "bold italic 40px sans-serif",
+        "#F9E04B",
+        ANCHO - 22,
+        50
+      );
+      y += 28;
     }
 
-    // ── 4. Copy ───────────────────────────────────────────────
-    const copyTexto = String(post.copy || "").substring(0, 280);
-    ctx.textAlign = "left";
-    y = shadowText(copyTexto, PAD, y, "28px sans-serif", "rgba(255,255,255,0.92)", ANCHO, 40);
-    y += 32;
+    // ── 6. Copy ───────────────────────────────────────────────
+    y = shadowText(
+      String(post.copy || "").substring(0, 380),
+      PAD, y,
+      "23px sans-serif",
+      "rgba(255,255,255,0.93)",
+      ANCHO,
+      33
+    );
+    y += 36;
 
-    // ── 5. Separador ──────────────────────────────────────────
-    ctx.strokeStyle = "rgba(76,175,80,0.5)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(PAD, y);
-    ctx.lineTo(W - PAD, y);
-    ctx.stroke();
-    y += 28;
-
-    // ── 6. Hashtags (1 línea) ─────────────────────────────────
-    const tags = Array.isArray(post.hashtags)
-      ? post.hashtags.slice(0, 8).map(h => h.startsWith("#") ? h : `#${h}`).join("  ")
-      : "";
-    ctx.textAlign = "left";
-    shadowText(tags, PAD, y + 22, "22px sans-serif", "#81C784");
-    y += 56;
-
-    // ── 7. CTA pill ───────────────────────────────────────────
-    roundRect(PAD, y, 360, 52, 26, "rgba(76,175,80,0.9)");
+    // ── 7. CTA pill centrado ──────────────────────────────────
+    const ctaW = 400;
+    const ctaX = (W - ctaW) / 2;
+    roundRect(ctaX, y, ctaW, 54, 27, "rgba(46,125,50,0.92)");
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
-    shadowText("📍 Reserva en el link de la bio", PAD + 180, y + 34, "bold 24px sans-serif", "#FFFFFF");
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 6;
+    ctx.fillText("🌿 Reserva tu escape · link en bio", W / 2, y + 35);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "left";
+    y += 80;
+
+    // ── 8. Ubicación discreta ─────────────────────────────────
+    ctx.font = "italic 19px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.38)";
+    ctx.textAlign = "center";
+    ctx.fillText("📍 Macanal, Boyacá · Colombia", W / 2, H - 110);
     ctx.textAlign = "left";
 
-    // ── 8. Marca inferior ─────────────────────────────────────
-    const gradBar = ctx.createLinearGradient(0, H - 90, 0, H);
-    gradBar.addColorStop(0, "rgba(45,80,22,0)");
-    gradBar.addColorStop(0.3, "rgba(45,80,22,0.95)");
-    gradBar.addColorStop(1, "rgba(45,80,22,1)");
+    // ── 9. Banda marca inferior ───────────────────────────────
+    const gradBar = ctx.createLinearGradient(0, H - 85, 0, H);
+    gradBar.addColorStop(0, "rgba(27,94,32,0)");
+    gradBar.addColorStop(0.35, "rgba(27,94,32,0.97)");
+    gradBar.addColorStop(1, "rgba(10,40,10,1)");
     ctx.fillStyle = gradBar;
-    ctx.fillRect(0, H - 90, W, 90);
+    ctx.fillRect(0, H - 85, W, 85);
 
+    ctx.font = "bold 28px sans-serif";
+    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
-    shadowText("🦋 Earth Park  ·  @earthpark.co", W / 2, H - 32, "bold 30px sans-serif", "#FFFFFF");
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 8;
+    ctx.fillText("🦋 Earth Park  ·  @earthpark.co", W / 2, H - 28);
+    ctx.shadowColor = "transparent";
 
     // ── Descargar ─────────────────────────────────────────────
     const link = document.createElement("a");
