@@ -465,15 +465,17 @@ ${hashtagsTexto}
     }
 
     // ── 7. CTA fijo cerca de la marca ────────────────────────
-    const ctaW = 340;
+    const ctaTexto = "🌿 Tu escape perfecto te espera · link en bio";
     const ctaY = H - 175;
-    roundRect((W - ctaW) / 2, ctaY, ctaW, 44, 22, "rgba(46,125,50,0.65)");
     ctx.font = "italic 19px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.80)";
+    const ctaAncho = ctx.measureText(ctaTexto).width + 48;
+    const ctaX = (W - ctaAncho) / 2;
+    roundRect(ctaX, ctaY, ctaAncho, 44, 22, "rgba(46,125,50,0.70)");
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.textAlign = "center";
     ctx.shadowColor = "rgba(0,0,0,0.4)";
     ctx.shadowBlur = 4;
-    ctx.fillText("🌿 Tu escape perfecto te espera · link en bio", W / 2, ctaY + 28);
+    ctx.fillText(ctaTexto, W / 2, ctaY + 28);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
     ctx.textAlign = "left";
