@@ -382,12 +382,13 @@ ${hashtagsTexto}
     let y = 72;
 
     // ── 4. Chip pilar (SIN el día) ────────────────────────────
-    roundRect(PAD, y, 280, 44, 22, "rgba(27,94,32,0.85)");
     ctx.font = "bold 20px sans-serif";
+    const chipTexto = `${emojiLabel}  ${pilarLabel}`;
+    const chipAncho = ctx.measureText(chipTexto).width + 40;
+    roundRect(PAD, y, chipAncho, 44, 22, "rgba(27,94,32,0.85)");
     ctx.fillStyle = "#A5D6A7";
     ctx.textAlign = "left";
-    ctx.shadowColor = "transparent";
-    ctx.fillText(`${emojiLabel}  ${pilarLabel}`, PAD + 18, y + 28);
+    ctx.fillText(chipTexto, PAD + 18, y + 28);
     y += 68;
 
     // ── 5. Hook grande y llamativo ────────────────────────────
@@ -411,8 +412,16 @@ ${hashtagsTexto}
     }
 
     // ── 6. Copy ───────────────────────────────────────────────
+    let copyRaw = String(post.copy || "");
+    if (copyRaw.length > 320) {
+      const corte = copyRaw.lastIndexOf(".", 320);
+      copyRaw = corte > 100
+        ? copyRaw.substring(0, corte + 1)
+        : copyRaw.substring(0, 320).split(" ").slice(0, -1).join(" ");
+    }
+    const copyTexto = copyRaw;
     y = shadowText(
-      String(post.copy || "").substring(0, 380),
+      copyTexto,
       PAD, y,
       "23px sans-serif",
       "rgba(255,255,255,0.93)",
@@ -421,20 +430,17 @@ ${hashtagsTexto}
     );
     y += 36;
 
-    // ── 7. CTA pill centrado ──────────────────────────────────
-    const ctaW = 400;
-    const ctaX = (W - ctaW) / 2;
-    roundRect(ctaX, y, ctaW, 54, 27, "rgba(46,125,50,0.92)");
-    ctx.font = "bold 24px sans-serif";
-    ctx.fillStyle = "#FFFFFF";
-    ctx.textAlign = "center";
+    // ── 7. CTA pill izquierda ─────────────────────────────────
+    roundRect(PAD, y, 340, 44, 22, "rgba(46,125,50,0.75)");
+    ctx.font = "20px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.90)";
+    ctx.textAlign = "left";
     ctx.shadowColor = "rgba(0,0,0,0.5)";
     ctx.shadowBlur = 6;
-    ctx.fillText("🌿 Reserva tu escape · link en bio", W / 2, y + 35);
+    ctx.fillText("🌿 Reserva tu escape · link en bio", PAD + 16, y + 28);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
-    ctx.textAlign = "left";
-    y += 80;
+    y += 64;
 
     // ── 8. Ubicación discreta ─────────────────────────────────
     ctx.font = "italic 19px sans-serif";
