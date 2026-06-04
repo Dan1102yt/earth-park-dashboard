@@ -238,6 +238,34 @@ ${hashtagsTexto}
     URL.revokeObjectURL(url);
   };
 
+  const abrirEnCanva = () => {
+    const tipoFormato = post.pilar?.toLowerCase().includes("carrusel")
+      ? "carrusel de Instagram (formato cuadrado 1:1, múltiples slides)"
+      : "post o reel de Instagram (formato vertical 9:16)";
+
+    const fotoInstruccion = foto
+      ? `\n\nIMPORTANTE: El usuario ha subido una foto llamada "${foto.name}". Úsala como imagen principal del diseño en Canva. Indícale que la suba manualmente a Canva ya que es un archivo local.`
+      : "";
+
+    const mensaje = `Crea un diseño en Canva para Earth Park con este contenido:
+
+FORMATO: ${tipoFormato}
+
+--- POST ${post.dia} — ${post.pilar} ${post.emoji} ---
+HOOK: ${post.hook || ""}
+COPY: ${post.copy || ""}
+HASHTAGS: ${Array.isArray(post.hashtags) ? post.hashtags.join(" ") : ""}
+📸 FOTO IDEAL: ${post.instrucciones_foto || ""}
+🎨 DISEÑO: ${post.instrucciones_canva || ""}${fotoInstruccion}
+
+Paleta Earth Park: verde bosque #2D5016, verde claro #4CAF50, blanco, negro.
+Tipografía: Montserrat Bold para títulos, sans-serif para cuerpo.
+Genera el diseño directamente en Canva y devuelve el link editable.`;
+
+    const url = `https://claude.ai/new?q=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank");
+  };
+
   const background = "rgba(10,22,6,0.75)";
   const border = "1px solid rgba(77,142,30,0.18)";
 
@@ -328,7 +356,7 @@ ${hashtagsTexto}
       </div>
 
       {/* Botones */}
-      <div className="flex gap-2 mt-auto pt-2">
+      <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-2">
         <button
           onClick={copiarPost}
           className="flex-1 border border-gray-500 rounded-lg px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
@@ -340,6 +368,12 @@ ${hashtagsTexto}
           className="flex-1 bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-green-700 transition"
         >
           ⬇️ Descargar .txt
+        </button>
+        <button
+          onClick={abrirEnCanva}
+          className="flex-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-blue-700 transition"
+        >
+          🎨 Crear en Canva
         </button>
       </div>
 
