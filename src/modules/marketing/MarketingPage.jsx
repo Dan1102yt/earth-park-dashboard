@@ -239,32 +239,144 @@ ${hashtagsTexto}
     URL.revokeObjectURL(url);
   };
 
-  const abrirEnCanva = () => {
-    const tipoFormato = post.pilar?.toLowerCase().includes("carrusel")
-      ? "carrusel de Instagram (formato cuadrado 1:1, múltiples slides)"
-      : "post o reel de Instagram (formato vertical 9:16)";
+  const generarImagenPost = () => {
+    const canvas = document.createElement("canvas");
+    const W = 1080;
+    const H = 1080;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
 
-    const fotoInstruccion = foto
-      ? `\n\nIMPORTANTE: El usuario ha subido una foto llamada "${foto.name}". Úsala como imagen principal del diseño en Canva. Indícale que la suba manualmente a Canva ya que es un archivo local.`
-      : "";
+    const colorFondo = "#0D1F0F";
+    const colorVerde = "#2D5016";
+    const colorVerdeClaro = "#4CAF50";
+    const colorBlanco = "#FFFFFF";
+    const colorGris = "#A0AEC0";
+    const colorAmbar = "#F6AD55";
 
-    const mensaje = `Crea un diseño en Canva para Earth Park con este contenido:
+    // Fondo
+    ctx.fillStyle = colorFondo;
+    ctx.fillRect(0, 0, W, H);
 
-FORMATO: ${tipoFormato}
+    // Banda verde superior
+    ctx.fillStyle = colorVerde;
+    ctx.fillRect(0, 0, W, 8);
 
---- POST ${post.dia} — ${post.pilar} ${post.emoji} ---
-HOOK: ${post.hook || ""}
-COPY: ${post.copy || ""}
-HASHTAGS: ${Array.isArray(post.hashtags) ? post.hashtags.join(" ") : ""}
-📸 FOTO IDEAL: ${post.instrucciones_foto || ""}
-🎨 DISEÑO: ${post.instrucciones_canva || ""}${fotoInstruccion}
+    // Banda verde inferior
+    ctx.fillStyle = colorVerde;
+    ctx.fillRect(0, H - 8, W, 8);
 
-Paleta Earth Park: verde bosque #2D5016, verde claro #4CAF50, blanco, negro.
-Tipografía: Montserrat Bold para títulos, sans-serif para cuerpo.
-Genera el diseño directamente en Canva y devuelve el link editable.`;
+    const dibujarTexto = (texto, x, y, maxW, fuente, color, alineacion = "left") => {
+      ctx.font = fuente;
+      ctx.fillStyle = color;
+      ctx.textAlign = alineacion;
+      const palabras = texto.split(" ");
+      let linea = "";
+      let lineaY = y;
+      const lineaH = parseInt(fuente) * 1.4;
+      for (let i = 0; i < palabras.length; i++) {
+        const prueba = linea + palabras[i] + " ";
+        if (ctx.measureText(prueba).width > maxW && i > 0) {
+          ctx.fillText(linea.trim(), x, lineaY);
+          linea = palabras[i] + " ";
+          lineaY += lineaH;
+        } else {
+          linea = prueba;
+        }
+      }
+      ctx.fillText(linea.trim(), x, lineaY);
+      return lineaY + lineaH;
+    };
 
-    const url = `https://claude.ai/new?q=${encodeURIComponent(mensaje)}`;
-    window.open(url, "_blank");
+    let yActual = 60;
+
+    // Emoji + día
+    ctx.font = "bold 36px sans-serif";
+    ctx.fillStyle = colorVerdeClaro;
+    ctx.textAlign = "left";
+    ctx.fillText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, 60, yActual);
+    yActual += 48;
+
+    // Pilar
+    ctx.font = "24px sans-serif";
+    ctx.fillStyle = colorGris;
+    ctx.fillText(pilarLabel, 60, yActual);
+    yActual += 48;
+
+    // Línea separadora
+    ctx.strokeStyle = colorVerde;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(60, yActual);
+    ctx.lineTo(W - 60, yActual);
+    ctx.stroke();
+    yActual += 32;
+
+    // Hook
+    if (post.hook) {
+      ctx.fillStyle = "#2D2000";
+      ctx.fillRect(60, yActual - 16, W - 120, 8);
+      yActual = dibujarTexto(
+        `🎣 ${post.hook}`,
+        60, yActual,
+        W - 120,
+        "italic bold 32px sans-serif",
+        colorAmbar
+      );
+      yActual += 24;
+    }
+
+    // Copy (primeras 300 chars para que quepa)
+    const copyCorto = (post.copy || "").substring(0, 300);
+    yActual = dibujarTexto(
+      copyCorto,
+      60, yActual,
+      W - 120,
+      "28px sans-serif",
+      colorBlanco
+    );
+    yActual += 32;
+
+    // Hashtags (primera línea)
+    const hashLine = hashtagsTexto.substring(0, 80);
+    ctx.font = "22px sans-serif";
+    ctx.fillStyle = colorVerdeClaro;
+    ctx.textAlign = "left";
+    ctx.fillText(hashLine, 60, yActual);
+    yActual += 40;
+
+    // Logo/marca Earth Park abajo
+    ctx.fillStyle = colorVerde;
+    ctx.fillRect(0, H - 90, W, 82);
+    ctx.font = "bold 32px sans-serif";
+    ctx.fillStyle = colorBlanco;
+    ctx.textAlign = "center";
+    ctx.fillText("🦋 Earth Park · @earthpark.co", W / 2, H - 44);
+
+    // Si hay foto del usuario, dibujarla como fondo semitransparente
+    const finalizar = () => {
+      const link = document.createElement("a");
+      link.download = `earthpark-${diaLabel}-post.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    };
+
+    if (fotoUrl) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // Dibujar foto como franja lateral derecha
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(img, W - 360, 60, 300, 300);
+        ctx.restore();
+        finalizar();
+      };
+      img.onerror = finalizar;
+      img.src = fotoUrl;
+    } else {
+      finalizar();
+    }
   };
 
   const background = "rgba(10,22,6,0.75)";
@@ -371,10 +483,10 @@ Genera el diseño directamente en Canva y devuelve el link editable.`;
           ⬇️ Descargar .txt
         </button>
         <button
-          onClick={abrirEnCanva}
-          className="flex-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-blue-700 transition"
+          onClick={generarImagenPost}
+          className="flex-1 bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-emerald-700 transition"
         >
-          🎨 Crear en Canva
+          🖼️ Descargar imagen
         </button>
       </div>
 
