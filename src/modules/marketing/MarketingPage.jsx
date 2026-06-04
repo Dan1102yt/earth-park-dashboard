@@ -249,20 +249,33 @@ ${hashtagsTexto}
     const ctx = canvas.getContext("2d");
 
     // ── Helpers ──────────────────────────────────────────────
-    const wrap = (texto, x, y, maxW, lineH) => {
-      const palabras = String(texto || "").split(" ");
-      let linea = "";
-      let cy = y;
-      for (const p of palabras) {
-        const prueba = linea + p + " ";
-        if (ctx.measureText(prueba).width > maxW && linea) {
-          ctx.fillText(linea.trim(), x, cy);
-          linea = p + " ";
-          cy += lineH;
-        } else linea = prueba;
+    const shadowText = (texto, x, y, fuente, color, maxW, lineH) => {
+      ctx.font = fuente;
+      ctx.shadowColor = "rgba(0,0,0,0.9)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = color;
+      if (maxW) {
+        const palabras = String(texto || "").split(" ");
+        let linea = "";
+        let cy = y;
+        for (const p of palabras) {
+          const prueba = linea + p + " ";
+          if (ctx.measureText(prueba).width > maxW && linea) {
+            ctx.fillText(linea.trim(), x, cy);
+            linea = p + " ";
+            cy += lineH;
+          } else linea = prueba;
+        }
+        if (linea.trim()) { ctx.fillText(linea.trim(), x, cy); cy += lineH; }
+        ctx.shadowColor = "transparent";
+        return cy;
+      } else {
+        ctx.fillText(String(texto || ""), x, y);
+        ctx.shadowColor = "transparent";
+        return y + (lineH || 0);
       }
-      if (linea.trim()) { ctx.fillText(linea.trim(), x, cy); cy += lineH; }
-      return cy;
     };
 
     const roundRect = (x, y, w, h, r, fill) => {
@@ -318,36 +331,26 @@ ${hashtagsTexto}
 
     // ── 2. Chip día/pilar arriba ──────────────────────────────
     roundRect(PAD, 60, 260, 48, 24, "rgba(45,80,22,0.85)");
-    ctx.font = "bold 22px sans-serif";
-    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "left";
-    ctx.fillText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, PAD + 20, 91);
-
-    ctx.font = "18px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.7)";
-    ctx.fillText(pilarLabel, PAD, 135);
+    shadowText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, PAD + 20, 91, "bold 22px sans-serif", "#FFFFFF");
+    shadowText(pilarLabel, PAD, 135, "18px sans-serif", "rgba(255,255,255,0.7)");
 
     // ── 3. Hook destacado ─────────────────────────────────────
     let y = 180;
     if (post.hook) {
       const hookTexto = String(post.hook).substring(0, 120);
-      ctx.font = "bold italic 44px sans-serif";
-      ctx.fillStyle = "#F6E05E";
       ctx.textAlign = "left";
-      // Línea decorativa izquierda
+      // Línea decorativa izquierda (sin sombra — es una forma)
       ctx.fillStyle = "#4CAF50";
       ctx.fillRect(PAD, y, 6, 120);
-      ctx.fillStyle = "#F6E05E";
-      y = wrap(hookTexto, PAD + 24, y + 44, ANCHO - 24, 52);
+      y = shadowText(hookTexto, PAD + 24, y + 44, "bold italic 44px sans-serif", "#F6E05E", ANCHO - 24, 52);
       y += 32;
     }
 
     // ── 4. Copy ───────────────────────────────────────────────
     const copyTexto = String(post.copy || "").substring(0, 280);
-    ctx.font = "28px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.textAlign = "left";
-    y = wrap(copyTexto, PAD, y, ANCHO, 40);
+    y = shadowText(copyTexto, PAD, y, "28px sans-serif", "rgba(255,255,255,0.92)", ANCHO, 40);
     y += 32;
 
     // ── 5. Separador ──────────────────────────────────────────
@@ -363,17 +366,14 @@ ${hashtagsTexto}
     const tags = Array.isArray(post.hashtags)
       ? post.hashtags.slice(0, 8).map(h => h.startsWith("#") ? h : `#${h}`).join("  ")
       : "";
-    ctx.font = "22px sans-serif";
-    ctx.fillStyle = "#81C784";
-    ctx.fillText(tags, PAD, y + 22);
+    ctx.textAlign = "left";
+    shadowText(tags, PAD, y + 22, "22px sans-serif", "#81C784");
     y += 56;
 
     // ── 7. CTA pill ───────────────────────────────────────────
     roundRect(PAD, y, 360, 52, 26, "rgba(76,175,80,0.9)");
-    ctx.font = "bold 24px sans-serif";
-    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
-    ctx.fillText("📍 Reserva en el link de la bio", PAD + 180, y + 34);
+    shadowText("📍 Reserva en el link de la bio", PAD + 180, y + 34, "bold 24px sans-serif", "#FFFFFF");
     ctx.textAlign = "left";
 
     // ── 8. Marca inferior ─────────────────────────────────────
@@ -384,10 +384,8 @@ ${hashtagsTexto}
     ctx.fillStyle = gradBar;
     ctx.fillRect(0, H - 90, W, 90);
 
-    ctx.font = "bold 30px sans-serif";
-    ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
-    ctx.fillText("🦋 Earth Park  ·  @earthpark.co", W / 2, H - 32);
+    shadowText("🦋 Earth Park  ·  @earthpark.co", W / 2, H - 32, "bold 30px sans-serif", "#FFFFFF");
 
     // ── Descargar ─────────────────────────────────────────────
     const link = document.createElement("a");
