@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.383.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",

@@ -4,6 +4,7 @@ import {
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
   AlertCircle,
 } from "lucide-react";
+import html2canvas from "html2canvas";
 import { useMarketingStorage } from "./useMarketingStorage";
 
 const MODEL = "claude-sonnet-4-5";
@@ -183,6 +184,7 @@ function PostCard({ post, index }) {
   const [foto, setFoto] = useState(null);
   const [fotoUrl, setFotoUrl] = useState(null);
   const inputRef = useRef(null);
+  const cardRef = useRef(null);
   const info = DIAS_SEMANA[index] || {};
 
   useEffect(() => {
@@ -239,143 +241,82 @@ ${hashtagsTexto}
     URL.revokeObjectURL(url);
   };
 
-  const generarImagenPost = () => {
-    const canvas = document.createElement("canvas");
-    const W = 1080;
-    const H = 1080;
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
+  const generarImagenPost = async () => {
+    if (!cardRef.current) return;
+    try {
+      // Ocultar botones temporalmente para que no salgan en la imagen
+      const botones = cardRef.current.querySelector(".botones-export");
+      if (botones) botones.style.display = "none";
 
-    const colorFondo = "#0D1F0F";
-    const colorVerde = "#2D5016";
-    const colorVerdeClaro = "#4CAF50";
-    const colorBlanco = "#FFFFFF";
-    const colorGris = "#A0AEC0";
-    const colorAmbar = "#F6AD55";
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: null,
+        width: cardRef.current.offsetWidth,
+        height: cardRef.current.offsetHeight,
+      });
 
-    // Fondo
-    ctx.fillStyle = colorFondo;
-    ctx.fillRect(0, 0, W, H);
+      // Restaurar botones
+      if (botones) botones.style.display = "";
 
-    // Banda verde superior
-    ctx.fillStyle = colorVerde;
-    ctx.fillRect(0, 0, W, 8);
+      // Crear canvas cuadrado 1080x1080 con la tarjeta centrada
+      const output = document.createElement("canvas");
+      output.width = 1080;
+      output.height = 1080;
+      const ctx = output.getContext("2d");
 
-    // Banda verde inferior
-    ctx.fillStyle = colorVerde;
-    ctx.fillRect(0, H - 8, W, 8);
+      // Fondo
+      ctx.fillStyle = "#0D1F0F";
+      ctx.fillRect(0, 0, 1080, 1080);
 
-    const dibujarTexto = (texto, x, y, maxW, fuente, color, alineacion = "left") => {
-      ctx.font = fuente;
-      ctx.fillStyle = color;
-      ctx.textAlign = alineacion;
-      const palabras = texto.split(" ");
-      let linea = "";
-      let lineaY = y;
-      const lineaH = parseInt(fuente) * 1.4;
-      for (let i = 0; i < palabras.length; i++) {
-        const prueba = linea + palabras[i] + " ";
-        if (ctx.measureText(prueba).width > maxW && i > 0) {
-          ctx.fillText(linea.trim(), x, lineaY);
-          linea = palabras[i] + " ";
-          lineaY += lineaH;
-        } else {
-          linea = prueba;
-        }
-      }
-      ctx.fillText(linea.trim(), x, lineaY);
-      return lineaY + lineaH;
-    };
+      // Si hay foto del usuario, usarla como fondo completo con overlay
+      const dibujarFoto = () => new Promise((resolve) => {
+        if (!fotoUrl) { resolve(); return; }
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          // Foto como fondo completo con cover
+          const ratio = Math.max(1080 / img.width, 1080 / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = (1080 - w) / 2;
+          const y = (1080 - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+          // Overlay oscuro para legibilidad
+          ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+          ctx.fillRect(0, 0, 1080, 1080);
+          resolve();
+        };
+        img.onerror = resolve;
+        img.src = fotoUrl;
+      });
 
-    let yActual = 60;
+      await dibujarFoto();
 
-    // Emoji + día
-    ctx.font = "bold 36px sans-serif";
-    ctx.fillStyle = colorVerdeClaro;
-    ctx.textAlign = "left";
-    ctx.fillText(`${emojiLabel}  ${diaLabel.toUpperCase()}`, 60, yActual);
-    yActual += 48;
+      // Dibujar la tarjeta capturada centrada
+      const scale = Math.min(1080 / canvas.width, 900 / canvas.height);
+      const dw = canvas.width * scale;
+      const dh = canvas.height * scale;
+      const dx = (1080 - dw) / 2;
+      const dy = (1080 - dh) / 2;
+      ctx.drawImage(canvas, dx, dy, dw, dh);
 
-    // Pilar
-    ctx.font = "24px sans-serif";
-    ctx.fillStyle = colorGris;
-    ctx.fillText(pilarLabel, 60, yActual);
-    yActual += 48;
+      // Banda inferior con marca
+      ctx.fillStyle = "rgba(45, 80, 22, 0.95)";
+      ctx.fillRect(0, 1080 - 70, 1080, 70);
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "center";
+      ctx.fillText("🦋 Earth Park · @earthpark.co · Macanal, Boyacá", 540, 1080 - 24);
 
-    // Línea separadora
-    ctx.strokeStyle = colorVerde;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(60, yActual);
-    ctx.lineTo(W - 60, yActual);
-    ctx.stroke();
-    yActual += 32;
-
-    // Hook
-    if (post.hook) {
-      ctx.fillStyle = "#2D2000";
-      ctx.fillRect(60, yActual - 16, W - 120, 8);
-      yActual = dibujarTexto(
-        `🎣 ${post.hook}`,
-        60, yActual,
-        W - 120,
-        "italic bold 32px sans-serif",
-        colorAmbar
-      );
-      yActual += 24;
-    }
-
-    // Copy (primeras 300 chars para que quepa)
-    const copyCorto = (post.copy || "").substring(0, 300);
-    yActual = dibujarTexto(
-      copyCorto,
-      60, yActual,
-      W - 120,
-      "28px sans-serif",
-      colorBlanco
-    );
-    yActual += 32;
-
-    // Hashtags (primera línea)
-    const hashLine = hashtagsTexto.substring(0, 80);
-    ctx.font = "22px sans-serif";
-    ctx.fillStyle = colorVerdeClaro;
-    ctx.textAlign = "left";
-    ctx.fillText(hashLine, 60, yActual);
-    yActual += 40;
-
-    // Logo/marca Earth Park abajo
-    ctx.fillStyle = colorVerde;
-    ctx.fillRect(0, H - 90, W, 82);
-    ctx.font = "bold 32px sans-serif";
-    ctx.fillStyle = colorBlanco;
-    ctx.textAlign = "center";
-    ctx.fillText("🦋 Earth Park · @earthpark.co", W / 2, H - 44);
-
-    // Si hay foto del usuario, dibujarla como fondo semitransparente
-    const finalizar = () => {
+      // Descargar
       const link = document.createElement("a");
       link.download = `earthpark-${diaLabel}-post.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = output.toDataURL("image/png");
       link.click();
-    };
 
-    if (fotoUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        // Dibujar foto como franja lateral derecha
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.drawImage(img, W - 360, 60, 300, 300);
-        ctx.restore();
-        finalizar();
-      };
-      img.onerror = finalizar;
-      img.src = fotoUrl;
-    } else {
-      finalizar();
+    } catch (err) {
+      console.error("Error generando imagen:", err);
     }
   };
 
@@ -383,7 +324,7 @@ ${hashtagsTexto}
   const border = "1px solid rgba(77,142,30,0.18)";
 
   return (
-    <div className="rounded-2xl p-4 space-y-3 flex flex-col" style={{ background, border }}>
+    <div ref={cardRef} className="rounded-2xl p-4 space-y-3 flex flex-col" style={{ background, border }}>
 
       {/* Header */}
       <div className="flex items-center gap-2">
@@ -469,7 +410,7 @@ ${hashtagsTexto}
       </div>
 
       {/* Botones */}
-      <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-2">
+      <div className="botones-export flex flex-col sm:flex-row gap-2 mt-auto pt-2">
         <button
           onClick={copiarPost}
           className="flex-1 border border-gray-500 rounded-lg px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
