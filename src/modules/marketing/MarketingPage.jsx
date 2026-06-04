@@ -4,6 +4,7 @@ import {
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
   AlertCircle,
 } from "lucide-react";
+import { useMarketingStorage } from "./useMarketingStorage";
 
 const MODEL = "claude-sonnet-4-5";
 
@@ -416,6 +417,13 @@ export default function MarketingPage() {
   const [errorPost, setErrorPost] = useState(null);
 
   const workerUrl = import.meta.env.VITE_WORKER_URL;
+  const { semanas, loading, guardarSemana } = useMarketingStorage();
+
+  useEffect(() => {
+    if (semanas.length > 0 && semana.length === 0) {
+      setSemana(semanas[0].posts || []);
+    }
+  }, [semanas]);
 
   const generarSemana = useCallback(async () => {
     if (!workerUrl) {
@@ -425,6 +433,13 @@ export default function MarketingPage() {
     setLoadingSemana(true);
     setErrorSemana(null);
     setSemana([]);
+
+    const temasUsados = semanas.slice(0, 4)
+      .flatMap(s => (s.posts || []).map(p => p.pilar))
+      .filter(Boolean);
+    const antiRepeticion = temasUsados.length > 0
+      ? `\n\nTEMAS YA PUBLICADOS — NO REPETIR:\n${[...new Set(temasUsados)].join(", ")}`
+      : "";
 
     const prompt = `Genera el calendario de contenido completo para esta semana de Earth Park en Instagram y TikTok (@earthpark.co).
 
@@ -438,12 +453,13 @@ Para cada post incluye:
 4. instrucciones_canva: guía detallada para diseñar en Canva (colores de paleta, tipografía, disposición, elementos gráficos)
 
 Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de código markdown:
-[{"dia":"Lunes","pilar":"...","copy":"...","hashtags":["#..."],"instrucciones_foto":"...","instrucciones_canva":"..."},...]`;
+[{"dia":"Lunes","pilar":"...","copy":"...","hashtags":["#..."],"instrucciones_foto":"...","instrucciones_canva":"..."},...]${antiRepeticion}`;
 
     try {
       const parsed = await llamarClaude(workerUrl, prompt);
       if (Array.isArray(parsed) && parsed.length > 0) {
         setSemana(parsed);
+        await guardarSemana(parsed);
         setGeneracionId(id => id + 1);
       } else {
         setErrorSemana("No se pudo interpretar la respuesta. Intenta de nuevo.");
@@ -453,7 +469,7 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni bloques de cód
     } finally {
       setLoadingSemana(false);
     }
-  }, [workerUrl]);
+  }, [workerUrl, semanas]);
 
   const generarPost = useCallback(async () => {
     if (!inputPost.trim() || !workerUrl) return;
@@ -576,6 +592,33 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
               {semana.map((post, i) => (
                 <PostCard key={`${post.dia}-${generacionId}`} post={post} index={i} />
               ))}
+            </div>
+          )}
+
+          {semanas.length > 1 && (
+            <div className="mt-10">
+              <h2 className="text-lg font-bold text-white mb-4">
+                📅 Historial de semanas
+              </h2>
+              <div className="space-y-8">
+                {semanas.slice(1).map((semana) => (
+                  <div key={semana.id}>
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                      Semana del {semana.semana_label}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {(semana.posts || []).map((post, i) => (
+                        <PostCard
+                          key={`${semana.id}-${i}`}
+                          post={post}
+                          index={i}
+                          generacionId={semana.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </section>
