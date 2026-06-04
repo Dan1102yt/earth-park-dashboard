@@ -413,6 +413,8 @@ ${hashtagsTexto}
 
     // ── 6. Copy ───────────────────────────────────────────────
     let copyRaw = String(post.copy || "");
+
+    // Quitar primera oración si repite el hook
     if (post.hook) {
       const hookWords = String(post.hook).toLowerCase().split(" ").slice(0, 5).join(" ");
       const copyStart = copyRaw.toLowerCase().substring(0, 80);
@@ -426,22 +428,41 @@ ${hashtagsTexto}
         if (corte < 150) copyRaw = copyRaw.substring(corte + 1).trim();
       }
     }
-    if (copyRaw.length > 320) {
-      const corte = copyRaw.lastIndexOf(".", 320);
-      copyRaw = corte > 100
-        ? copyRaw.substring(0, corte + 1)
-        : copyRaw.substring(0, 320).split(" ").slice(0, -1).join(" ");
+
+    // Dividir en dos bloques por oraciones
+    const oraciones = copyRaw.split(/(?<=[.!?])\s+/);
+    const mitad = Math.ceil(oraciones.length / 2);
+    const bloque1 = oraciones.slice(0, mitad).join(" ").trim();
+    const bloque2 = oraciones.slice(mitad).join(" ").trim();
+
+    // BLOQUE 1 — bold grande
+    if (bloque1) {
+      const b1 = bloque1.length > 180
+        ? bloque1.substring(0, bloque1.lastIndexOf(" ", 180))
+        : bloque1;
+      y = shadowText(b1, PAD, y, "bold 26px sans-serif",
+        "rgba(255,255,255,0.96)", ANCHO, 38);
+      y += 20;
     }
-    const copyTexto = copyRaw;
-    y = shadowText(
-      copyTexto,
-      PAD, y,
-      "23px sans-serif",
-      "rgba(255,255,255,0.93)",
-      ANCHO,
-      33
-    );
-    y += 60;
+
+    // Separador sutil
+    ctx.strokeStyle = "rgba(76,175,80,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(PAD + 200, y);
+    ctx.stroke();
+    y += 20;
+
+    // BLOQUE 2 — más pequeño y suave
+    if (bloque2) {
+      const b2 = bloque2.length > 160
+        ? bloque2.substring(0, bloque2.lastIndexOf(" ", 160))
+        : bloque2;
+      y = shadowText(b2, PAD, y, "21px sans-serif",
+        "rgba(255,255,255,0.72)", ANCHO, 30);
+      y += 16;
+    }
 
     // ── 7. CTA fijo cerca de la marca ────────────────────────
     const ctaW = 340;
