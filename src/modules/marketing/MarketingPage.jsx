@@ -440,23 +440,23 @@ ${hashtagsTexto}
     );
     y += 60;
 
-    // ── 7. CTA pill izquierda ─────────────────────────────────
-    roundRect(PAD, y, 340, 44, 22, "rgba(46,125,50,0.75)");
+    // ── 7. CTA fijo cerca de la marca ────────────────────────
+    const ctaY = H - 155;
+    roundRect(PAD, ctaY, 340, 44, 22, "rgba(46,125,50,0.75)");
     ctx.font = "20px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.90)";
     ctx.textAlign = "left";
     ctx.shadowColor = "rgba(0,0,0,0.5)";
     ctx.shadowBlur = 6;
-    ctx.fillText("🌿 Reserva tu escape · link en bio", PAD + 16, y + 28);
+    ctx.fillText("🌿 Reserva tu escape · link en bio", PAD + 16, ctaY + 28);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
-    y += 80;
 
-    // ── 8. Ubicación discreta ─────────────────────────────────
+    // ── 8. Ubicación discreta entre CTA y marca ───────────────
     ctx.font = "italic 19px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.38)";
     ctx.textAlign = "center";
-    ctx.fillText("📍 Macanal, Boyacá · Colombia", W / 2, H - 115);
+    ctx.fillText("📍 Macanal, Boyacá · Colombia", W / 2, H - 100);
     ctx.textAlign = "left";
 
     // ── 9. Banda marca inferior ───────────────────────────────
