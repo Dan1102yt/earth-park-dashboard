@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useReservas } from "../context/ReservasContext";
+import { useAuth } from "../context/AuthContext";
 import {
   PlusCircle,
   CalendarDays,
@@ -8,6 +9,7 @@ import {
   TrendingUp,
   Bot,
   Megaphone,
+  RotateCcw,
 } from "lucide-react";
 
 function InstagramIcon({ className }) {
@@ -31,18 +33,20 @@ function TikTokIcon({ className }) {
 const LOGO_URL = `${import.meta.env.BASE_URL}logo-earth-park.png`;
 
 const tabs = [
-  { path: "/nueva",       label: "Nueva",      icon: PlusCircle   },
-  { path: "/reservas",    label: "Reservas",   icon: CalendarDays },
-  { path: "/cocina",      label: "Cocina",     icon: ChefHat      },
-  { path: "/hospedaje",   label: "Hospedaje",  icon: BedDouble    },
-  { path: "/financiero",  label: "Financiero", icon: TrendingUp   },
-  { path: "/asistente",   label: "Asistente",  icon: Bot          },
-  { path: "/marketing",   label: "Marketing",  icon: Megaphone    },
+  { path: "/nueva",         label: "Nueva",         icon: PlusCircle   },
+  { path: "/reservas",      label: "Reservas",      icon: CalendarDays },
+  { path: "/cocina",        label: "Cocina",        icon: ChefHat      },
+  { path: "/hospedaje",     label: "Hospedaje",     icon: BedDouble    },
+  { path: "/financiero",    label: "Financiero",    icon: TrendingUp   },
+  { path: "/devoluciones",  label: "Devoluciones",  icon: RotateCcw    },
+  { path: "/asistente",     label: "Asistente",     icon: Bot          },
+  { path: "/marketing",     label: "Marketing",     icon: Megaphone    },
 ];
 
 export default function NavBar() {
   const location = useLocation();
   const { state } = useReservas();
+  const { usuario, logout } = useAuth();
   const reservasCount = state.reservas.length;
 
   const isActive = (path) => location.pathname === path;
@@ -72,7 +76,7 @@ export default function NavBar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-6 space-y-1">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = isActive(tab.path);
@@ -130,6 +134,25 @@ export default function NavBar() {
             </div>
           </div>
         </div>
+
+        {/* Usuario logueado */}
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-green-900/50">
+          <div className="w-8 h-8 rounded-full bg-green-700 flex items-center justify-center
+            text-white text-sm font-bold flex-shrink-0">
+            {usuario?.nombre?.[0] || "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{usuario?.nombre}</p>
+            <p className="text-xs text-gray-500 capitalize">{usuario?.rol}</p>
+          </div>
+          <button
+            onClick={logout}
+            className="text-gray-500 hover:text-red-400 transition text-xs"
+            title="Cerrar sesión"
+          >
+            Salir
+          </button>
+        </div>
       </aside>
 
       {/* ── Mobile Top Header ───────────────────────────────────── */}
@@ -149,7 +172,17 @@ export default function NavBar() {
             <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight">Parque Tem&aacute;tico &middot; Macanal</p>
           </div>
         </Link>
-        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          {usuario && (
+            <button
+              onClick={logout}
+              className="text-gray-500 hover:text-red-400 transition text-xs px-2 py-1
+                rounded-lg border border-gray-700 hover:border-red-800"
+              title="Cerrar sesión"
+            >
+              Salir
+            </button>
+          )}
           <a
             href="https://www.instagram.com/earthpark.co"
             target="_blank"
@@ -186,7 +219,7 @@ export default function NavBar() {
               <Link
                 key={tab.path}
                 to={tab.path}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[52px] transition-all duration-200
+                className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl min-w-[40px] transition-all duration-200
                   ${active
                     ? "text-emerald-400"
                     : "text-gray-500 hover:text-gray-300"
@@ -200,7 +233,7 @@ export default function NavBar() {
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-medium">{tab.label}</span>
+                <span className="text-[9px] font-medium">{tab.label}</span>
                 {active && (
                   <div className="w-1 h-1 rounded-full bg-emerald-400 mt-0.5" />
                 )}
