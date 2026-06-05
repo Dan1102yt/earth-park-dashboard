@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useReservas } from "../../context/ReservasContext";
 import { supabase } from "../../lib/supabaseClient";
 import { formatCOP } from "../../utils/formatCOP";
 
@@ -45,7 +46,7 @@ const FORM_DEFAULTS = {
   tipo_cuenta: "Ahorros",
 };
 
-function FormularioDevolucion({ onSubmit, onCancel }) {
+function FormularioDevolucion({ onSubmit, onCancel, reservas }) {
   const [form, setForm] = useState(FORM_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -135,9 +136,22 @@ function FormularioDevolucion({ onSubmit, onCancel }) {
           )}
           {form.categoria === "Reserva" && (
             <div>
-              <label className={CLS_LABEL}>ID / descripción de reserva</label>
-              <input type="text" className={CLS_INPUT} placeholder="EP-2025-001"
-                value={form.reserva_id} onChange={(e) => set("reserva_id", e.target.value)} />
+              <label className={CLS_LABEL}>Reserva</label>
+              <select
+                className={CLS_INPUT}
+                value={form.reserva_id}
+                onChange={(e) => set("reserva_id", e.target.value)}
+              >
+                <option value="">— Selecciona una reserva —</option>
+                {reservas
+                  .slice()
+                  .sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio))
+                  .map((r) => (
+                    <option key={r.reserva_id} value={r.reserva_id}>
+                      {r.reserva_id} · {r.nombre_cliente} · {r.fecha_inicio}
+                    </option>
+                  ))}
+              </select>
             </div>
           )}
         </div>
@@ -348,6 +362,8 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
 
 export default function Devoluciones() {
   const { usuario } = useAuth();
+  const { state } = useReservas();
+  const reservas = state.reservas || [];
   const [devoluciones, setDevoluciones] = useState([]);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [detalle, setDetalle] = useState(null);
@@ -456,6 +472,7 @@ export default function Devoluciones() {
           <FormularioDevolucion
             onSubmit={crearDevolucion}
             onCancel={() => setMostrarForm(false)}
+            reservas={reservas}
           />
         </div>
       )}
