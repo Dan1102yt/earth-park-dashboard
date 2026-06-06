@@ -362,7 +362,7 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
 
 export default function Devoluciones() {
   const { usuario } = useAuth();
-  const { state } = useReservas();
+  const { state, dispatch } = useReservas();
   const reservas = state.reservas || [];
   const [devoluciones, setDevoluciones] = useState([]);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -414,6 +414,42 @@ export default function Devoluciones() {
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     await cargarDevoluciones();
+
+    if (estado === "Pagada") {
+      const { data: dev } = await supabase
+        .from("devoluciones")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (dev) {
+        const categoriaEgreso = {
+          "Reserva": "reserva",
+          "Inversión": "inversion",
+          "Gasto operativo": "operativo",
+          "Nómina": "nomina",
+          "Otro": "otros",
+        }[dev.categoria] || "otros";
+
+        const egresoId = `EG-DEV-${Date.now()}`;
+
+        const nuevoEgreso = {
+          egreso_id: egresoId,
+          reserva_id: dev.reserva_id || "SIN_ASIGNAR",
+          item: `Devolución: ${dev.descripcion}`.substring(0, 80),
+          categoria: categoriaEgreso,
+          tipo: "extraordinario",
+          valor_cop: Number(dev.monto),
+          tiene_recibo: !!dev.comprobante_url,
+          proveedor: `${dev.solicitante_nombre} → ${dev.entidad}`,
+          notas: `Devolución aprobada por ${dev.aprobado_por}. ${dev.notas_aprobacion || ""}`.trim(),
+          fecha: new Date().toISOString().split("T")[0],
+        };
+
+        dispatch({ type: "ADD_EGRESO", payload: nuevoEgreso });
+      }
+    }
+
     setDetalle(null);
   }
 
