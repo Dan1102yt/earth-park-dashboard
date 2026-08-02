@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useReservas } from "../context/ReservasContext";
 import { useAuth } from "../context/AuthContext";
+import SyncButton from "./SyncButton";
 import {
   PlusCircle,
   CalendarDays,
@@ -75,6 +76,11 @@ export default function NavBar() {
               </p>
             </div>
           </Link>
+        </div>
+
+        {/* Sync Google Sheets */}
+        <div className="px-6 py-3 border-b" style={{ borderColor: 'rgba(77,142,30,0.2)' }}>
+          <SyncButton />
         </div>
 
         {/* Navigation */}
@@ -175,6 +181,7 @@ export default function NavBar() {
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <SyncButton />
           {usuario && (
             <button
               onClick={logout}
