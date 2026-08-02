@@ -8,6 +8,7 @@ import ReservasPage from "./modules/reservas/ReservasPage";
 import CocinaPage from "./modules/cocina/CocinaPage";
 import HospedajePage from "./modules/hospedaje/HospedajePage";
 import FinancieroPage from "./modules/financiero/FinancieroPage";
+import InformeMensual from "./modules/financiero/InformeMensual";
 import AsistentePage from "./modules/asistente/AsistentePage";
 import MarketingPage from "./modules/marketing/MarketingPage";
 import Devoluciones from "./modules/financiero/Devoluciones";
@@ -41,6 +42,7 @@ function AppContent() {
               <Route path="/cocina" element={<CocinaPage />} />
               <Route path="/hospedaje" element={<HospedajePage />} />
               <Route path="/financiero" element={<FinancieroPage />} />
+              <Route path="/informe" element={<InformeMensual />} />
               <Route path="/asistente" element={<AsistentePage />} />
               <Route path="/marketing" element={<MarketingPage />} />
               <Route path="/devoluciones" element={<Devoluciones />} />
