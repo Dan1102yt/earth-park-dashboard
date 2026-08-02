@@ -1,10 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { useGoogleSheets } from "../hooks/useGoogleSheets";
+
+// NavBar monta SyncButton dos veces a la vez (sidebar desktop + header
+// móvil, ambos en el DOM simultáneamente, solo ocultos por CSS). Este flag
+// evita que las dos instancias disparen el auto-sync en paralelo y dupliquen
+// reservas al fusionar contra el mismo estado desactualizado.
+let autoSyncDisparado = false;
 
 export default function SyncButton() {
   const { syncing, lastSync, error, importarDesdeSheets, reimportarTodo } = useGoogleSheets();
   const [result, setResult] = useState(null);
+
+  // Si no hay datos guardados localmente, cargar automáticamente desde el Sheet.
+  useEffect(() => {
+    if (autoSyncDisparado) return;
+    autoSyncDisparado = true;
+
+    const saved = localStorage.getItem("earthpark_v1");
+    const parsed = saved ? JSON.parse(saved) : null;
+    const sinDatos = !parsed ||
+      (parsed.reservas?.length === 0 && parsed.egresos?.length === 0);
+    if (sinDatos) {
+      importarDesdeSheets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSync = async () => {
     const res = await importarDesdeSheets();
