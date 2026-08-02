@@ -4,8 +4,10 @@ import { useReservas } from "../context/ReservasContext";
 const WORKER_URL = import.meta.env.VITE_WORKER_URL ||
   "https://earth-park-proxy.davidroa1102.workers.dev";
 
+const LAST_ROW_KEY = "ep_sheets_last_row";
+
 export function useGoogleSheets() {
-  const { state, dispatch } = useReservas();
+  const { dispatch } = useReservas();
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [error, setError] = useState(null);
@@ -19,18 +21,26 @@ export function useGoogleSheets() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Procesar filas de ingresos (saltar header)
-      const rows = data.ingresos.slice(1);
+      const lastRow = parseInt(localStorage.getItem(LAST_ROW_KEY) || "1");
+
+      // data.ingresos trae el header en la fila 0; el índice real en
+      // el Sheet arranca en la fila 2, de ahí el lastRow - 1 al hacer slice.
+      const todasLasFilas = data.ingresos.slice(1);
+      const filasNuevas = todasLasFilas.slice(lastRow - 1);
+
+      if (filasNuevas.length === 0) {
+        setLastSync(new Date());
+        return { ok: true, nuevas: 0 };
+      }
+
       let nuevasReservas = 0;
 
-      for (const row of rows) {
+      for (const row of filasNuevas) {
         const [cliente, fecha, unidades, lineaNegocio,
                producto, valorUnitario, subtotal, comentario] = row;
         if (!cliente || !fecha) continue;
 
         const reservaId = `SHEETS_${cliente?.replace(/\s+/g, "_")}_${fecha}`;
-        const yaExiste = state.reservas.some(r => r.reserva_id === reservaId);
-        if (yaExiste) continue;
 
         const valor = parseInt(
           String(subtotal || "0").replace(/[$,.]/g, "")
@@ -69,6 +79,8 @@ export function useGoogleSheets() {
         nuevasReservas++;
       }
 
+      localStorage.setItem(LAST_ROW_KEY, String(lastRow + filasNuevas.length));
+
       setLastSync(new Date());
       return { ok: true, nuevas: nuevasReservas };
     } catch (err) {
@@ -77,7 +89,13 @@ export function useGoogleSheets() {
     } finally {
       setSyncing(false);
     }
-  }, [state.reservas, dispatch]);
+  }, [dispatch]);
+
+  // ── REIMPORTAR — limpia el índice y vuelve a traer todo ──
+  const reimportarTodo = useCallback(async () => {
+    localStorage.removeItem(LAST_ROW_KEY);
+    return importarDesdeSheets();
+  }, [importarDesdeSheets]);
 
   // ── ESCRIBIR reserva nueva al Sheet ──────────────────
   const exportarReservaASheets = useCallback(async (reserva) => {
@@ -112,6 +130,7 @@ export function useGoogleSheets() {
     lastSync,
     error,
     importarDesdeSheets,
+    reimportarTodo,
     exportarReservaASheets,
   };
 }
