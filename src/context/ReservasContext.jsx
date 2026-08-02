@@ -70,6 +70,14 @@ export function ReservasProvider({ children }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+
+      // Si DATOS_HISTORICOS está vacío (nuevo comportamiento: Google Sheets
+      // es la fuente de verdad) y no hay nada guardado, inicializar vacío y
+      // dejar que el Sync del Sheet cargue los datos.
+      if (DATOS_HISTORICOS.reservas.length === 0 && !saved) {
+        return;
+      }
+
       if (saved) {
         const savedState = JSON.parse(saved);
 
