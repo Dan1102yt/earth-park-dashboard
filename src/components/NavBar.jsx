@@ -10,6 +10,7 @@ import {
   Bot,
   Megaphone,
   RotateCcw,
+  FileText,
 } from "lucide-react";
 
 function InstagramIcon({ className }) {
@@ -38,6 +39,7 @@ const tabs = [
   { path: "/cocina",        label: "Cocina",        icon: ChefHat      },
   { path: "/hospedaje",     label: "Hospedaje",     icon: BedDouble    },
   { path: "/financiero",    label: "Financiero",    icon: TrendingUp   },
+  { path: "/informe",       label: "Informe",       icon: FileText     },
   { path: "/devoluciones",  label: "Devoluciones",  icon: RotateCcw    },
   { path: "/asistente",     label: "Asistente",     icon: Bot          },
   { path: "/marketing",     label: "Marketing",     icon: Megaphone    },
