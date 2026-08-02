@@ -4,6 +4,15 @@ import { useReservas } from "../context/ReservasContext";
 const WORKER_URL = import.meta.env.VITE_WORKER_URL ||
   "https://earth-park-proxy.davidroa1102.workers.dev";
 
+// El Sheet usa formato "$7,000" — coma como separador de miles, no decimal.
+function parseCOP(val) {
+  const limpio = String(val || "0")
+    .replace(/\$/g, "")
+    .replace(/,/g, "")
+    .trim();
+  return parseInt(limpio) || 0;
+}
+
 export function useGoogleSheets() {
   const { state, dispatch } = useReservas();
   const [syncing, setSyncing] = useState(false);
@@ -32,23 +41,33 @@ export function useGoogleSheets() {
       if (headerIdx === -1) throw new Error("No se encontró el header en el Sheet");
 
       const dataFilas = filas.slice(headerIdx + 1).filter(row =>
-        row[1] && row[2] // tiene cliente y fecha
+        row.some(cell => cell && String(cell).trim()) // descarta filas totalmente vacías
       );
 
-      // Agrupar filas por cliente+fecha para crear reservas
+      // Agrupar filas por cliente+fecha para crear reservas.
+      // El Sheet no repite cliente/fecha en filas de productos adicionales
+      // de la misma reserva — se heredan de la última fila que sí los trae.
       const gruposMap = new Map();
+      let clienteActual = "";
+      let fechaActual = "";
+
       for (const row of dataFilas) {
-        const cliente = String(row[1] || "").trim();
-        const fecha = String(row[2] || "").trim();
-        const unidades = parseInt(row[3]) || 1;
+        const clienteFila = String(row[1] || "").trim();
+        const fechaFila = String(row[2] || "").trim();
+
+        if (clienteFila) clienteActual = clienteFila;
+        if (fechaFila) fechaActual = fechaFila;
+
+        const cliente = clienteActual;
+        const fecha = fechaActual;
+
+        const unidades = Math.round(
+          parseFloat(String(row[3] || "1").replace(",", "."))
+        ) || 1;
         const lineaNegocio = String(row[4] || "OTROS").trim();
         const producto = String(row[5] || "").trim();
-        const valorUnitario = parseInt(
-          String(row[6] || "0").replace(/[$,. ]/g, "")
-        ) || 0;
-        const subtotal = parseInt(
-          String(row[7] || "0").replace(/[$,. ]/g, "")
-        ) || 0;
+        const valorUnitario = parseCOP(row[6]);
+        const subtotal = parseCOP(row[7]);
         const comentario = String(row[8] || "").trim();
         const tipoReserva = String(row[9] || "").trim();
 
@@ -119,9 +138,7 @@ export function useGoogleSheets() {
           const fecha = String(row[2] || "").trim();
           const categoria = String(row[4] || "otros").trim().toLowerCase();
           const item = String(row[5] || "").trim();
-          const subtotal = parseInt(
-            String(row[7] || "0").replace(/[$,. ]/g, "")
-          ) || 0;
+          const subtotal = parseCOP(row[7]);
           const notas = String(row[8] || "").trim();
 
           let fechaNorm = fecha;
