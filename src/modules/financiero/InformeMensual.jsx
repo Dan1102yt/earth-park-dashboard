@@ -168,6 +168,184 @@ function PrintFooter({ pagina, total }) {
 const TOTAL_PAGINAS = 6;
 
 /* ─────────────────────────────────────────────
+   Gráficos SVG nativos (sin recharts — recharts no
+   renderiza en window.print())
+   ───────────────────────────────────────────── */
+
+const donaPath = (cx, cy, r, rInner, startAngle, endAngle) => {
+  const toRad = (a) => (a * Math.PI) / 180;
+  const x1 = cx + r * Math.cos(toRad(startAngle));
+  const y1 = cy + r * Math.sin(toRad(startAngle));
+  const x2 = cx + r * Math.cos(toRad(endAngle));
+  const y2 = cy + r * Math.sin(toRad(endAngle));
+  const x3 = cx + rInner * Math.cos(toRad(endAngle));
+  const y3 = cy + rInner * Math.sin(toRad(endAngle));
+  const x4 = cx + rInner * Math.cos(toRad(startAngle));
+  const y4 = cy + rInner * Math.sin(toRad(startAngle));
+  const large = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}
+    L ${x3} ${y3} A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4} Z`;
+};
+
+const DONA_COLORS = {
+  hospedaje: '#2D5016',
+  gastronomia: '#4CAF50',
+  artesania: '#81C784',
+  otros: '#C8E6C9',
+};
+const DONA_LABELS = {
+  hospedaje: 'Hospedaje',
+  gastronomia: 'Gastronomía',
+  artesania: 'Artesanía',
+  otros: 'Otros',
+};
+
+function GraficoDonaIngresos({ ingresosPorLinea, total }) {
+  const entradas = ['hospedaje', 'gastronomia', 'artesania', 'otros'].map((key) => ({
+    key,
+    label: DONA_LABELS[key],
+    valor: ingresosPorLinea[key] || 0,
+    color: DONA_COLORS[key],
+  }));
+
+  let acumulado = 0;
+  const segmentos = entradas
+    .filter((e) => e.valor > 0)
+    .map((e) => {
+      const startAngle = total > 0 ? (acumulado / total) * 360 : 0;
+      acumulado += e.valor;
+      let endAngle = total > 0 ? (acumulado / total) * 360 : 0;
+      if (endAngle - startAngle >= 359.99) endAngle = startAngle + 359.99;
+      return { ...e, startAngle, endAngle };
+    });
+
+  return (
+    <div className="grafico-informe">
+      <h4 className="informe-seccion-titulo informe-seccion-titulo-sm">Ingresos por Área</h4>
+      {total <= 0 ? (
+        <p className="informe-nota">Sin ingresos registrados este mes.</p>
+      ) : (
+        <div className="dona-wrap">
+          <div className="dona-svg-box">
+            <svg viewBox="0 0 200 200">
+              {segmentos.map((s) => (
+                <path key={s.key} d={donaPath(100, 100, 70, 45, s.startAngle, s.endAngle)} fill={s.color} />
+              ))}
+            </svg>
+          </div>
+          <div className="dona-leyenda">
+            {entradas.map((e) => (
+              <div className="dona-leyenda-item" key={e.key}>
+                <span className="dona-dot" style={{ background: e.color }} />
+                <span className="dona-leyenda-label">{e.label}</span>
+                <span className="dona-leyenda-valor">{formatCOP(e.valor)}</span>
+                <span className="dona-leyenda-pct">{total > 0 ? ((e.valor / total) * 100).toFixed(1) : '0.0'}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GraficoBarrasCategorias({ categorias }) {
+  const top = categorias.slice(0, 6);
+  const maxVal = top.length ? top[0].total : 0;
+  const rowHeight = top.length ? 200 / top.length : 0;
+  const barHeight = 18;
+  const barX = 150;
+  const barMaxWidth = 250;
+
+  return (
+    <div className="grafico-informe">
+      <h4 className="informe-seccion-titulo informe-seccion-titulo-sm">Gasto por Categoría</h4>
+      {top.length === 0 ? (
+        <p className="informe-nota">Sin egresos registrados este mes.</p>
+      ) : (
+        <svg viewBox="0 0 500 200" className="grafico-svg">
+          {top.map((c, i) => {
+            const y = i * rowHeight;
+            const barY = y + (rowHeight - barHeight) / 2;
+            const width = maxVal > 0 ? (c.total / maxVal) * barMaxWidth : 0;
+            const opacity = Math.max(0.25, 1 - i * 0.15);
+            const label = c.categoria.length > 18 ? `${c.categoria.slice(0, 18)}…` : c.categoria;
+            return (
+              <g key={c.categoria}>
+                <text x={0} y={barY + barHeight / 2 + 4} fontSize="11" fill="#111827">{label}</text>
+                <rect x={barX} y={barY} width={width} height={barHeight} fill="#2D5016" opacity={opacity} rx="2" />
+                <text x={barX + width + 8} y={barY + barHeight / 2 + 4} fontSize="11" fill="#111827">
+                  {formatCOP(c.total)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function GraficoComparativoAnual({ datosAnuales, mesActualKey, year }) {
+  const meses = datosAnuales.filter((d) => d.total_reservas > 0 || d.egresosDelMes.length > 0);
+  const maxVal = Math.max(1, ...meses.map((d) => Math.max(d.ingresos_total, d.egresos_total)));
+
+  const chartHeight = 160;
+  const topOffset = 10;
+  const leftPad = 10;
+  const rightPad = 10;
+  const plotWidth = 600 - leftPad - rightPad;
+  const groupWidth = meses.length ? plotWidth / meses.length : 0;
+  const barWidth = Math.max(4, Math.min(18, groupWidth / 2 - 4));
+  const baseY = topOffset + chartHeight;
+
+  return (
+    <div className="grafico-informe">
+      <h4 className="informe-seccion-titulo informe-seccion-titulo-sm">Ingresos vs Egresos — {year}</h4>
+      {meses.length === 0 ? (
+        <p className="informe-nota">Sin actividad registrada este año.</p>
+      ) : (
+        <>
+          <svg viewBox="0 0 600 220" className="grafico-svg">
+            {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+              <line
+                key={f}
+                x1={leftPad}
+                y1={baseY - f * chartHeight}
+                x2={600 - rightPad}
+                y2={baseY - f * chartHeight}
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+            ))}
+            {meses.map((d, i) => {
+              const mesIdx = parseInt(d.mesKey.split('-')[1], 10) - 1;
+              const x = leftPad + i * groupWidth + (groupWidth - barWidth * 2 - 4) / 2;
+              const hIngresos = (d.ingresos_total / maxVal) * chartHeight;
+              const hEgresos = (d.egresos_total / maxVal) * chartHeight;
+              const opacity = d.mesKey === mesActualKey ? 1 : 0.7;
+              return (
+                <g key={d.mesKey}>
+                  <rect x={x} y={baseY - hIngresos} width={barWidth} height={hIngresos} fill="#2D5016" opacity={opacity} />
+                  <rect x={x + barWidth + 4} y={baseY - hEgresos} width={barWidth} height={hEgresos} fill="#ef4444" opacity={opacity} />
+                  <text x={x + barWidth + 2} y={baseY + 16} fontSize="10" fill="#374151" textAnchor="middle">
+                    {MESES_CORTOS[mesIdx]}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+          <div className="grafico-leyenda">
+            <span className="leyenda-item"><span className="leyenda-cuadro" style={{ background: '#2D5016' }} /> Ingresos</span>
+            <span className="leyenda-item"><span className="leyenda-cuadro" style={{ background: '#ef4444' }} /> Egresos</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    InformeMensual
    ───────────────────────────────────────────── */
 
@@ -292,6 +470,8 @@ export default function InformeMensual() {
             <p className="informe-nota">
               Ocupación del mes: {datos.ocupacion_pct.toFixed(1)}% ({datos.diasConReserva} de {datos.dias_mes} días con reserva)
             </p>
+
+            <GraficoDonaIngresos ingresosPorLinea={datos.ingresosPorLinea} total={totalLineas} />
           </div>
           <PrintFooter pagina={1} total={TOTAL_PAGINAS} />
         </section>
@@ -345,6 +525,8 @@ export default function InformeMensual() {
               <StatBox label="Egresos operativos" value={formatCOP(datos.egresos_operativos)} />
               <StatBox label="Egresos extraordinarios" value={formatCOP(datos.egresos_extraordinarios)} />
             </div>
+
+            <GraficoBarrasCategorias categorias={datos.top_categorias} />
 
             <h4 className="informe-seccion-titulo informe-seccion-titulo-sm">Top categorías de gasto</h4>
             <table className="tabla-informe">
@@ -479,6 +661,9 @@ export default function InformeMensual() {
         <section className="informe-page">
           <div className="informe-content">
             <h4 className="informe-seccion-titulo">Comparativo anual {year}</h4>
+
+            <GraficoComparativoAnual datosAnuales={comparativoAnual} mesActualKey={mesSeleccionado} year={year} />
+
             <table className="tabla-informe">
               <thead>
                 <tr>
@@ -613,6 +798,30 @@ export default function InformeMensual() {
           color: #6b7280;
         }
 
+        .grafico-informe { margin-top: 20px; }
+        .grafico-svg { display: block; width: 100%; height: auto; }
+
+        .dona-wrap { display: flex; align-items: center; gap: 24px; }
+        .dona-svg-box { width: 190px; flex-shrink: 0; }
+        .dona-svg-box svg { display: block; width: 100%; height: auto; }
+        .dona-leyenda { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .dona-leyenda-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .dona-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .dona-leyenda-label { flex: 1; color: #111827; }
+        .dona-leyenda-valor { color: #374151; }
+        .dona-leyenda-pct { color: #6b7280; width: 42px; text-align: right; }
+
+        .grafico-leyenda {
+          display: flex;
+          gap: 20px;
+          justify-content: center;
+          margin-top: 6px;
+          font-size: 11px;
+          color: #111827;
+        }
+        .leyenda-item { display: flex; align-items: center; gap: 6px; }
+        .leyenda-cuadro { width: 10px; height: 10px; display: inline-block; }
+
         @media print {
           .no-print { display: none !important; }
           .glass-nav { display: none !important; }
@@ -626,6 +835,8 @@ export default function InformeMensual() {
             page-break-after: always;
           }
           .informe-page:last-child { page-break-after: auto; }
+          .grafico-informe { display: block !important; }
+          .grafico-informe svg { width: 100% !important; }
         }
 
         @page {
