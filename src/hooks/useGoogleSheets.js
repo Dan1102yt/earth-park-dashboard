@@ -286,12 +286,34 @@ export function useCorpRRSheets() {
         String(row[colCategoria] || "").trim().toLowerCase() === "earth park"
       );
 
-      // Convertir fecha Excel serial a YYYY-MM-DD
-      const excelDateToISO = (serial) => {
-        const num = parseFloat(serial);
-        if (isNaN(num)) return String(serial);
-        const date = new Date((num - 25569) * 86400 * 1000);
-        return date.toISOString().split("T")[0];
+      // Convertir fecha a YYYY-MM-DD — soporta DD-MM-YYYY, DD/MM/YYYY y serial Excel
+      const excelDateToISO = (valor) => {
+        if (!valor) return "";
+        const str = String(valor).trim();
+
+        // Formato DD-MM-YYYY o D-M-YYYY
+        const partesDash = str.split("-");
+        if (partesDash.length === 3 && partesDash[2].length === 4) {
+          const [d, m, a] = partesDash;
+          return `${a}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+        }
+
+        // Formato DD/MM/YYYY
+        const partesSlash = str.split("/");
+        if (partesSlash.length === 3 && partesSlash[2].length === 4) {
+          const [d, m, a] = partesSlash;
+          return `${a}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+        }
+
+        // Serial numérico de Excel
+        const num = parseFloat(str);
+        if (!isNaN(num) && num > 40000) {
+          const date = new Date((num - 25569) * 86400 * 1000);
+          return date.toISOString().split("T")[0];
+        }
+
+        // Retornar tal cual si no se puede parsear
+        return str;
       };
 
       const inversiones = filasEP.map((row, i) => ({
