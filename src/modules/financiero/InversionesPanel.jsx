@@ -12,34 +12,18 @@ import { calcularIngresos } from '../../utils/calcularInsumos';
 import Badge from '../../components/Badge';
 import { useCorpRRSheets } from '../../hooks/useGoogleSheets';
 
-/* ─────────────────────────────────────────────
-   Hardcoded inversiones data
-   ───────────────────────────────────────────── */
-
-const INVERSIONES = [
-  { id: "INV-001", descripcion: "Vivero café Manuel Acero", valor: 3000000, fecha: "2025-10-20", categoria: "Infraestructura" },
-  { id: "INV-002", descripcion: "Segundo pago vivero café", valor: 2800000, fecha: "2025-11-05", categoria: "Infraestructura" },
-  { id: "INV-003", descripcion: "Techo PVC", valor: 4000000, fecha: "2025-11-08", categoria: "Construcción" },
-  { id: "INV-004", descripcion: "Pago Manuel Acero EP", valor: 3000000, fecha: "2025-11-15", categoria: "Infraestructura" },
-  { id: "INV-005", descripcion: "Devolución préstamo", valor: 2000000, fecha: "2025-11-17", categoria: "Financiero" },
-  { id: "INV-006", descripcion: "Pago Manuel Acero EP", valor: 3000000, fecha: "2025-11-22", categoria: "Infraestructura" },
-  { id: "INV-007", descripcion: "Pago Manuel Acero EP", valor: 3500000, fecha: "2025-11-29", categoria: "Infraestructura" },
-  { id: "INV-008", descripcion: "Materiales construcción", valor: 2500000, fecha: "2025-12-01", categoria: "Construcción" },
-  { id: "INV-009", descripcion: "Pago Manuel Acero EP", valor: 3000000, fecha: "2025-12-08", categoria: "Infraestructura" },
-  { id: "INV-010", descripcion: "Materiales Earth Park", valor: 2735035, fecha: "2025-12-15", categoria: "Construcción" },
-  { id: "INV-011", descripcion: "Inversión infraestructura", valor: 2500000, fecha: "2026-01-10", categoria: "Infraestructura" },
-  { id: "INV-012", descripcion: "Adecuaciones EP", valor: 3000000, fecha: "2026-01-20", categoria: "Adecuación" },
-  { id: "INV-013", descripcion: "Materiales y acabados", valor: 2500000, fecha: "2026-02-05", categoria: "Construcción" },
-  { id: "INV-014", descripcion: "Equipamiento EP", valor: 3000000, fecha: "2026-02-20", categoria: "Equipamiento" },
-  { id: "INV-015", descripcion: "Adecuación mariposas", valor: 2000000, fecha: "2026-03-10", categoria: "Adecuación" },
-  { id: "INV-016", descripcion: "Materiales hospedaje", valor: 2500000, fecha: "2026-03-25", categoria: "Construcción" },
-  { id: "INV-017", descripcion: "Equipamiento habitaciones", valor: 2000000, fecha: "2026-04-05", categoria: "Equipamiento" },
-  { id: "INV-018", descripcion: "Acabados finales EP", valor: 1500000, fecha: "2026-04-20", categoria: "Construcción" },
-  { id: "INV-019", descripcion: "Señalización EP", valor: 1000000, fecha: "2026-05-01", categoria: "Adecuación" },
-  { id: "INV-020", descripcion: "Materiales varios EP", valor: 1000000, fecha: "2026-05-15", categoria: "Infraestructura" },
-];
-
 const BAR_COLOR = "#1B4332";
+
+// Mapea la subcategoría del Sheet Corp R&R a una categoría del panel
+const mapearCategoria = (subcategoria) => {
+  const s = String(subcategoria || "").toLowerCase();
+  if (s.includes("mano") || s.includes("obra")) return "Construcción";
+  if (s.includes("material") || s.includes("compra")) return "Infraestructura";
+  if (s.includes("equip")) return "Equipamiento";
+  if (s.includes("adec")) return "Adecuación";
+  if (s.includes("financ")) return "Financiero";
+  return "Infraestructura";
+};
 
 const CATEGORIA_COLORS = {
   "Infraestructura": "info",
@@ -82,21 +66,27 @@ export default function InversionesPanel() {
   // Corp R&R — inversiones familiares filtradas a Earth Park (solo lectura)
   const { syncing: syncingCR, importarInversionesEarthPark } = useCorpRRSheets();
   const [inversionesCR, setInversionesCR] = useState([]);
-  const [mostrarCR, setMostrarCR] = useState(true);
 
-  const sincronizarCorpRR = async () => {
-    const res = await importarInversionesEarthPark();
-    if (res.ok) setInversionesCR(res.inversiones);
-  };
+  useEffect(() => {
+    importarInversionesEarthPark().then(res => {
+      if (res.ok) setInversionesCR(res.inversiones);
+    });
+  }, []);
 
-  useEffect(() => { sincronizarCorpRR(); }, []);
-
-  const totalCorpRR = inversionesCR.reduce((s, i) => s + i.valor, 0);
-
-  // Combine hardcoded + extra
+  // Combine Corp R&R (Sheet real) + extra
   const inversiones = useMemo(
-    () => [...INVERSIONES, ...extraInversiones],
-    [extraInversiones],
+    () => {
+      // Mapear inversiones de Corp R&R al formato del panel
+      const desdeCorpRR = inversionesCR.map(inv => ({
+        id: inv.id,
+        descripcion: inv.descripcion,
+        valor: inv.valor,
+        fecha: inv.fecha,
+        categoria: mapearCategoria(inv.subcategoria),
+      }));
+      return [...desdeCorpRR, ...extraInversiones];
+    },
+    [inversionesCR, extraInversiones]
   );
 
   const totalInvertido = useMemo(
@@ -171,10 +161,25 @@ export default function InversionesPanel() {
 
   return (
     <section className="animate-slide-up space-y-6" style={{ animationDelay: '0.35s' }}>
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-        <Wallet className="w-4 h-4" />
-        Inversiones Earth Park
-      </h3>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+          <Wallet className="w-4 h-4" />
+          Inversiones Earth Park
+          {syncingCR && <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />}
+        </h3>
+        <button
+          onClick={() => {
+            importarInversionesEarthPark().then(res => {
+              if (res.ok) setInversionesCR(res.inversiones);
+            });
+          }}
+          disabled={syncingCR}
+          className="flex items-center gap-1.5 bg-gray-800/60 hover:bg-gray-700/60 border border-gray-700/50
+            disabled:opacity-50 text-gray-200 text-xs px-3 py-1.5 rounded-lg transition-colors"
+        >
+          🔄 Actualizar desde Drive
+        </button>
+      </div>
 
       {/* Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -322,89 +327,6 @@ export default function InversionesPanel() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Inversiones Corp R&R (Earth Park) — solo lectura */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              Inversiones Corp R&R → Earth Park
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Solo filas categorizadas como Earth Park en el flujo de caja familiar
-            </p>
-          </div>
-          <button
-            onClick={sincronizarCorpRR}
-            disabled={syncingCR}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700
-              disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg transition"
-          >
-            <RefreshCw size={12} className={syncingCR ? "animate-spin" : ""} />
-            {syncingCR ? "Sincronizando..." : "Actualizar"}
-          </button>
-        </div>
-
-        {/* Total */}
-        <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-4 mb-4">
-          <p className="text-xs text-blue-400 uppercase tracking-wide">
-            Total invertido desde Corp R&R
-          </p>
-          <p className="text-2xl font-bold text-white mt-1">
-            {formatCOP(totalCorpRR)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {inversionesCR.length} movimientos · Solo lectura del archivo original
-          </p>
-        </div>
-
-        {/* Tabla */}
-        {inversionesCR.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Fecha</th>
-                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Descripción</th>
-                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Subcategoría</th>
-                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Proveedor</th>
-                  <th className="text-right py-2 px-3 text-xs text-gray-400 font-medium">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inversionesCR.map((inv, i) => (
-                  <tr key={inv.id}
-                    className={i % 2 === 0 ? "bg-gray-800/20" : ""}>
-                    <td className="py-2 px-3 text-xs text-gray-300">{inv.fecha}</td>
-                    <td className="py-2 px-3 text-xs text-gray-200">{inv.descripcion}</td>
-                    <td className="py-2 px-3 text-xs text-gray-400">{inv.subcategoria}</td>
-                    <td className="py-2 px-3 text-xs text-gray-400">{inv.proveedor}</td>
-                    <td className="py-2 px-3 text-xs text-right font-medium text-white">
-                      {formatCOP(inv.valor)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-gray-600">
-                  <td colSpan={4} className="py-2 px-3 text-xs font-semibold text-gray-300">
-                    Total
-                  </td>
-                  <td className="py-2 px-3 text-xs text-right font-bold text-green-400">
-                    {formatCOP(totalCorpRR)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        {inversionesCR.length === 0 && !syncingCR && (
-          <p className="text-sm text-gray-500 text-center py-8">
-            Dale clic en "Actualizar" para cargar las inversiones de Corp R&R
-          </p>
-        )}
       </div>
 
       {/* Modal de inversión manual */}
