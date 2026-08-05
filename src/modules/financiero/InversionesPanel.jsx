@@ -1,15 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  TrendingUp, Wallet, Calendar, Percent, Plus, X,
+  TrendingUp, Wallet, Calendar, Percent, Plus, X, RefreshCw,
 } from 'lucide-react';
 
 import { useReservas } from '../../context/ReservasContext';
 import { formatCOP } from '../../utils/formatCOP';
 import { calcularIngresos } from '../../utils/calcularInsumos';
 import Badge from '../../components/Badge';
+import { useCorpRRSheets } from '../../hooks/useGoogleSheets';
 
 /* ─────────────────────────────────────────────
    Hardcoded inversiones data
@@ -77,6 +78,20 @@ export default function InversionesPanel() {
     fecha: '',
     categoria: 'Infraestructura',
   });
+
+  // Corp R&R — inversiones familiares filtradas a Earth Park (solo lectura)
+  const { syncing: syncingCR, importarInversionesEarthPark } = useCorpRRSheets();
+  const [inversionesCR, setInversionesCR] = useState([]);
+  const [mostrarCR, setMostrarCR] = useState(true);
+
+  const sincronizarCorpRR = async () => {
+    const res = await importarInversionesEarthPark();
+    if (res.ok) setInversionesCR(res.inversiones);
+  };
+
+  useEffect(() => { sincronizarCorpRR(); }, []);
+
+  const totalCorpRR = inversionesCR.reduce((s, i) => s + i.valor, 0);
 
   // Combine hardcoded + extra
   const inversiones = useMemo(
@@ -307,6 +322,89 @@ export default function InversionesPanel() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Inversiones Corp R&R (Earth Park) — solo lectura */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">
+              Inversiones Corp R&R → Earth Park
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Solo filas categorizadas como Earth Park en el flujo de caja familiar
+            </p>
+          </div>
+          <button
+            onClick={sincronizarCorpRR}
+            disabled={syncingCR}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700
+              disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg transition"
+          >
+            <RefreshCw size={12} className={syncingCR ? "animate-spin" : ""} />
+            {syncingCR ? "Sincronizando..." : "Actualizar"}
+          </button>
+        </div>
+
+        {/* Total */}
+        <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-4 mb-4">
+          <p className="text-xs text-blue-400 uppercase tracking-wide">
+            Total invertido desde Corp R&R
+          </p>
+          <p className="text-2xl font-bold text-white mt-1">
+            {formatCOP(totalCorpRR)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {inversionesCR.length} movimientos · Solo lectura del archivo original
+          </p>
+        </div>
+
+        {/* Tabla */}
+        {inversionesCR.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-700">
+                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Fecha</th>
+                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Descripción</th>
+                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Subcategoría</th>
+                  <th className="text-left py-2 px-3 text-xs text-gray-400 font-medium">Proveedor</th>
+                  <th className="text-right py-2 px-3 text-xs text-gray-400 font-medium">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inversionesCR.map((inv, i) => (
+                  <tr key={inv.id}
+                    className={i % 2 === 0 ? "bg-gray-800/20" : ""}>
+                    <td className="py-2 px-3 text-xs text-gray-300">{inv.fecha}</td>
+                    <td className="py-2 px-3 text-xs text-gray-200">{inv.descripcion}</td>
+                    <td className="py-2 px-3 text-xs text-gray-400">{inv.subcategoria}</td>
+                    <td className="py-2 px-3 text-xs text-gray-400">{inv.proveedor}</td>
+                    <td className="py-2 px-3 text-xs text-right font-medium text-white">
+                      {formatCOP(inv.valor)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-gray-600">
+                  <td colSpan={4} className="py-2 px-3 text-xs font-semibold text-gray-300">
+                    Total
+                  </td>
+                  <td className="py-2 px-3 text-xs text-right font-bold text-green-400">
+                    {formatCOP(totalCorpRR)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {inversionesCR.length === 0 && !syncingCR && (
+          <p className="text-sm text-gray-500 text-center py-8">
+            Dale clic en "Actualizar" para cargar las inversiones de Corp R&R
+          </p>
+        )}
       </div>
 
       {/* Modal de inversión manual */}

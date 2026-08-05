@@ -241,3 +241,81 @@ export function useGoogleSheets() {
     exportarReservaASheets,
   };
 }
+
+// ── Corp R&R: inversiones familiares filtradas a Earth Park ──
+// Solo lectura — nunca escribe en el Sheet "FLUJO DE CAJA".
+export function useCorpRRSheets() {
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastSync, setLastSync] = useState(null);
+
+  const importarInversionesEarthPark = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(`${WORKER_URL}/sheets/read-corprr`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const filas = data.values || [];
+
+      // Encontrar header — buscar fila con CATEGORIA
+      const headerIdx = filas.findIndex(row =>
+        row.some(cell => String(cell).toUpperCase().includes("CATEGORIA"))
+      );
+      if (headerIdx === -1) throw new Error("Header no encontrado");
+
+      const headers = filas[headerIdx];
+      const colCategoria = headers.findIndex(h =>
+        String(h).toUpperCase().includes("CATEGORIA"));
+      const colSubcat = headers.findIndex(h =>
+        String(h).toUpperCase().includes("SUBCATEGORIA"));
+      const colDesc = headers.findIndex(h =>
+        String(h).toUpperCase().includes("DESCRIPCI"));
+      const colProveedor = headers.findIndex(h =>
+        String(h).toUpperCase().includes("PROVEEDOR"));
+      const colValor = headers.findIndex(h =>
+        String(h).toUpperCase().includes("VALOR"));
+      const colFecha = headers.findIndex(h =>
+        String(h).toUpperCase().includes("FECHA"));
+      const colObs = headers.findIndex(h =>
+        String(h).toUpperCase().includes("OBSERV"));
+
+      // Filtrar solo Earth Park
+      const filasEP = filas.slice(headerIdx + 1).filter(row =>
+        String(row[colCategoria] || "").trim().toLowerCase() === "earth park"
+      );
+
+      // Convertir fecha Excel serial a YYYY-MM-DD
+      const excelDateToISO = (serial) => {
+        const num = parseFloat(serial);
+        if (isNaN(num)) return String(serial);
+        const date = new Date((num - 25569) * 86400 * 1000);
+        return date.toISOString().split("T")[0];
+      };
+
+      const inversiones = filasEP.map((row, i) => ({
+        id: `CORPRR-EP-${String(i + 1).padStart(3, "0")}`,
+        descripcion: String(row[colDesc] || "Sin descripción").trim(),
+        subcategoria: String(row[colSubcat] || "Otro").trim(),
+        proveedor: String(row[colProveedor] || "").trim(),
+        valor: parseFloat(String(row[colValor] || "0")
+          .replace(/[$,]/g, "")) || 0,
+        fecha: excelDateToISO(row[colFecha]),
+        observacion: String(row[colObs] || "").trim(),
+        fuente: "Corp R&R",
+      }));
+
+      setLastSync(new Date());
+      setSyncing(false);
+      return { ok: true, inversiones };
+
+    } catch (err) {
+      setError(err.message);
+      setSyncing(false);
+      return { ok: false, error: err.message, inversiones: [] };
+    }
+  }, []);
+
+  return { syncing, error, lastSync, importarInversionesEarthPark };
+}
