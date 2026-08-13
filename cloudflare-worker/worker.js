@@ -104,6 +104,34 @@ export default {
       }
     }
 
+    // ── Ruta: Google Drive - listar archivos de una carpeta ──
+    if (path === "/drive/list") {
+      try {
+        const folderId = url.searchParams.get("folderId");
+        if (!folderId) throw new Error("Falta el parámetro folderId");
+
+        const token = await getGoogleToken(env, "drive");
+        const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+        const fields = encodeURIComponent("files(id,name,thumbnailLink,webContentLink,mimeType)");
+        const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`;
+
+        const res = await fetch(driveUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(JSON.stringify(data.error));
+
+        return new Response(JSON.stringify({ files: data.files || [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // ── Ruta: Anthropic (default) ────────────────────────
     if (request.method !== "POST") {
       return new Response("Method not allowed", {
@@ -134,12 +162,17 @@ export default {
 };
 
 // ── Helper: JWT para Google OAuth2 ──────────────────────
-async function getGoogleToken(env) {
+async function getGoogleToken(env, scopeType = "sheets") {
+  const scopes = {
+    sheets: "https://www.googleapis.com/auth/spreadsheets",
+    drive: "https://www.googleapis.com/auth/drive.readonly",
+  };
+
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
     iss: env.GOOGLE_CLIENT_EMAIL,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
+    scope: scopes[scopeType],
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now,
