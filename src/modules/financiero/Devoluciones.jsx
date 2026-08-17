@@ -218,14 +218,52 @@ function InfoRow({ label, value, highlight }) {
   );
 }
 
-function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
+function DetalleModal({ devolucion, onClose, onActualizar, onEditar, esAdmin }) {
   const [notas, setNotas] = useState(devolucion.notas_aprobacion || "");
   const [archivo, setArchivo] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    solicitante_nombre: devolucion.solicitante_nombre,
+    banco: devolucion.banco || "",
+    titular_cuenta: devolucion.titular_cuenta || "",
+    numero_cuenta: devolucion.numero_cuenta || "",
+    tipo_cuenta: devolucion.tipo_cuenta || "",
+  });
+
+  const esEfectivo = devolucion.tipo_cuenta === "Efectivo";
+
+  const setEditField = (field, value) => setEditForm((f) => ({ ...f, [field]: value }));
+
+  const cancelarEdicion = () => {
+    setEditForm({
+      solicitante_nombre: devolucion.solicitante_nombre,
+      banco: devolucion.banco || "",
+      titular_cuenta: devolucion.titular_cuenta || "",
+      numero_cuenta: devolucion.numero_cuenta || "",
+      tipo_cuenta: devolucion.tipo_cuenta || "",
+    });
+    setEditando(false);
+  };
+
+  async function guardarEdicion() {
+    setSavingEdit(true);
+    await onEditar(devolucion.id, editForm);
+    setSavingEdit(false);
+    setEditando(false);
+  }
 
   const accionar = async (estado) => {
     setSaving(true);
-    await onActualizar(devolucion.id, estado, notas, archivo);
+    if (esEfectivo && estado === "Pagada") {
+      const notasFinal = notas
+        ? `Pago realizado en efectivo. ${notas}`
+        : "Pago realizado en efectivo";
+      await onActualizar(devolucion.id, estado, notasFinal, null, devolucion.tipo_cuenta);
+    } else {
+      await onActualizar(devolucion.id, estado, notas, archivo, devolucion.tipo_cuenta);
+    }
     setSaving(false);
   };
 
@@ -248,7 +286,24 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
 
           {/* Info principal */}
           <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
-            <InfoRow label="Solicitante" value={devolucion.solicitante_nombre} />
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-xs text-gray-500 flex-shrink-0">Solicitante</p>
+              <div className="flex items-center gap-2">
+                {editando ? (
+                  <input type="text" className={`${CLS_INPUT} text-right py-1`}
+                    value={editForm.solicitante_nombre}
+                    onChange={(e) => setEditField("solicitante_nombre", e.target.value)} />
+                ) : (
+                  <p className="text-sm text-right text-gray-200">{devolucion.solicitante_nombre}</p>
+                )}
+                {esAdmin && !editando && (
+                  <button onClick={() => setEditando(true)}
+                    className="text-xs text-gray-500 hover:text-green-400 transition flex-shrink-0">
+                    ✏️ Editar
+                  </button>
+                )}
+              </div>
+            </div>
             <InfoRow label="Entidad"     value={devolucion.entidad} />
             <InfoRow label="Fecha"       value={devolucion.fecha} />
             <InfoRow label="Monto"       value={formatCOP(devolucion.monto)} highlight />
@@ -265,10 +320,51 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
           {/* Datos bancarios */}
           <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Datos bancarios</p>
-            <InfoRow label="Banco"   value={devolucion.banco} />
-            <InfoRow label="Tipo"    value={devolucion.tipo_cuenta} />
-            <InfoRow label="Titular" value={devolucion.titular_cuenta} />
-            <InfoRow label="Cuenta"  value={devolucion.numero_cuenta} />
+            {editando ? (
+              <div className="space-y-3">
+                <div>
+                  <label className={CLS_LABEL}>Banco / billetera</label>
+                  <input type="text" className={CLS_INPUT} value={editForm.banco}
+                    onChange={(e) => setEditField("banco", e.target.value)} />
+                </div>
+                <div>
+                  <label className={CLS_LABEL}>Tipo de cuenta</label>
+                  <select className={CLS_INPUT} value={editForm.tipo_cuenta}
+                    onChange={(e) => setEditField("tipo_cuenta", e.target.value)}>
+                    {TIPOS_CUENTA.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={CLS_LABEL}>Titular</label>
+                  <input type="text" className={CLS_INPUT} value={editForm.titular_cuenta}
+                    onChange={(e) => setEditField("titular_cuenta", e.target.value)} />
+                </div>
+                <div>
+                  <label className={CLS_LABEL}>Número de cuenta / celular</label>
+                  <input type="text" className={CLS_INPUT} value={editForm.numero_cuenta}
+                    onChange={(e) => setEditField("numero_cuenta", e.target.value)} />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={guardarEdicion} disabled={savingEdit}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50
+                      text-white font-semibold rounded-lg py-2 text-sm transition">
+                    {savingEdit ? "Guardando..." : "💾 Guardar"}
+                  </button>
+                  <button onClick={cancelarEdicion} disabled={savingEdit}
+                    className="flex-1 text-gray-400 hover:text-white border border-gray-700
+                      rounded-lg py-2 text-sm transition disabled:opacity-50">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <InfoRow label="Banco"   value={devolucion.banco} />
+                <InfoRow label="Tipo"    value={devolucion.tipo_cuenta} />
+                <InfoRow label="Titular" value={devolucion.titular_cuenta} />
+                <InfoRow label="Cuenta"  value={devolucion.numero_cuenta} />
+              </>
+            )}
           </div>
 
           {/* Info aprobación */}
@@ -302,14 +398,20 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
                   onChange={(e) => setNotas(e.target.value)}
                   placeholder="Motivo de aprobación/rechazo..." />
               </div>
-              <div>
-                <label className={CLS_LABEL}>Comprobante de pago (al aprobar)</label>
-                <input type="file" accept="image/*,application/pdf"
-                  onChange={(e) => setArchivo(e.target.files[0])}
-                  className="text-sm text-gray-400 file:mr-3 file:py-1 file:px-3
-                    file:rounded-lg file:border-0 file:bg-gray-700 file:text-gray-300
-                    file:text-xs file:cursor-pointer hover:file:bg-gray-600" />
-              </div>
+              {esEfectivo ? (
+                <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-xs text-amber-300">
+                  💵 Pago en efectivo — no requiere comprobante
+                </div>
+              ) : (
+                <div>
+                  <label className={CLS_LABEL}>Comprobante de pago (al aprobar)</label>
+                  <input type="file" accept="image/*,application/pdf"
+                    onChange={(e) => setArchivo(e.target.files[0])}
+                    className="text-sm text-gray-400 file:mr-3 file:py-1 file:px-3
+                      file:rounded-lg file:border-0 file:bg-gray-700 file:text-gray-300
+                      file:text-xs file:cursor-pointer hover:file:bg-gray-600" />
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => accionar("Aprobada")} disabled={saving}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50
@@ -334,14 +436,20 @@ function DetalleModal({ devolucion, onClose, onActualizar, esAdmin }) {
           {esAdmin && devolucion.estado === "Aprobada" && (
             <div className="border-t border-gray-800 pt-4 space-y-3">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Registrar pago</p>
-              <div>
-                <label className={CLS_LABEL}>Comprobante de pago</label>
-                <input type="file" accept="image/*,application/pdf"
-                  onChange={(e) => setArchivo(e.target.files[0])}
-                  className="text-sm text-gray-400 file:mr-3 file:py-1 file:px-3
-                    file:rounded-lg file:border-0 file:bg-gray-700 file:text-gray-300
-                    file:text-xs file:cursor-pointer hover:file:bg-gray-600" />
-              </div>
+              {esEfectivo ? (
+                <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-xs text-amber-300">
+                  💵 Pago en efectivo — no requiere comprobante
+                </div>
+              ) : (
+                <div>
+                  <label className={CLS_LABEL}>Comprobante de pago</label>
+                  <input type="file" accept="image/*,application/pdf"
+                    onChange={(e) => setArchivo(e.target.files[0])}
+                    className="text-sm text-gray-400 file:mr-3 file:py-1 file:px-3
+                      file:rounded-lg file:border-0 file:bg-gray-700 file:text-gray-300
+                      file:text-xs file:cursor-pointer hover:file:bg-gray-600" />
+                </div>
+              )}
               <div>
                 <label className={CLS_LABEL}>Notas</label>
                 <textarea rows={2} className={`${CLS_INPUT} resize-none`} value={notas}
@@ -395,7 +503,20 @@ export default function Devoluciones() {
     return error;
   }
 
-  async function actualizarEstado(id, estado, notas, comprobanteFile) {
+  async function editarDatosSolicitante(id, datos) {
+    if (!supabase || !esAdmin) return;
+    await supabase.from("devoluciones").update({
+      solicitante_nombre: datos.solicitante_nombre,
+      banco: datos.banco,
+      titular_cuenta: datos.titular_cuenta,
+      numero_cuenta: datos.numero_cuenta,
+      tipo_cuenta: datos.tipo_cuenta,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    await cargarDevoluciones();
+  }
+
+  async function actualizarEstado(id, estado, notas, comprobanteFile, tipoCuenta) {
     if (!supabase || !esAdmin) return;
     let comprobante_url = null;
     if (comprobanteFile) {
@@ -405,11 +526,16 @@ export default function Devoluciones() {
       const { data: urlData } = supabase.storage.from("comprobantes").getPublicUrl(path);
       comprobante_url = urlData?.publicUrl;
     }
+    let notasFinal = notas;
+    if (estado === "Pagada" && tipoCuenta === "Efectivo" && !comprobanteFile
+      && !(notasFinal || "").toLowerCase().includes("efectivo")) {
+      notasFinal = `Pago en efectivo. ${notasFinal || ""}`.trim();
+    }
     await supabase.from("devoluciones").update({
       estado,
       aprobado_por: usuario.nombre,
       fecha_aprobacion: new Date().toISOString(),
-      notas_aprobacion: notas,
+      notas_aprobacion: notasFinal,
       ...(comprobante_url && { comprobante_url }),
       updated_at: new Date().toISOString(),
     }).eq("id", id);
@@ -579,6 +705,7 @@ export default function Devoluciones() {
           devolucion={detalle}
           onClose={() => setDetalle(null)}
           onActualizar={actualizarEstado}
+          onEditar={editarDatosSolicitante}
           esAdmin={esAdmin}
         />
       )}
