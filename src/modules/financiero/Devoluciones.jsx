@@ -509,10 +509,19 @@ export default function Devoluciones() {
     fechaDesde: "",
     fechaHasta: "",
   });
+  const [filtroAbierto, setFiltroAbierto] = useState(null);
 
   const esAdmin = usuario?.rol === "admin";
 
   useEffect(() => { cargarDevoluciones(); }, []);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!e.target.closest("th")) setFiltroAbierto(null);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
 
   async function cargarDevoluciones() {
     setLoading(true);
@@ -707,98 +716,183 @@ export default function Devoluciones() {
           <p className="text-sm text-gray-600 mt-1">Crea la primera usando el botón de arriba.</p>
         </div>
       ) : (
-        <>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <input
-                type="text"
-                placeholder="Buscar solicitante..."
-                className={CLS_INPUT}
-                value={filtros.texto}
-                onChange={e => setFiltros(f => ({ ...f, texto: e.target.value }))}
-              />
-
-              <select className={CLS_INPUT}
-                value={filtros.entidad}
-                onChange={e => setFiltros(f => ({ ...f, entidad: e.target.value }))}>
-                <option value="">Todas las entidades</option>
-                <option value="Earth Park">Earth Park</option>
-                <option value="Corp R&R">Corp R&R</option>
-              </select>
-
-              <select className={CLS_INPUT}
-                value={filtros.categoria}
-                onChange={e => setFiltros(f => ({ ...f, categoria: e.target.value }))}>
-                <option value="">Todas las categorías</option>
-                <option value="Reserva">Reserva</option>
-                <option value="Inversión">Inversión</option>
-                <option value="Gasto operativo">Gasto operativo</option>
-                <option value="Nómina">Nómina</option>
-                <option value="Otro">Otro</option>
-              </select>
-
-              <select className={CLS_INPUT}
-                value={filtros.estado}
-                onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
-                <option value="">Todos los estados</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="Aprobada">Aprobada</option>
-                <option value="Pagada">Pagada</option>
-                <option value="Rechazada">Rechazada</option>
-              </select>
-
-              <input type="date" className={CLS_INPUT}
-                value={filtros.fechaDesde}
-                onChange={e => setFiltros(f => ({ ...f, fechaDesde: e.target.value }))}
-              />
-
-              <input type="date" className={CLS_INPUT}
-                value={filtros.fechaHasta}
-                onChange={e => setFiltros(f => ({ ...f, fechaHasta: e.target.value }))}
-              />
-            </div>
-
-            {Object.values(filtros).some(v => v !== "") && (
-              <button
-                onClick={() => setFiltros({ texto: "", entidad: "", categoria: "",
-                  estado: "", fechaDesde: "", fechaHasta: "" })}
-                className="mt-2 text-xs text-gray-500 hover:text-gray-300 underline"
-              >
-                Limpiar filtros
-              </button>
-            )}
-          </div>
-
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800">
-                  {["Fecha", "Solicitante", "Entidad", "Categoría", "Monto", "Estado", ""].map((h) => (
-                    <th key={h} className={`px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wide ${h === "Monto" ? "text-right" : "text-left"}`}>
-                      {h}
-                    </th>
-                  ))}
+                  {/* Fecha */}
+                  <th className="px-3 py-2 text-left relative">
+                    <button
+                      onClick={() => setFiltroAbierto(filtroAbierto === "fecha" ? null : "fecha")}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-white font-medium uppercase tracking-wide"
+                    >
+                      Fecha
+                      <span className={filtros.fechaDesde || filtros.fechaHasta ? "text-green-400" : ""}>▼</span>
+                    </button>
+                    {filtroAbierto === "fecha" && (
+                      <div className="absolute top-8 left-0 z-50 bg-gray-900 border border-gray-700
+                        rounded-lg p-3 shadow-xl min-w-48">
+                        <p className="text-xs text-gray-400 mb-1">Desde</p>
+                        <input type="date" className="w-full bg-gray-800 border border-gray-700
+                          rounded px-2 py-1 text-xs text-white mb-2"
+                          value={filtros.fechaDesde}
+                          onChange={e => setFiltros(f => ({ ...f, fechaDesde: e.target.value }))}
+                        />
+                        <p className="text-xs text-gray-400 mb-1">Hasta</p>
+                        <input type="date" className="w-full bg-gray-800 border border-gray-700
+                          rounded px-2 py-1 text-xs text-white"
+                          value={filtros.fechaHasta}
+                          onChange={e => setFiltros(f => ({ ...f, fechaHasta: e.target.value }))}
+                        />
+                        {(filtros.fechaDesde || filtros.fechaHasta) && (
+                          <button onClick={() => setFiltros(f => ({ ...f, fechaDesde: "", fechaHasta: "" }))}
+                            className="mt-2 text-xs text-red-400 hover:text-red-300">
+                            Limpiar
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </th>
+
+                  {/* Solicitante */}
+                  <th className="px-3 py-2 text-left relative">
+                    <button
+                      onClick={() => setFiltroAbierto(filtroAbierto === "solicitante" ? null : "solicitante")}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-white font-medium uppercase tracking-wide"
+                    >
+                      Solicitante
+                      <span className={filtros.texto ? "text-green-400" : ""}>▼</span>
+                    </button>
+                    {filtroAbierto === "solicitante" && (
+                      <div className="absolute top-8 left-0 z-50 bg-gray-900 border border-gray-700
+                        rounded-lg p-3 shadow-xl min-w-48">
+                        <input type="text" placeholder="Buscar..."
+                          className="w-full bg-gray-800 border border-gray-700
+                            rounded px-2 py-1 text-xs text-white"
+                          value={filtros.texto}
+                          onChange={e => setFiltros(f => ({ ...f, texto: e.target.value }))}
+                          autoFocus
+                        />
+                        {/* Lista de solicitantes únicos */}
+                        <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                          {[...new Set(devoluciones.map(d => d.solicitante_nombre))].map(s => (
+                            <button key={s}
+                              onClick={() => { setFiltros(f => ({ ...f, texto: s })); setFiltroAbierto(null); }}
+                              className="block w-full text-left text-xs text-gray-300
+                                hover:text-white hover:bg-gray-800 rounded px-2 py-1">
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                        {filtros.texto && (
+                          <button onClick={() => setFiltros(f => ({ ...f, texto: "" }))}
+                            className="mt-2 text-xs text-red-400 hover:text-red-300">
+                            Limpiar
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </th>
+
+                  {/* Entidad */}
+                  <th className="px-3 py-2 text-left relative">
+                    <button
+                      onClick={() => setFiltroAbierto(filtroAbierto === "entidad" ? null : "entidad")}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-white font-medium uppercase tracking-wide"
+                    >
+                      Entidad
+                      <span className={filtros.entidad ? "text-green-400" : ""}>▼</span>
+                    </button>
+                    {filtroAbierto === "entidad" && (
+                      <div className="absolute top-8 left-0 z-50 bg-gray-900 border border-gray-700
+                        rounded-lg p-3 shadow-xl min-w-40">
+                        {["", "Earth Park", "Corp R&R"].map(op => (
+                          <button key={op}
+                            onClick={() => { setFiltros(f => ({ ...f, entidad: op })); setFiltroAbierto(null); }}
+                            className={`block w-full text-left text-xs rounded px-2 py-1.5
+                              hover:bg-gray-800 ${filtros.entidad === op ? "text-green-400" : "text-gray-300"}`}>
+                            {op === "" ? "Todas" : op}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
+
+                  {/* Categoría */}
+                  <th className="px-3 py-2 text-left relative">
+                    <button
+                      onClick={() => setFiltroAbierto(filtroAbierto === "categoria" ? null : "categoria")}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-white font-medium uppercase tracking-wide"
+                    >
+                      Categoría
+                      <span className={filtros.categoria ? "text-green-400" : ""}>▼</span>
+                    </button>
+                    {filtroAbierto === "categoria" && (
+                      <div className="absolute top-8 left-0 z-50 bg-gray-900 border border-gray-700
+                        rounded-lg p-3 shadow-xl min-w-44">
+                        {["", "Reserva", "Inversión", "Gasto operativo", "Nómina", "Otro"].map(op => (
+                          <button key={op}
+                            onClick={() => { setFiltros(f => ({ ...f, categoria: op })); setFiltroAbierto(null); }}
+                            className={`block w-full text-left text-xs rounded px-2 py-1.5
+                              hover:bg-gray-800 ${filtros.categoria === op ? "text-green-400" : "text-gray-300"}`}>
+                            {op === "" ? "Todas" : op}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
+
+                  {/* Monto */}
+                  <th className="px-3 py-2 text-right text-xs text-gray-500 font-medium uppercase tracking-wide">
+                    Monto
+                  </th>
+
+                  {/* Estado */}
+                  <th className="px-3 py-2 text-left relative">
+                    <button
+                      onClick={() => setFiltroAbierto(filtroAbierto === "estado" ? null : "estado")}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-white font-medium uppercase tracking-wide"
+                    >
+                      Estado
+                      <span className={filtros.estado ? "text-green-400" : ""}>▼</span>
+                    </button>
+                    {filtroAbierto === "estado" && (
+                      <div className="absolute top-8 left-0 z-50 bg-gray-900 border border-gray-700
+                        rounded-lg p-3 shadow-xl min-w-36">
+                        {["", "Pendiente", "Aprobada", "Pagada", "Rechazada"].map(op => (
+                          <button key={op}
+                            onClick={() => { setFiltros(f => ({ ...f, estado: op })); setFiltroAbierto(null); }}
+                            className={`block w-full text-left text-xs rounded px-2 py-1.5
+                              hover:bg-gray-800 ${filtros.estado === op ? "text-green-400" : "text-gray-300"}`}>
+                            {op === "" ? "Todos" : op}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
+
+                  <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60">
                 {devolucionesFiltradas.map((d) => (
                   <tr key={d.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                    <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
                       {new Date(d.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
-                    <td className="px-4 py-3 text-white font-medium">{d.solicitante_nombre}</td>
-                    <td className="px-4 py-3 text-gray-400">{d.entidad}</td>
-                    <td className="px-4 py-3 text-gray-400">
+                    <td className="px-3 py-2 text-white font-medium">{d.solicitante_nombre}</td>
+                    <td className="px-3 py-2 text-gray-400">{d.entidad}</td>
+                    <td className="px-3 py-2 text-gray-400">
                       {[d.categoria, d.subcategoria].filter(Boolean).join(" › ")}
                     </td>
-                    <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
+                    <td className="px-3 py-2 text-right text-emerald-400 font-semibold whitespace-nowrap">
                       {formatCOP(d.monto)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <EstadoBadge estado={d.estado} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2 text-right">
                       <button
                         onClick={() => setDetalle(d)}
                         className="text-xs text-gray-500 hover:text-green-400 transition"
@@ -811,8 +905,7 @@ export default function Devoluciones() {
               </tbody>
             </table>
           </div>
-          </div>
-        </>
+        </div>
       )}
 
       {/* Modal detalle */}
