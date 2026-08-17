@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Megaphone, Loader2, Sparkles, Calendar, Wand2,
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
-  AlertCircle,
+  AlertCircle, Images,
 } from "lucide-react";
 import { useMarketingStorage } from "./useMarketingStorage";
 
@@ -755,10 +756,16 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
             style={{ background: "rgba(77,142,30,0.15)", border: "1px solid rgba(77,142,30,0.25)" }}>
             <Megaphone className="w-5 h-5 text-emerald-400" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-white leading-tight">Marketing</h1>
             <p className="text-xs text-gray-500">Genera contenido listo para @earthpark.co · Instagram & TikTok</p>
           </div>
+          <Link
+            to="/marketing/galeria-web"
+            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-emerald-700/50"
+          >
+            <Images className="w-3.5 h-3.5" /> Galería web
+          </Link>
         </div>
 
         {/* ══════════════════════════════════════════════════
