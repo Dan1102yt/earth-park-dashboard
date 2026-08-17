@@ -641,7 +641,7 @@ export default function Devoluciones() {
     });
   }, [devoluciones, filtros]);
 
-  const resumen = devoluciones.reduce((acc, d) => {
+  const resumen = devolucionesFiltradas.reduce((acc, d) => {
     acc[d.estado] = (acc[d.estado] || 0) + d.monto;
     return acc;
   }, {});
@@ -682,7 +682,7 @@ export default function Devoluciones() {
                   {resumen[estado] ? formatCOP(resumen[estado]) : "—"}
                 </p>
                 <p className="text-gray-500 text-xs mt-0.5">
-                  {devoluciones.filter((d) => d.estado === estado).length} solicitud(es)
+                  {devolucionesFiltradas.filter((d) => d.estado === estado).length} solicitud(es)
                 </p>
               </div>
             );
