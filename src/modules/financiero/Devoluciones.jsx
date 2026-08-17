@@ -9,7 +9,7 @@ const SUBCATEGORIAS_INVERSION = [
   "Infraestructura", "Construcción", "Financiero",
   "Adecuación", "Equipamiento", "Otro",
 ];
-const TIPOS_CUENTA = ["Ahorros", "Corriente", "Nequi", "Daviplata"];
+const TIPOS_CUENTA = ["Ahorros", "Corriente", "Nequi", "Daviplata", "Efectivo"];
 const ENTIDADES = ["Earth Park", "Corp R&R"];
 
 const ESTADO_COLORS = {
