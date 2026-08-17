@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useReservas } from "../../context/ReservasContext";
 import { supabase } from "../../lib/supabaseClient";
@@ -226,6 +226,8 @@ function DetalleModal({ devolucion, onClose, onActualizar, onEditar, esAdmin }) 
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({
     solicitante_nombre: devolucion.solicitante_nombre,
+    entidad: devolucion.entidad || "Earth Park",
+    categoria: devolucion.categoria || "Otro",
     banco: devolucion.banco || "",
     titular_cuenta: devolucion.titular_cuenta || "",
     numero_cuenta: devolucion.numero_cuenta || "",
@@ -239,6 +241,8 @@ function DetalleModal({ devolucion, onClose, onActualizar, onEditar, esAdmin }) 
   const cancelarEdicion = () => {
     setEditForm({
       solicitante_nombre: devolucion.solicitante_nombre,
+      entidad: devolucion.entidad || "Earth Park",
+      categoria: devolucion.categoria || "Otro",
       banco: devolucion.banco || "",
       titular_cuenta: devolucion.titular_cuenta || "",
       numero_cuenta: devolucion.numero_cuenta || "",
@@ -322,6 +326,27 @@ function DetalleModal({ devolucion, onClose, onActualizar, onEditar, esAdmin }) 
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Datos bancarios</p>
             {editando ? (
               <div className="space-y-3">
+                <div>
+                  <label className={CLS_LABEL}>Entidad</label>
+                  <select className={CLS_INPUT}
+                    value={editForm.entidad}
+                    onChange={e => setEditForm(f => ({ ...f, entidad: e.target.value }))}>
+                    <option value="Earth Park">Earth Park</option>
+                    <option value="Corp R&R">Corp R&R</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={CLS_LABEL}>Categoría</label>
+                  <select className={CLS_INPUT}
+                    value={editForm.categoria}
+                    onChange={e => setEditForm(f => ({ ...f, categoria: e.target.value }))}>
+                    <option value="Reserva">Reserva</option>
+                    <option value="Inversión">Inversión</option>
+                    <option value="Gasto operativo">Gasto operativo</option>
+                    <option value="Nómina">Nómina</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
                 <div>
                   <label className={CLS_LABEL}>Banco / billetera</label>
                   <input type="text" className={CLS_INPUT} value={editForm.banco}
@@ -476,6 +501,14 @@ export default function Devoluciones() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filtros, setFiltros] = useState({
+    texto: "",
+    entidad: "",
+    categoria: "",
+    estado: "",
+    fechaDesde: "",
+    fechaHasta: "",
+  });
 
   const esAdmin = usuario?.rol === "admin";
 
@@ -507,6 +540,8 @@ export default function Devoluciones() {
     if (!supabase || !esAdmin) return;
     await supabase.from("devoluciones").update({
       solicitante_nombre: datos.solicitante_nombre,
+      entidad: datos.entidad,
+      categoria: datos.categoria,
       banco: datos.banco,
       titular_cuenta: datos.titular_cuenta,
       numero_cuenta: datos.numero_cuenta,
@@ -578,6 +613,24 @@ export default function Devoluciones() {
 
     setDetalle(null);
   }
+
+  const devolucionesFiltradas = useMemo(() => {
+    return devoluciones.filter(d => {
+      if (filtros.texto) {
+        const t = filtros.texto.toLowerCase();
+        const match =
+          d.solicitante_nombre?.toLowerCase().includes(t) ||
+          d.descripcion?.toLowerCase().includes(t);
+        if (!match) return false;
+      }
+      if (filtros.entidad && d.entidad !== filtros.entidad) return false;
+      if (filtros.categoria && d.categoria !== filtros.categoria) return false;
+      if (filtros.estado && d.estado !== filtros.estado) return false;
+      if (filtros.fechaDesde && d.fecha < filtros.fechaDesde) return false;
+      if (filtros.fechaHasta && d.fecha > filtros.fechaHasta) return false;
+      return true;
+    });
+  }, [devoluciones, filtros]);
 
   const resumen = devoluciones.reduce((acc, d) => {
     acc[d.estado] = (acc[d.estado] || 0) + d.monto;
@@ -654,7 +707,69 @@ export default function Devoluciones() {
           <p className="text-sm text-gray-600 mt-1">Crea la primera usando el botón de arriba.</p>
         </div>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+        <>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <input
+                type="text"
+                placeholder="Buscar solicitante..."
+                className={CLS_INPUT}
+                value={filtros.texto}
+                onChange={e => setFiltros(f => ({ ...f, texto: e.target.value }))}
+              />
+
+              <select className={CLS_INPUT}
+                value={filtros.entidad}
+                onChange={e => setFiltros(f => ({ ...f, entidad: e.target.value }))}>
+                <option value="">Todas las entidades</option>
+                <option value="Earth Park">Earth Park</option>
+                <option value="Corp R&R">Corp R&R</option>
+              </select>
+
+              <select className={CLS_INPUT}
+                value={filtros.categoria}
+                onChange={e => setFiltros(f => ({ ...f, categoria: e.target.value }))}>
+                <option value="">Todas las categorías</option>
+                <option value="Reserva">Reserva</option>
+                <option value="Inversión">Inversión</option>
+                <option value="Gasto operativo">Gasto operativo</option>
+                <option value="Nómina">Nómina</option>
+                <option value="Otro">Otro</option>
+              </select>
+
+              <select className={CLS_INPUT}
+                value={filtros.estado}
+                onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
+                <option value="">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="Pagada">Pagada</option>
+                <option value="Rechazada">Rechazada</option>
+              </select>
+
+              <input type="date" className={CLS_INPUT}
+                value={filtros.fechaDesde}
+                onChange={e => setFiltros(f => ({ ...f, fechaDesde: e.target.value }))}
+              />
+
+              <input type="date" className={CLS_INPUT}
+                value={filtros.fechaHasta}
+                onChange={e => setFiltros(f => ({ ...f, fechaHasta: e.target.value }))}
+              />
+            </div>
+
+            {Object.values(filtros).some(v => v !== "") && (
+              <button
+                onClick={() => setFiltros({ texto: "", entidad: "", categoria: "",
+                  estado: "", fechaDesde: "", fechaHasta: "" })}
+                className="mt-2 text-xs text-gray-500 hover:text-gray-300 underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -667,7 +782,7 @@ export default function Devoluciones() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60">
-                {devoluciones.map((d) => (
+                {devolucionesFiltradas.map((d) => (
                   <tr key={d.id} className="hover:bg-gray-800/30 transition-colors">
                     <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                       {new Date(d.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}
@@ -696,7 +811,8 @@ export default function Devoluciones() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Modal detalle */}
