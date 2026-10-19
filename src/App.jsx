@@ -12,6 +12,7 @@ import InformeMensual from "./modules/financiero/InformeMensual";
 import AsistentePage from "./modules/asistente/AsistentePage";
 import MarketingPage from "./modules/marketing/MarketingPage";
 import GaleriaWebPage from "./modules/marketing/galeria/GaleriaWebPage";
+import EditorVideoPage from "./modules/marketing/editor/EditorVideoPage";
 import Devoluciones from "./modules/financiero/Devoluciones";
 
 function AppContent() {
@@ -47,6 +48,7 @@ function AppContent() {
               <Route path="/asistente" element={<AsistentePage />} />
               <Route path="/marketing" element={<MarketingPage />} />
               <Route path="/marketing/galeria-web" element={<GaleriaWebPage />} />
+              <Route path="/marketing/editor-video" element={<EditorVideoPage />} />
               <Route path="/devoluciones" element={<Devoluciones />} />
               <Route path="*" element={<Navigate to="/reservas" replace />} />
             </Routes>
