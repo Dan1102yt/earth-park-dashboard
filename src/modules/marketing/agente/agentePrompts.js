@@ -33,7 +33,7 @@ export const MODOS = {
     placeholder: "Ej: Qué empacar para tu primer glamping en Boyacá",
     usaWeb: false,
     formato: "json",
-    construirPrompt: (tema) => `Crea un carrusel viral de Instagram para Earth Park sobre: ${tema || "un tema que tú elijas, de alto valor guardable"}.
+    construirPrompt: (tema, ctx = {}) => `Crea un carrusel viral de Instagram para Earth Park sobre: ${tema || "un tema que tú elijas, de alto valor guardable"}.
 
 Reglas del carrusel:
 1. Slide 1 = portada con hook de máximo 10 palabras que abra un bucle de curiosidad (número, error común, secreto, antes/después o POV). Da además 3 hooks alternativos.
@@ -41,9 +41,22 @@ Reglas del carrusel:
 3. Valor guardable (guías, listas, qué empacar, rutas, cuánto cuesta, errores). La marca es protagonista de la historia, no un anuncio.
 4. Última slide: CTA (guardar, compartir o comentar una palabra).
 5. En cada título, marca entre *asteriscos* de 1 a 3 palabras para resaltarlas.
+6. Cada slide lleva una imagen de fondo. Para cada una decide qué impacta más:
+   - "drive": una foto REAL de Earth Park. Úsala siempre que la slide muestre el lugar, las cabañas, la comida, el embalse,
+     las actividades o personas en el parque (nunca muestres el parque con imágenes inventadas: sería engañar al cliente).
+   - "ia": una imagen generada. Úsala para ideas que no son el parque: conceptos, emociones, metáforas, objetos
+     (la ciudad con estrés, una maleta abierta, un reloj, una libreta, texturas de naturaleza en primer plano).
+   Criterios de impacto:
+   - Portada: la imagen que más detiene el scroll (contraste fuerte, sujeto claro, emoción).
+   - Slides con lista o mucho texto: fondos limpios, con poco detalle, para que el texto se lea.
+   - CTA: la escena real del parque que más provoque querer estar ahí (drive).
+   ${ctx.categorias?.length ? `Si usas drive, pon en categoria_foto EXACTAMENTE uno de estos nombres: ${ctx.categorias.join(" | ")}.` : "Si usas drive, escribe en categoria_foto una palabra corta (paisaje, embalse, mariposas, cabañas, comida, personas, actividades)."}
+   No repitas la misma categoría en dos slides seguidas si hay alternativas.
+   Si usas ia, escribe prompt_ia EN INGLÉS: fotografía vertical realista, luz natural, paleta de verdes y tonos tierra,
+   sujeto en la mitad superior, la mitad inferior más oscura y despejada para el texto, SIN texto, letras, logos ni marcas de agua.
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
-{"hooks_alternativos":["...","...","..."],"slides":[{"tipo":"portada|contenido|lista|cta","titulo":"...","texto":"...","items":["..."],"foto":"foto sugerida"}],"caption":"...","hashtags":["#..."],"palabra_comentar":"...","mejor_momento":"día y hora sugeridos"}
+{"hooks_alternativos":["...","...","..."],"slides":[{"tipo":"portada|contenido|lista|cta","titulo":"...","texto":"...","items":["..."],"fondo":"drive|ia","categoria_foto":"...","prompt_ia":"... (solo si fondo es ia)","foto":"qué debe mostrar el fondo, en una frase"}],"caption":"...","hashtags":["#..."],"palabra_comentar":"...","mejor_momento":"día y hora sugeridos"}
 Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.`,
   },
 

@@ -22,12 +22,12 @@ export function extraerObjetoJSON(texto) {
  * Llama a Claude a través del Worker de Cloudflare (ruta por defecto = proxy a Anthropic).
  * Si usaWeb es true, activa la herramienta de búsqueda web del lado de Anthropic.
  */
-export async function llamarAgente(workerUrl, modo, tema) {
+export async function llamarAgente(workerUrl, modo, tema, ctx = {}) {
   const body = {
     model: MODEL,
     max_tokens: modo.usaWeb ? 8000 : 4096,
     system: SISTEMA_AGENTE,
-    messages: [{ role: "user", content: modo.construirPrompt(tema.trim()) }],
+    messages: [{ role: "user", content: modo.construirPrompt(tema.trim(), ctx) }],
   };
   if (modo.usaWeb) {
     body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }];

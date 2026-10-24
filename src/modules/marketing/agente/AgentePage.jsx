@@ -7,6 +7,8 @@ import {
 import { MODOS } from "./agentePrompts";
 import { llamarAgente } from "./agenteApi";
 import { useAgenteHistorial } from "./useAgenteHistorial";
+import CarruselVisual from "./CarruselVisual";
+import { obtenerCategorias } from "./fotosCarrusel";
 
 const ICONOS = { carrusel: LayoutGrid, historias: MessageCircle, estrategia: Compass };
 const tarjeta = { background: "rgba(10,22,6,0.6)", border: "1px solid rgba(77,142,30,0.18)" };
@@ -59,7 +61,7 @@ function Markdown({ texto }) {
 }
 
 /* ─── Resultados por modo ──────────────────────────────────── */
-function ResultadoCarrusel({ r }) {
+function ResultadoCarrusel({ r, nuevo }) {
   const caption = `${r.caption || ""}\n\n${(r.hashtags || []).join(" ")}`.trim();
   return (
     <div className="space-y-5">
@@ -69,22 +71,7 @@ function ResultadoCarrusel({ r }) {
           {r.hooks_alternativos.map((h, i) => <p key={i} className="text-sm text-gray-200">{i + 1}. {h}</p>)}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {(r.slides || []).map((s, i) => (
-          <div key={i} className="rounded-xl p-4 flex flex-col gap-2 aspect-[4/5]" style={tarjeta}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-emerald-500">SLIDE {i + 1}</span>
-              <span className="text-[10px] text-gray-500 uppercase">{s.tipo}</span>
-            </div>
-            <p className="text-base font-bold text-white leading-snug"><Resaltado texto={s.titulo} /></p>
-            {s.texto && <p className="text-xs text-gray-300">{s.texto}</p>}
-            {s.items?.length > 0 && (
-              <ul className="text-xs text-gray-300 space-y-1">{s.items.map((it, j) => <li key={j}>• {it}</li>)}</ul>
-            )}
-            {s.foto && <p className="mt-auto text-[10px] text-gray-500 italic">📷 {s.foto}</p>}
-          </div>
-        ))}
-      </div>
+      <CarruselVisual carrusel={r} autoIA={nuevo} />
       <div className="rounded-xl p-4 space-y-3" style={tarjeta}>
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Caption + hashtags</p>
@@ -144,8 +131,8 @@ function ResultadoHistorias({ r }) {
   );
 }
 
-function Resultado({ modo, resultado }) {
-  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} />;
+function Resultado({ modo, resultado, nuevo }) {
+  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} nuevo={nuevo} />;
   if (modo === "historias") return <ResultadoHistorias r={resultado} />;
   const md = resultado?.markdown || "";
   return (
@@ -172,9 +159,11 @@ export default function AgentePage() {
     if (!workerUrl) { setError("VITE_WORKER_URL no está configurada."); return; }
     setCargando(true); setError(null); setActual(null);
     try {
-      const salida = await llamarAgente(workerUrl, modo, tema);
+      const ctx = {};
+      if (modoId === "carrusel") ctx.categorias = (await obtenerCategorias()).map((c) => c.nombre);
+      const salida = await llamarAgente(workerUrl, modo, tema, ctx);
       const resultado = modo.formato === "json" ? salida : { markdown: salida };
-      setActual({ modo: modoId, tema, resultado });
+      setActual({ modo: modoId, tema, resultado, nuevo: true });
       await guardar(modoId, tema, resultado);
     } catch (e) {
       setError(e.message);
@@ -247,7 +236,7 @@ export default function AgentePage() {
         </div>
       )}
 
-      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} />}
+      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} nuevo={!!actual.nuevo} />}
 
       {/* Historial */}
       {items.length > 0 && (
