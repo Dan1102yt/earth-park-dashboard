@@ -177,8 +177,12 @@ export default {
       try {
         if (request.method !== "POST") throw new Error("Usa POST");
         if (!env.GEMINI_API_KEY) throw new Error("Falta el secreto GEMINI_API_KEY en el Worker");
-        const { prompt, aspectRatio = "4:5" } = await request.json();
-        if (!prompt || String(prompt).length > 2000) throw new Error("Prompt vacío o demasiado largo");
+        const { prompt, aspectRatio = "4:5", referencia, referenciaMime = "image/jpeg" } = await request.json();
+        if (!prompt || String(prompt).length > 3000) throw new Error("Prompt vacío o demasiado largo");
+        // referencia (opcional): imagen base64 para mantener el mismo estilo entre escenas
+        const partes = referencia
+          ? [{ inlineData: { mimeType: referenciaMime, data: referencia } }, { text: String(prompt) }]
+          : [{ text: String(prompt) }];
 
         const model = env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
         const res = await fetch(
@@ -187,7 +191,7 @@ export default {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: String(prompt) }] }],
+              contents: [{ parts: partes }],
               generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio } },
             }),
           }
@@ -207,6 +211,69 @@ export default {
         return new Response(JSON.stringify({ error: err.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Ruta: animar una imagen como clip de video (Gemini Omni Flash) ──
+    // Requiere GEMINI_API_KEY. Modelo opcional: GEMINI_VIDEO_MODEL. Resolución: GEMINI_VIDEO_RES (por defecto 720p).
+    if (path === "/visual/video") {
+      try {
+        if (request.method !== "POST") throw new Error("Usa POST");
+        if (!env.GEMINI_API_KEY) throw new Error("Falta el secreto GEMINI_API_KEY en el Worker");
+        const { imagen, mime = "image/jpeg", prompt } = await request.json();
+        if (!prompt || String(prompt).length > 3000) throw new Error("Prompt vacío o demasiado largo");
+        const input = imagen
+          ? [{ type: "image", data: imagen, mime_type: mime }, { type: "text", text: String(prompt) }]
+          : String(prompt);
+        const base = "https://generativelanguage.googleapis.com/v1beta";
+        const auth = { "x-goog-api-key": env.GEMINI_API_KEY };
+        const res = await fetch(`${base}/interactions`, {
+          method: "POST",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: env.GEMINI_VIDEO_MODEL || "gemini-omni-1.1-flash",
+            input,
+            response_format: { type: "video", aspect_ratio: "9:16", resolution: env.GEMINI_VIDEO_RES || "720p", delivery: "uri" },
+            ...(imagen ? { generation_config: { video_config: { task: "image_to_video" } } } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+        // Buscar el bloque de video dentro de la respuesta
+        const buscar = (o) => {
+          if (!o || typeof o !== "object") return null;
+          if (o.type === "video" && (o.data || o.uri)) return o;
+          for (const v of Object.values(o)) { const r = buscar(v); if (r) return r; }
+          return null;
+        };
+        const video = buscar(data);
+        if (!video) throw new Error("El modelo no devolvió video: " + JSON.stringify(data).slice(0, 300));
+
+        if (video.data) {
+          const bytes = Uint8Array.from(atob(video.data), (c) => c.charCodeAt(0));
+          return new Response(bytes, { headers: { ...corsHeaders, "Content-Type": "video/mp4" } });
+        }
+
+        // Entregado como archivo: esperar a que esté listo y descargarlo
+        let uri = video.uri;
+        const m = uri.match(/files\/([^/:?]+)/);
+        if (m) {
+          for (let i = 0; i < 60; i++) {
+            const st = await (await fetch(`${base}/files/${m[1]}`, { headers: auth })).json();
+            if (st.state === "ACTIVE" || !st.state) break;
+            if (st.state === "FAILED") throw new Error("La generación del video falló");
+            await new Promise((r) => setTimeout(r, 4000));
+          }
+          uri = `${base}/files/${m[1]}:download?alt=media`;
+        }
+        const archivo = await fetch(uri, { headers: auth });
+        if (!archivo.ok) throw new Error(`No se pudo descargar el video (${archivo.status})`);
+        return new Response(archivo.body, { headers: { ...corsHeaders, "Content-Type": "video/mp4" } });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }

@@ -773,6 +773,12 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
             <Film className="w-3.5 h-3.5" /> Videos animados
           </Link>
           <Link
+            to="/marketing/cine"
+            className="flex items-center gap-1.5 text-xs text-fuchsia-950 bg-fuchsia-300 hover:bg-fuchsia-200 font-semibold transition px-3 py-1.5 rounded-lg"
+          >
+            <Clapperboard className="w-3.5 h-3.5" /> Videos cine IA
+          </Link>
+          <Link
             to="/marketing/editor-video"
             className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-500 hover:bg-emerald-400 font-semibold transition px-3 py-1.5 rounded-lg"
           >
