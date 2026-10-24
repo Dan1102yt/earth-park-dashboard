@@ -15,7 +15,7 @@ import { promptCine } from "./cinePrompt";
 import { normalizarCine, dibujarFrameCine, tiempoClip, sinAsteriscos } from "./motorCine";
 import {
   generarFotograma, animarFotograma, fotoDeDrive, guardarArchivo, cargarImagenRecurso, cargarVideoRecurso,
-  descargarBlob, blobABase64, posicionar, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
+  descargarBlob, blobABase64, posicionar, aJpegReferencia, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
 } from "./visuales";
 
 const MODEL = "claude-sonnet-4-5";
@@ -249,9 +249,16 @@ export default function CinePage() {
   };
 
   /* ─── Visuales ─── */
-  const referencia = async () => {
-    const primera = crudoRef.current.escenas.find((e) => e.visual?.modo !== "foto" && e.visual?.fotograma_url);
-    return primera ? blobABase64(await descargarBlob(primera.visual.fotograma_url)) : null;
+  // Referencia de estilo = primer fotograma IA (salvo para generar ese mismo); solo paleta y render, no composición
+  const referenciaEstilo = async (i) => {
+    const idx = crudoRef.current.escenas.findIndex((e) => e.visual?.modo !== "foto" && e.visual?.fotograma_url);
+    if (idx < 0 || idx === i) return null;
+    return blobABase64(await descargarBlob(crudoRef.current.escenas[idx].visual.fotograma_url));
+  };
+  // Fotos reales del protagonista (ej. la mariposa 88) que subió el usuario
+  const referenciasSujeto = async () => {
+    const urls = crudoRef.current.referencias_sujeto || [];
+    return Promise.all(urls.slice(0, 2).map(async (u) => blobABase64(await descargarBlob(u))));
   };
 
   const hacerFotograma = async (i, saltarFoto = 0) => {
@@ -262,7 +269,12 @@ export default function CinePage() {
       let blob;
       if (v.modo === "foto") blob = await fotoDeDrive(v.categoria_foto, saltarFoto);
       else {
-        blob = await generarFotograma(crudoRef.current.estilo_visual, v.prompt || sinAsteriscos(e.narracion), await referencia());
+        const usarSujeto = v.protagonista !== false && (crudoRef.current.referencias_sujeto || []).length > 0;
+        blob = await generarFotograma(crudoRef.current.estilo_visual, v.prompt || sinAsteriscos(e.narracion), {
+          estilo: await referenciaEstilo(i),
+          sujeto: usarSujeto ? await referenciasSujeto() : [],
+          plano: v.plano,
+        });
         sumarCosto(PRECIO_IMAGEN);
       }
       const url = await guardarArchivo(blob, "jpg");
@@ -272,6 +284,23 @@ export default function CinePage() {
     } finally {
       marcar(i, { foto: false });
     }
+  };
+
+  // Subir fotos reales del protagonista
+  const subirReferencias = async (archivos) => {
+    const nuevos = [];
+    for (const f of Array.from(archivos || []).slice(0, 2)) {
+      nuevos.push(await guardarArchivo(await aJpegReferencia(f), "jpg"));
+    }
+    aplicar((g) => ({ ...g, referencias_sujeto: [...(g.referencias_sujeto || []), ...nuevos].slice(-2) }));
+  };
+  const quitarReferencia = (u) => aplicar((g) => ({ ...g, referencias_sujeto: (g.referencias_sujeto || []).filter((x) => x !== u) }));
+
+  // Rehacer todos los fotogramas IA (ej. después de subir fotos de referencia)
+  const rehacerStoryboard = async () => {
+    aplicar((g) => ({ ...g, escenas: g.escenas.map((e) => (e.visual?.modo === "foto" ? e : { ...e, visual: { ...e.visual, fotograma_url: null, video_url: null } })) }));
+    await storyboard();
+    setFase(null);
   };
 
   const animar = async (i) => {
@@ -509,6 +538,26 @@ export default function CinePage() {
           <div className="space-y-3 min-w-0">
             <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Storyboard</p>
             {crudo.estilo_visual && <p className="text-[11px] text-gray-500">Estilo: {crudo.estilo_visual}</p>}
+            <div className="rounded-xl p-3 space-y-2" style={tarjeta}>
+              <p className="text-xs font-semibold text-white">Fotos reales del protagonista <span className="text-gray-500 font-normal">(opcional, hasta 2)</span></p>
+              <p className="text-[11px] text-gray-400">Sube fotos reales del sujeto (ej. la mariposa 88 por debajo y por encima). La IA las usa para que salga fiel a la realidad en las escenas donde aparece.</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {(crudo.referencias_sujeto || []).map((u) => (
+                  <div key={u} className="relative w-14 aspect-[9/16] rounded-md overflow-hidden">
+                    <img src={u} alt="" className="w-full h-full object-cover" />
+                    <button onClick={() => quitarReferencia(u)} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5"><Trash2 className="w-3 h-3 text-red-300" /></button>
+                  </div>
+                ))}
+                <label className="flex items-center gap-1 text-[11px] text-emerald-300 px-2 py-1.5 rounded-md border border-emerald-800/60 cursor-pointer">
+                  <ImageIcon className="w-3.5 h-3.5" /> Subir foto
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => subirReferencias(e.target.files)} />
+                </label>
+                <button onClick={rehacerStoryboard} disabled={ocupado}
+                  className="ml-auto flex items-center gap-1 text-[11px] text-amber-300 px-2 py-1.5 rounded-md border border-amber-500/40 disabled:opacity-40">
+                  <RefreshCw className="w-3 h-3" /> Rehacer storyboard (≈ {usd(crudo.escenas.filter((e) => e.visual?.modo !== "foto").length * PRECIO_IMAGEN)})
+                </button>
+              </div>
+            </div>
             <div className="grid sm:grid-cols-2 gap-3">
               {crudo.escenas.map((e, i) => {
                 const v = e.visual || {};

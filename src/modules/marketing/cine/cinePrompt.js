@@ -1,8 +1,11 @@
 import { NOMBRES_ICONOS } from "../animado/iconos";
 
 const ESTILOS = {
-  "3d": `MUNDO 3D: "estilo_visual" debe describir un mundo 3D estilizado y coherente. Ej: "stylized 3D isometric diorama,
-  soft volumetric light, night scene with glowing lime-green accents, clean low-poly shapes, cinematic depth of field".`,
+  "3d": `MUNDO 3D ESTILIZADO (NO fotografía realista): render 3D de animación de alta gama, como los reels de referencia.
+  "estilo_visual" debe describir un mundo CG coherente y llamativo. Ej: "high-end stylized 3D animation render,
+  feature-film CG look, clean sculpted shapes with subtle detail, vibrant saturated colors, dramatic rim light and
+  volumetric god rays, glowing lime-green and teal accents, miniature diorama feel with tilt-shift depth, crisp and readable".
+  Evita la estética de foto macro con bokeh: debe verse como animación 3D, no como foto.`,
   "2d": `MUNDO 2D ILUSTRADO (motion graphics de alta gama): "estilo_visual" debe describir ilustración 2D plana y coherente.
   Ej: "premium 2D flat vector illustration, bold simple shapes, layered parallax depth, subtle paper grain texture,
   limited palette of deep greens and warm earth tones with lime-green highlights, clean hand-drawn line details,
@@ -35,8 +38,13 @@ VISUALES — cada escena tiene "visual":
   · "imagen": imagen IA con movimiento de cámara (barata). Para el resto de escenas.
   · "foto": foto REAL de Earth Park. OBLIGATORIO cuando la escena muestra el parque, sus cabañas, su comida, su embalse o
     sus actividades (nunca muestres Earth Park con imágenes inventadas). ${categorias.length ? `Pon en "categoria_foto" uno de: ${categorias.join(" | ")}.` : ""}
-- "prompt" (en inglés, para "video" e "imagen"): describe la escena concreta: sujeto, lugar, composición, luz. Sin texto
-  ni letreros legibles. El sujeto principal en el centro/abajo; arriba debe quedar espacio oscuro para los subtítulos.
+- "prompt" (en inglés, para "video" e "imagen"): describe la escena concreta con PRECISIÓN: el sujeto GRANDE y
+  protagonista (que ocupe buena parte del cuadro), su aspecto físico EXACTO según los datos de la narración (formas,
+  colores, marcas, tamaño relativo), el entorno lleno de detalle y la luz. Sin texto ni letreros. Prohibido el fondo vacío.
+- "plano" (para "video" e "imagen"): "macro" | "primer_plano" | "cenital" | "contrapicado" | "isometrico" | "general" |
+  "seguimiento". VARÍA el plano: nunca el mismo en dos escenas seguidas, como un documental bien editado.
+- "protagonista" (true/false): true si en la escena aparece el sujeto principal (ej. la mariposa, la oruga). Así el sistema
+  usa las fotos reales de referencia que suba el usuario para que se vea fiel a la realidad.
 - "movimiento" (en inglés, solo "video"): el movimiento de cámara y lo que se mueve. Ej: "slow drone descent toward the
   highway while car headlights stream past".
 - "camara" (para "imagen" y "foto"): "acercar" | "alejar" | "paneo_izq" | "paneo_der" | "subir" | "bajar" | "orbita".
@@ -52,6 +60,6 @@ DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "d
 Úsalos solo cuando refuercen lo que dice el narrador.
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
-{"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
+{"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
 Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.`;
 }
