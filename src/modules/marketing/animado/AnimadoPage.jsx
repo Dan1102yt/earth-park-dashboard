@@ -298,9 +298,9 @@ export default function AnimadoPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <Link to="/marketing" className="text-gray-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <Film className="w-6 h-6 text-emerald-400" />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[200px]">
           <h1 className="text-xl font-bold text-white leading-tight">Videos animados</h1>
-          <p className="text-xs text-gray-500">Reels educativos animados con narrador, a partir de una idea · MP4 vertical listo para Instagram y TikTok</p>
+          <p className="text-xs text-gray-500 hidden sm:block">Reels educativos animados con narrador, a partir de una idea · MP4 vertical listo para Instagram y TikTok</p>
         </div>
         <Link to="/marketing/cine" className="text-xs text-fuchsia-300 border border-fuchsia-500/40 px-3 py-1.5 rounded-lg">Modo cinematográfico (IA)</Link>
       </div>

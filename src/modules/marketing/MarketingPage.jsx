@@ -751,45 +751,48 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
       <div className="max-w-6xl mx-auto space-y-10">
 
         {/* ── Page header ──────────────────────────────────── */}
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex items-center gap-3 pt-2 flex-wrap">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: "rgba(77,142,30,0.15)", border: "1px solid rgba(77,142,30,0.25)" }}>
             <Megaphone className="w-5 h-5 text-emerald-400" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-[200px]">
             <h1 className="text-xl font-bold text-white leading-tight">Marketing</h1>
             <p className="text-xs text-gray-500">Genera contenido listo para @earthpark.co · Instagram & TikTok</p>
           </div>
+          {/* En el celular los accesos van en una grilla debajo del título */}
+          <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           <Link
             to="/marketing/agente"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-300 hover:bg-emerald-200 font-semibold transition px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-300 hover:bg-emerald-200 font-semibold transition px-3 py-1.5 rounded-lg justify-center"
           >
             <Bot className="w-3.5 h-3.5" /> Agente IA
           </Link>
           <Link
             to="/marketing/animado"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-lime-300 hover:bg-lime-200 font-semibold transition px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-lime-300 hover:bg-lime-200 font-semibold transition px-3 py-2 rounded-lg justify-center"
           >
             <Film className="w-3.5 h-3.5" /> Videos animados
           </Link>
           <Link
             to="/marketing/cine"
-            className="flex items-center gap-1.5 text-xs text-fuchsia-950 bg-fuchsia-300 hover:bg-fuchsia-200 font-semibold transition px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-xs text-fuchsia-950 bg-fuchsia-300 hover:bg-fuchsia-200 font-semibold transition px-3 py-2 rounded-lg justify-center"
           >
             <Clapperboard className="w-3.5 h-3.5" /> Videos cine IA
           </Link>
           <Link
             to="/marketing/editor-video"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-500 hover:bg-emerald-400 font-semibold transition px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-500 hover:bg-emerald-400 font-semibold transition px-3 py-2 rounded-lg justify-center"
           >
             <Clapperboard className="w-3.5 h-3.5" /> Editor de video
           </Link>
           <Link
             to="/marketing/galeria-web"
-            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-emerald-700/50"
+            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-emerald-700/50 justify-center"
           >
             <Images className="w-3.5 h-3.5" /> Galería web
           </Link>
+          </div>
         </div>
 
         {/* ══════════════════════════════════════════════════

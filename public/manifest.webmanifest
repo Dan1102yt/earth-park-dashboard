@@ -1,0 +1,17 @@
+{
+  "name": "Earth Park · Dashboard",
+  "short_name": "Earth Park",
+  "description": "Reservas, finanzas y marketing de Earth Park, Macanal",
+  "start_url": "/earth-park-dashboard/",
+  "scope": "/earth-park-dashboard/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#071a07",
+  "theme_color": "#071a07",
+  "lang": "es-CO",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

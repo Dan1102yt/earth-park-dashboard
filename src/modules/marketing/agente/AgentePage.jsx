@@ -179,9 +179,9 @@ export default function AgentePage() {
       <div className="flex items-center gap-3 flex-wrap">
         <Link to="/marketing" className="text-gray-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <Bot className="w-6 h-6 text-emerald-400" />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[200px]">
           <h1 className="text-xl font-bold text-white leading-tight">Agente de marketing</h1>
-          <p className="text-xs text-gray-500">Carruseles virales, historias para leads y estrategia de marca para @earthpark.co</p>
+          <p className="text-xs text-gray-500 hidden sm:block">Carruseles virales, historias para leads y estrategia de marca para @earthpark.co</p>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ReservasProvider } from "./context/ReservasContext";
 import LoginPage from "./components/LoginPage";
 import NavBar from "./components/NavBar";
+import InstalarApp from "./components/InstalarApp";
 import NuevaReserva from "./modules/reservas/NuevaReserva";
 import ReservasPage from "./modules/reservas/ReservasPage";
 import CocinaPage from "./modules/cocina/CocinaPage";
@@ -39,6 +40,7 @@ function AppContent() {
       <HashRouter>
         <div className="min-h-screen relative">
           <NavBar />
+          <InstalarApp />
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Navigate to="/reservas" replace />} />
