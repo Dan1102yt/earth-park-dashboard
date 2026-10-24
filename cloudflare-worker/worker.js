@@ -132,6 +132,85 @@ export default {
       }
     }
 
+    // ── Ruta: Google Drive - servir una imagen con CORS (para dibujarla en canvas) ──
+    if (path === "/drive/image") {
+      try {
+        const id = url.searchParams.get("id") || "";
+        if (!/^[\w-]{10,}$/.test(id)) throw new Error("id inválido");
+        const token = await getGoogleToken(env, "drive");
+        const auth = { headers: { Authorization: `Bearer ${token}` } };
+
+        // Primero una versión reducida (miniatura grande, ~1600 px); si no hay, el archivo original.
+        const meta = await (await fetch(
+          `https://www.googleapis.com/drive/v3/files/${id}?fields=mimeType,thumbnailLink`, auth)).json();
+        if (meta.error) throw new Error(meta.error.message);
+        if (!String(meta.mimeType || "").startsWith("image/")) throw new Error("No es una imagen");
+
+        let img = null;
+        if (meta.thumbnailLink) {
+          const r = await fetch(meta.thumbnailLink.replace(/=s\d+$/, "=s1600"));
+          if (r.ok) img = r;
+        }
+        if (!img) {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, auth);
+          if (!r.ok) throw new Error(`Drive ${r.status}`);
+          img = r;
+        }
+        return new Response(img.body, {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": img.headers.get("Content-Type") || meta.mimeType,
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Ruta: generar imagen con IA (Gemini) para fondos de carrusel ──
+    // Requiere el secreto GEMINI_API_KEY. Modelo opcional en la variable GEMINI_IMAGE_MODEL.
+    if (path === "/image/generate") {
+      try {
+        if (request.method !== "POST") throw new Error("Usa POST");
+        if (!env.GEMINI_API_KEY) throw new Error("Falta el secreto GEMINI_API_KEY en el Worker");
+        const { prompt, aspectRatio = "4:5" } = await request.json();
+        if (!prompt || String(prompt).length > 2000) throw new Error("Prompt vacío o demasiado largo");
+
+        const model = env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: String(prompt) }] }],
+              generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio } },
+            }),
+          }
+        );
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const parte = (data.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData || p.inline_data);
+        const inline = parte?.inlineData || parte?.inline_data;
+        if (!inline?.data) throw new Error("El modelo no devolvió imagen");
+
+        const bytes = Uint8Array.from(atob(inline.data), (c) => c.charCodeAt(0));
+        return new Response(bytes, {
+          headers: { ...corsHeaders, "Content-Type": inline.mimeType || inline.mime_type || "image/png" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // ── Ruta: Anthropic (default) ────────────────────────
     if (request.method !== "POST") {
       return new Response("Method not allowed", {
