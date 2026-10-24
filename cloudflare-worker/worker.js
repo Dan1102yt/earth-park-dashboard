@@ -211,6 +211,63 @@ export default {
       }
     }
 
+    // ── Rutas: narrador con ElevenLabs ───────────────────
+    // Requiere el secreto ELEVENLABS_API_KEY. Voz por defecto opcional: variable ELEVENLABS_VOICE_ID.
+    if (path === "/tts/voices") {
+      try {
+        if (!env.ELEVENLABS_API_KEY) throw new Error("Falta el secreto ELEVENLABS_API_KEY en el Worker");
+        const res = await fetch("https://api.elevenlabs.io/v1/voices", {
+          headers: { "xi-api-key": env.ELEVENLABS_API_KEY },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail?.message || data?.detail || `ElevenLabs ${res.status}`);
+        const voces = (data.voices || []).map((v) => ({
+          id: v.voice_id, nombre: v.name, categoria: v.category, etiquetas: v.labels || {}, muestra: v.preview_url,
+        }));
+        return new Response(JSON.stringify({ voces, porDefecto: env.ELEVENLABS_VOICE_ID || null }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (path === "/tts") {
+      try {
+        if (request.method !== "POST") throw new Error("Usa POST");
+        if (!env.ELEVENLABS_API_KEY) throw new Error("Falta el secreto ELEVENLABS_API_KEY en el Worker");
+        const { text, voiceId, previousText, nextText } = await request.json();
+        const voz = voiceId || env.ELEVENLABS_VOICE_ID;
+        if (!voz) throw new Error("Elige una voz");
+        if (!text || String(text).length > 1200) throw new Error("Texto vacío o demasiado largo");
+        const res = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voz)}/with-timestamps?output_format=mp3_44100_128`,
+          {
+            method: "POST",
+            headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: String(text),
+              model_id: env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+              previous_text: previousText || undefined,
+              next_text: nextText || undefined,
+              voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true },
+            }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail?.message || JSON.stringify(data?.detail || data).slice(0, 300));
+        return new Response(JSON.stringify({ audio: data.audio_base64, alineacion: data.alignment || data.normalized_alignment }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // ── Ruta: Anthropic (default) ────────────────────────
     if (request.method !== "POST") {
       return new Response("Method not allowed", {

@@ -24,14 +24,22 @@ export function useAgenteHistorial() {
   }, []);
 
   const guardar = useCallback(async (modo, tema, resultado) => {
-    if (!supabase) return;
+    if (!supabase) return null;
     const { data, error } = await supabase
       .from(TABLE)
       .insert({ modo, tema, resultado })
       .select()
       .single();
-    if (error) { console.warn("[agente] guardar:", error.message); return; }
+    if (error) { console.warn("[agente] guardar:", error.message); return null; }
     setItems((prev) => [data, ...prev]);
+    return data;
+  }, []);
+
+  const actualizar = useCallback(async (id, resultado) => {
+    if (!supabase || !id) return;
+    const { error } = await supabase.from(TABLE).update({ resultado }).eq("id", id);
+    if (error) { console.warn("[agente] actualizar:", error.message); return; }
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, resultado } : i)));
   }, []);
 
   const borrar = useCallback(async (id) => {
@@ -40,5 +48,5 @@ export function useAgenteHistorial() {
     if (!error) setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  return { items, loading, guardar, borrar };
+  return { items, loading, guardar, borrar, actualizar };
 }
