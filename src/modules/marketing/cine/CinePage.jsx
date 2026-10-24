@@ -388,9 +388,9 @@ export default function CinePage() {
       <div className="flex items-center gap-3 flex-wrap">
         <Link to="/marketing" className="text-gray-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <Clapperboard className="w-6 h-6 text-emerald-400" />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[200px]">
           <h1 className="text-xl font-bold text-white leading-tight">Videos cinematográficos</h1>
-          <p className="text-xs text-gray-500">Explicativos con mundo 2D o 3D generado por IA, narrador, subtítulos al ritmo de la voz y datos animados</p>
+          <p className="text-xs text-gray-500 hidden sm:block">Explicativos con mundo 2D o 3D generado por IA, narrador, subtítulos al ritmo de la voz y datos animados</p>
         </div>
         <Link to="/marketing/animado" className="text-xs text-emerald-400 border border-emerald-800/60 px-3 py-1.5 rounded-lg">Modo ilustrado (gratis)</Link>
       </div>

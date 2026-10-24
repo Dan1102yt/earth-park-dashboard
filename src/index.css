@@ -235,3 +235,7 @@
     transform: translateY(-10px) scale(0.95);
   }
 }
+
+/* ── Celular / app instalada: respetar la muesca y la barra de gestos ── */
+.safe-area-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }

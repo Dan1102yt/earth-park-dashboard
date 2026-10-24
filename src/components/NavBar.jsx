@@ -165,23 +165,23 @@ export default function NavBar() {
 
       {/* ── Mobile Top Header ───────────────────────────────────── */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-2.5 border-b glass-nav"
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 py-2 border-b glass-nav safe-area-top"
         style={{ borderColor: 'rgba(77,142,30,0.2)' }}
       >
-        <Link to="/reservas" className="flex items-center gap-2.5">
+        <Link to="/reservas" className="flex items-center gap-2 min-w-0">
           <img
             src={LOGO_URL}
             alt="Earth Park"
             className="w-9 h-9 rounded-full object-cover flex-shrink-0"
             style={{ boxShadow: '0 0 0 1.5px rgba(77,142,30,0.40)' }}
           />
-          <div>
-            <h1 className="font-display text-sm font-bold text-white leading-tight">Earth Park</h1>
-            <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight">Parque Tem&aacute;tico &middot; Macanal</p>
+          <div className="min-w-0">
+            <h1 className="font-display text-sm font-bold text-white leading-tight whitespace-nowrap">Earth Park</h1>
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest leading-tight whitespace-nowrap hidden min-[380px]:block">Parque Tem&aacute;tico &middot; Macanal</p>
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-          <SyncButton />
+          <SyncButton compacto />
           {usuario && (
             <button
               onClick={logout}
@@ -197,7 +197,7 @@ export default function NavBar() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"
-            className="text-gray-600 hover:text-pink-400 transition-colors duration-200 p-1.5 rounded-lg"
+            className="hidden sm:inline-flex text-gray-600 hover:text-pink-400 transition-colors duration-200 p-1.5 rounded-lg"
           >
             <InstagramIcon className="w-4 h-4" />
           </a>
@@ -206,7 +206,7 @@ export default function NavBar() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="TikTok"
-            className="text-gray-600 hover:text-gray-300 transition-colors duration-200 p-1.5 rounded-lg"
+            className="hidden sm:inline-flex text-gray-600 hover:text-gray-300 transition-colors duration-200 p-1.5 rounded-lg"
           >
             <TikTokIcon className="w-4 h-4" />
           </a>
