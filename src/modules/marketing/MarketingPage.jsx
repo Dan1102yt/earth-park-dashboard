@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Megaphone, Loader2, Sparkles, Calendar, Wand2,
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
-  AlertCircle, Images, Clapperboard, Bot,
+  AlertCircle, Images, Clapperboard, Bot, Film,
 } from "lucide-react";
 import { useMarketingStorage } from "./useMarketingStorage";
 
@@ -765,6 +765,12 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
             className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-300 hover:bg-emerald-200 font-semibold transition px-3 py-1.5 rounded-lg"
           >
             <Bot className="w-3.5 h-3.5" /> Agente IA
+          </Link>
+          <Link
+            to="/marketing/animado"
+            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-lime-300 hover:bg-lime-200 font-semibold transition px-3 py-1.5 rounded-lg"
+          >
+            <Film className="w-3.5 h-3.5" /> Videos animados
           </Link>
           <Link
             to="/marketing/editor-video"
