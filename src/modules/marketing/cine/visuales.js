@@ -13,9 +13,21 @@ export const PRECIO_IMAGEN = 0.034;
 export const PRECIO_SEG_VIDEO = 0.10;
 export const SEG_VIDEO_ESTIMADOS = 6;
 
+// Reglas de composición (inspiradas en los reels de referencia: mundos llenos, sujeto protagonista, cámara con intención)
 const ESTILO_FOTOGRAMA =
-  "Vertical 9:16 frame, rich detail, strong composition, main subject in the center-lower area, " +
-  "darker uncluttered area at the top for captions, no text, no letters, no numbers, no logos, no watermarks, no UI.";
+  "Vertical 9:16 full-bleed frame. The main subject is LARGE and clearly readable, filling most of the frame. " +
+  "Rich, detailed environment from edge to edge (no empty blurry voids). Dramatic lighting with strong contrast " +
+  "and vivid, saturated colors. Cinematic depth. No text, no letters, no numbers, no logos, no watermarks, no UI.";
+
+const PLANOS = {
+  macro: "extreme macro close-up, the subject fills the frame",
+  primer_plano: "close-up shot of the subject",
+  cenital: "top-down overhead view",
+  contrapicado: "low-angle shot looking up at the subject, epic scale",
+  isometrico: "isometric diorama view, miniature world",
+  general: "wide establishing shot showing the whole environment",
+  seguimiento: "dynamic tracking shot, subject in motion",
+};
 
 export function blobABase64(blob) {
   return new Promise((resolve, reject) => {
@@ -46,14 +58,46 @@ export async function aJpeg916(blob) {
   }
 }
 
-/** Fotograma clave con IA. referencia: base64 JPEG del primer fotograma para mantener el estilo. */
-export async function generarFotograma(estiloVisual, prompt, referencia = null) {
-  const texto = `${estiloVisual ? estiloVisual + ". " : ""}${prompt}. ${ESTILO_FOTOGRAMA}` +
-    (referencia ? " Match exactly the art style, palette and rendering of the reference image, but show the new scene." : "");
+/** Reduce una foto a JPEG (máx. 1280 px de lado) sin recortarla: para fotos de referencia. */
+export async function aJpegReferencia(blob, max = 1280) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const r = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Fotograma clave con IA.
+ * opciones.estilo: base64 del primer fotograma → SOLO para mantener paleta y tipo de render (no la composición).
+ * opciones.sujeto: [base64] fotos reales del protagonista → para que se vea igual al real (ej. la mariposa 88).
+ * opciones.plano: tipo de plano de cámara (ver PLANOS).
+ */
+export async function generarFotograma(estiloVisual, prompt, opciones = {}) {
+  const { estilo = null, sujeto = [], plano = null } = opciones;
+  const referencias = [];
+  let guia = "";
+  sujeto.slice(0, 2).forEach((data) => referencias.push({ data, mime: "image/jpeg" }));
+  if (sujeto.length) {
+    guia += ` The first ${sujeto.length > 1 ? "images are real photos" : "image is a real photo"} of the main subject: ` +
+      "reproduce its exact shape, colors, markings and proportions faithfully (scientifically accurate), rendered in the art style described.";
+  }
+  if (estilo) {
+    referencias.push({ data: estilo, mime: "image/jpeg" });
+    guia += " The last image is ONLY a style reference: match its color palette, lighting and rendering technique, " +
+      "but do NOT copy its composition, camera angle, framing or subject placement. Create a completely new composition.";
+  }
+  const texto = `${estiloVisual ? estiloVisual + ". " : ""}${plano && PLANOS[plano] ? PLANOS[plano] + ". " : ""}${prompt}. ${ESTILO_FOTOGRAMA}${guia}`;
   const res = await fetch(`${WORKER_URL}/image/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: texto, aspectRatio: "9:16", referencia }),
+    body: JSON.stringify({ prompt: texto, aspectRatio: "9:16", referencias }),
   });
   if (!res.ok) throw new Error(await errorDe(res));
   return aJpeg916(await res.blob());

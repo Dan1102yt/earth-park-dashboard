@@ -177,12 +177,14 @@ export default {
       try {
         if (request.method !== "POST") throw new Error("Usa POST");
         if (!env.GEMINI_API_KEY) throw new Error("Falta el secreto GEMINI_API_KEY en el Worker");
-        const { prompt, aspectRatio = "4:5", referencia, referenciaMime = "image/jpeg" } = await request.json();
-        if (!prompt || String(prompt).length > 3000) throw new Error("Prompt vacío o demasiado largo");
-        // referencia (opcional): imagen base64 para mantener el mismo estilo entre escenas
-        const partes = referencia
-          ? [{ inlineData: { mimeType: referenciaMime, data: referencia } }, { text: String(prompt) }]
-          : [{ text: String(prompt) }];
+        const { prompt, aspectRatio = "4:5", referencia, referenciaMime = "image/jpeg", referencias = [] } = await request.json();
+        if (!prompt || String(prompt).length > 4000) throw new Error("Prompt vacío o demasiado largo");
+        // referencias (opcional): imágenes base64 (fotos reales del sujeto y/o referencia de estilo), en orden
+        const imgs = [...(referencia ? [{ data: referencia, mime: referenciaMime }] : []), ...referencias].slice(0, 3);
+        const partes = [
+          ...imgs.map((r) => ({ inlineData: { mimeType: r.mime || "image/jpeg", data: r.data } })),
+          { text: String(prompt) },
+        ];
 
         const model = env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
         const res = await fetch(
