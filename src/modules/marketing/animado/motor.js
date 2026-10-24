@@ -637,3 +637,9 @@ export function dibujarFrame(ctx, guion, tiempo) {
   // Logo de marca abajo (en la escena final el logo grande ya está arriba)
   if (!escena?.cta) dibujarLogo(ctx, ANCHO / 2, Y_LOGO, 128, 0.95);
 }
+
+// Piezas reutilizadas por el modo cinematográfico
+export {
+  encajar, palabras, grupos, dibujarElemento, dibujarLogo, dibujarTitular, dibujarTrazos, pulso,
+  clamp, easeOut, easeInOut, easeBack, hash, FUENTE_TITULO, FUENTE_TEXTO, TRANS,
+};

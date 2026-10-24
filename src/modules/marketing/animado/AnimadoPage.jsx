@@ -302,6 +302,7 @@ export default function AnimadoPage() {
           <h1 className="text-xl font-bold text-white leading-tight">Videos animados</h1>
           <p className="text-xs text-gray-500">Reels educativos animados con narrador, a partir de una idea · MP4 vertical listo para Instagram y TikTok</p>
         </div>
+        <Link to="/marketing/cine" className="text-xs text-fuchsia-300 border border-fuchsia-500/40 px-3 py-1.5 rounded-lg">Modo cinematográfico (IA)</Link>
       </div>
 
       {/* Entrada */}

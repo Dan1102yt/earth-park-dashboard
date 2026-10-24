@@ -33,7 +33,11 @@ async function audioSoportado(pista) {
  * pista: AudioBuffer con la narración (opcional).
  * Devuelve { blob, extension, conAudio }.
  */
-export async function exportarVideo(guion, pista = null, onProgreso = () => {}) {
+export async function exportarVideo(guion, pista = null, onProgreso = () => {}, opciones = {}) {
+  // opciones.dibujar(ctx, guion, t): dibuja un fotograma (por defecto el motor ilustrado)
+  // opciones.preparar(t): async, se llama antes de cada fotograma (ej. posicionar los clips de video)
+  const dibujar = opciones.dibujar || dibujarFrame;
+  const preparar = opciones.preparar || null;
   await cargarRecursos();
   const canvas = document.createElement("canvas");
   canvas.width = ANCHO;
@@ -43,8 +47,8 @@ export async function exportarVideo(guion, pista = null, onProgreso = () => {}) 
   const vcfg = await videoSoportado();
   const acfg = await audioSoportado(pista);
   // Si hay narración pero el navegador no puede codificar AAC, mejor grabar en vivo (con audio)
-  if (vcfg && (!pista || acfg)) return exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso);
-  return grabarEnVivo(guion, canvas, ctx, pista, onProgreso);
+  if (vcfg && (!pista || acfg)) return exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso, dibujar, preparar);
+  return grabarEnVivo(guion, canvas, ctx, pista, onProgreso, dibujar);
 }
 
 async function codificarAudio(muxer, pista, cfg) {
@@ -70,7 +74,7 @@ async function codificarAudio(muxer, pista, cfg) {
   if (error) throw error;
 }
 
-async function exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso) {
+async function exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso, dibujar, preparar) {
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: { codec: "avc", width: ANCHO, height: ALTO, frameRate: FPS },
@@ -86,7 +90,8 @@ async function exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso) {
   const totalFrames = Math.ceil(guion.total * FPS);
   for (let i = 0; i < totalFrames; i++) {
     if (error) throw error;
-    dibujarFrame(ctx, guion, i / FPS);
+    if (preparar) await preparar(i / FPS);
+    dibujar(ctx, guion, i / FPS);
     const frame = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
     encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
     frame.close();
@@ -101,7 +106,7 @@ async function exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso) {
 }
 
 // Respaldo: graba en tiempo real (tarda lo que dura el video).
-async function grabarEnVivo(guion, canvas, ctx, pista, onProgreso) {
+async function grabarEnVivo(guion, canvas, ctx, pista, onProgreso, dibujar) {
   if (typeof MediaRecorder === "undefined") throw new Error("Este navegador no puede exportar video. Prueba con Chrome.");
   const tipos = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"];
   const mimeType = tipos.find((t) => MediaRecorder.isTypeSupported(t)) || "";
@@ -126,7 +131,7 @@ async function grabarEnVivo(guion, canvas, ctx, pista, onProgreso) {
   await new Promise((resolve) => {
     const paso = () => {
       const t = (performance.now() - t0) / 1000;
-      dibujarFrame(ctx, guion, Math.min(t, guion.total));
+      dibujar(ctx, guion, Math.min(t, guion.total));
       onProgreso(Math.min(1, t / guion.total));
       if (t < guion.total) requestAnimationFrame(paso); else resolve();
     };
