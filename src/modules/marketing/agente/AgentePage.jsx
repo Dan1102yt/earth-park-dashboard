@@ -151,7 +151,8 @@ export default function AgentePage() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [actual, setActual] = useState(null); // { modo, tema, resultado }
-  const { items, guardar, borrar } = useAgenteHistorial();
+  const { items: todos, guardar, borrar } = useAgenteHistorial();
+  const items = todos.filter((i) => MODOS[i.modo]); // los guiones de video se ven en su propia página
 
   const modo = MODOS[modoId];
 
