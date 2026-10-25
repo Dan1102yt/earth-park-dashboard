@@ -43,8 +43,12 @@ VISUALES — cada escena tiene "visual":
   colores, marcas, tamaño relativo), el entorno lleno de detalle y la luz. Sin texto ni letreros. Prohibido el fondo vacío.
 - "plano" (para "video" e "imagen"): "macro" | "primer_plano" | "cenital" | "contrapicado" | "isometrico" | "general" |
   "seguimiento". VARÍA el plano: nunca el mismo en dos escenas seguidas, como un documental bien editado.
-- "protagonista" (true/false): true si en la escena aparece el sujeto principal (ej. la mariposa, la oruga). Así el sistema
-  usa las fotos reales de referencia que suba el usuario para que se vea fiel a la realidad.
+- "protagonista" (true/false): true SOLO si la escena muestra exactamente lo que se ve en las fotos reales de referencia
+  (normalmente el sujeto en su forma final, ej. la mariposa adulta). En escenas de otra etapa o de otro sujeto (huevo,
+  oruga, crisálida, planta, paisaje) pon false: si no, la IA dibujaría el sujeto equivocado.
+- COHERENCIA IMAGEN–NARRACIÓN (obligatorio): el "prompt" de cada escena muestra SOLO lo que dice la narración en ese
+  momento. Si la narración habla del huevo, se ve el huevo (no la oruga ni la mariposa); si habla de la oruga, se ve la
+  oruga; nunca adelantes etapas que todavía no se han contado. Un solo protagonista claro por escena.
 - "movimiento" (en inglés, solo "video"): el movimiento de cámara y lo que se mueve. Ej: "slow drone descent toward the
   highway while car headlights stream past".
 - "camara" (para "imagen" y "foto"): "acercar" | "alejar" | "paneo_izq" | "paneo_der" | "subir" | "bajar" | "orbita".
@@ -52,12 +56,14 @@ VISUALES — cada escena tiene "visual":
 - "transicion" (opcional, desde la escena 2): "glitch" | "zoom".
 
 DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "datos": coordenadas x,y de 0 a 1000 sobre la zona central del video:
-- {"tipo":"etiqueta","texto":"30 m","x":700,"y":300,"apunta":{"x":500,"y":520},"inicio":0.8} — pastilla con línea guía.
+- {"tipo":"etiqueta","texto":"88","senala":"el dibujo del número 88 en la cara inferior del ala trasera","inicio":0.8}
+  — pastilla con línea guía. "senala" describe con precisión QUÉ parte de la imagen señala: el sistema revisa la imagen y
+  ubica ese punto exacto (si no aparece, la etiqueta no se muestra). Úsala solo para cosas que la imagen sí debe mostrar.
 - {"tipo":"contador","desde":0,"hasta":88,"sufijo":"%","x":500,"y":500,"tam":180,"inicio":0.5}
 - Íconos de línea animados (se dibujan solos, con brillo): ${dimension === "2d" ? NOMBRES_ICONOS.join(", ") : "equis, check, flecha, pin, reloj, corazon"}.
   Ej: {"tipo":"check","x":500,"y":500,"tam":220,"inicio":1,"entrada":"pop"} (entrada: "dibujar" | "pop" | "aparecer"; efecto opcional: "flotar" | "latir").
 - {"tipo":"linea","x":300,"y":400,"x2":300,"y2":800,"punteada":true,"etiqueta":"8 km","inicio":0.6}
-Úsalos solo cuando refuercen lo que dice el narrador.
+Úsalos solo cuando refuercen lo que dice el narrador, y con las MISMAS cifras que dice la narración.
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
 {"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}

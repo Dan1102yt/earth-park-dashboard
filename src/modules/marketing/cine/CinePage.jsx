@@ -15,7 +15,7 @@ import { promptCine } from "./cinePrompt";
 import { normalizarCine, dibujarFrameCine, tiempoClip, sinAsteriscos } from "./motorCine";
 import {
   generarFotograma, animarFotograma, fotoDeDrive, guardarArchivo, cargarImagenRecurso, cargarVideoRecurso,
-  descargarBlob, blobABase64, posicionar, aJpegReferencia, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
+  descargarBlob, blobABase64, posicionar, aJpegReferencia, verificarFotograma, PRECIO_VERIFICACION, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
 } from "./visuales";
 
 const MODEL = "claude-sonnet-4-5";
@@ -148,6 +148,7 @@ export default function CinePage() {
   const [color, setColor] = useState("bosque");
   const [maxVideo, setMaxVideo] = useState(+leer("ep_cine_maxvideo", "3"));
   const [dimension, setDimension] = useState(leer("ep_cine_dim", "2d"));
+  const [refsNuevas, setRefsNuevas] = useState([]); // fotos del protagonista subidas antes de crear el video
   const [crudo, setCrudoState] = useState(null);
   const crudoRef = useRef(null);
   const [, setFilaIdState] = useState(null);
@@ -261,24 +262,56 @@ export default function CinePage() {
     return Promise.all(urls.slice(0, 2).map(async (u) => blobABase64(await descargarBlob(u))));
   };
 
+  // Genera el fotograma, lo revisa con IA (¿coincide con la narración?) y ubica los puntos que señalan las etiquetas.
+  // Si no coincide, lo corrige y lo vuelve a generar una vez, automáticamente.
   const hacerFotograma = async (i, saltarFoto = 0) => {
     const e = crudoRef.current.escenas[i];
     const v = e.visual || {};
     marcar(i, { foto: true, error: null });
     try {
-      let blob;
-      if (v.modo === "foto") blob = await fotoDeDrive(v.categoria_foto, saltarFoto);
-      else {
-        const usarSujeto = v.protagonista !== false && (crudoRef.current.referencias_sujeto || []).length > 0;
-        blob = await generarFotograma(crudoRef.current.estilo_visual, v.prompt || sinAsteriscos(e.narracion), {
+      const narracion = sinAsteriscos(e.narracion);
+      const promptBase = v.prompt || narracion;
+      const senalamientos = (e.datos || []).map((d, k) => ({ i: k, senala: d.senala })).filter((x) => x.senala);
+      const usarSujeto = v.modo !== "foto" && v.protagonista === true && (crudoRef.current.referencias_sujeto || []).length > 0;
+
+      const generar = async (correccion = "") => {
+        const p = correccion ? `${promptBase}. IMPORTANT FIX: ${correccion}` : promptBase;
+        const b = await generarFotograma(crudoRef.current.estilo_visual, p, {
           estilo: await referenciaEstilo(i),
           sujeto: usarSujeto ? await referenciasSujeto() : [],
           plano: v.plano,
         });
         sumarCosto(PRECIO_IMAGEN);
+        return b;
+      };
+
+      let blob = v.modo === "foto" ? await fotoDeDrive(v.categoria_foto, saltarFoto) : await generar();
+      let revision = { coincide: true, problema: "", puntos: {} };
+      try {
+        revision = await verificarFotograma(blob, { narracion, prompt: promptBase, senalamientos });
+        sumarCosto(PRECIO_VERIFICACION);
+        if (!revision.coincide && v.modo !== "foto") {
+          marcar(i, { aviso: `Corrigiendo: ${revision.problema}` });
+          blob = await generar(revision.correccion || revision.problema);
+          revision = await verificarFotograma(blob, { narracion, prompt: promptBase, senalamientos });
+          sumarCosto(PRECIO_VERIFICACION);
+        }
+      } catch (err) {
+        console.warn("[cine] verificación:", err.message);
       }
+
       const url = await guardarArchivo(blob, "jpg");
-      setVisual(i, { fotograma_url: url, video_url: null });
+      aplicar((g) => ({
+        ...g,
+        escenas: g.escenas.map((x, j) => (j !== i ? x : {
+          ...x,
+          visual: { ...x.visual, fotograma_url: url, video_url: null,
+            revision: { ok: revision.coincide, problema: revision.problema || "" } },
+          // Etiquetas que señalan algo: se anclan al punto real; si no está en la imagen, no se muestran
+          datos: (x.datos || []).map((d, k) => (d.senala ? { ...d, ancla: revision.puntos?.[k] || null } : d)),
+        })),
+      }));
+      marcar(i, { aviso: revision.coincide ? null : `Revisar: ${revision.problema}` });
     } catch (err) {
       marcar(i, { error: err.message });
     } finally {
@@ -287,11 +320,13 @@ export default function CinePage() {
   };
 
   // Subir fotos reales del protagonista
-  const subirReferencias = async (archivos) => {
+  // paraNuevo = true: fotos del formulario, para el próximo video que se cree
+  const subirReferencias = async (archivos, paraNuevo = false) => {
     const nuevos = [];
     for (const f of Array.from(archivos || []).slice(0, 2)) {
       nuevos.push(await guardarArchivo(await aJpegReferencia(f), "jpg"));
     }
+    if (paraNuevo || !crudoRef.current) { setRefsNuevas((r) => [...r, ...nuevos].slice(-2)); return; }
     aplicar((g) => ({ ...g, referencias_sujeto: [...(g.referencias_sujeto || []), ...nuevos].slice(-2) }));
   };
   const quitarReferencia = (u) => aplicar((g) => ({ ...g, referencias_sujeto: (g.referencias_sujeto || []).filter((x) => x !== u) }));
@@ -352,7 +387,7 @@ export default function CinePage() {
     try {
       setFase("Escribiendo el guion...");
       const categorias = (await obtenerCategorias()).map((c) => c.nombre);
-      const g = { ...(await pedirGuion(workerUrl, tema.trim(), { categorias, maxVideo, dimension })), tema: color, dimension, costo: 0 };
+      const g = { ...(await pedirGuion(workerUrl, tema.trim(), { categorias, maxVideo, dimension })), tema: color, dimension, costo: 0, referencias_sujeto: refsNuevas };
       const fila = await guardar("cine", tema.trim() || g.titulo, g);
       setFilaId(fila?.id || null);
       crudoRef.current = g; setCrudoState(g);
@@ -481,6 +516,24 @@ export default function CinePage() {
             )}
           </div>
         </div>
+        <div className="space-y-1.5 pt-1">
+          <span className="text-xs text-gray-400">Fotos reales del protagonista <span className="text-gray-600">(opcional, hasta 2 — ej. la mariposa 88 por debajo y por encima)</span></span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {refsNuevas.map((u) => (
+              <div key={u} className="relative w-12 h-16 rounded-md overflow-hidden">
+                <img src={u} alt="" className="w-full h-full object-cover" />
+                <button onClick={() => setRefsNuevas((r) => r.filter((x) => x !== u))} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5"><Trash2 className="w-3 h-3 text-red-300" /></button>
+              </div>
+            ))}
+            {refsNuevas.length < 2 && (
+              <label className="flex items-center gap-1 text-[11px] text-emerald-300 px-3 py-2 rounded-md border border-emerald-800/60 cursor-pointer">
+                <ImageIcon className="w-3.5 h-3.5" /> Subir foto
+                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => subirReferencias(e.target.files, true)} />
+              </label>
+            )}
+            <span className="text-[11px] text-gray-500">La IA las usa para que el protagonista salga fiel a la realidad.</span>
+          </div>
+        </div>
         <div className="flex justify-end">
           <button onClick={crear} disabled={ocupado} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
             style={{ background: "rgba(77,142,30,0.80)", border: "1px solid rgba(77,142,30,0.40)" }}>
@@ -598,6 +651,10 @@ export default function CinePage() {
                           )}
                         </div>
                         {st.error && <p className="text-[10px] text-red-300">{st.error}</p>}
+                        {st.aviso && <p className="text-[10px] text-amber-300">⚠ {st.aviso}</p>}
+                        {!st.aviso && v.revision && (v.revision.ok
+                          ? <p className="text-[10px] text-emerald-400">✓ Revisado: coincide con la narración</p>
+                          : <p className="text-[10px] text-amber-300">⚠ {v.revision.problema || "Revisar esta escena"}</p>)}
                       </div>
                     </div>
                     {v.modo !== "foto" && (
