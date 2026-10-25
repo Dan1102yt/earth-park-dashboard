@@ -5,13 +5,13 @@ import {
   ANCHO, ALTO, TEMAS, RETRASO_VOZ, dibujarElemento, dibujarLogo, dibujarTitular, grupos,
   clamp, easeOut, easeInOut, easeBack, hash, FUENTE_TITULO,
 } from "../animado/motor";
+import { TRANSICIONES, elegirTransiciones, componerTransicion, aux } from "./transiciones";
 
 const num = (v, d) => (Number.isFinite(+v) ? +v : d);
 const limpiar = (w) => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 export const sinAsteriscos = (s) => String(s || "").replace(/\*/g, "");
 const clavesDe = (s) => new Set((String(s || "").match(/\*([^*]+)\*/g) || []).flatMap((m) => m.slice(1, -1).split(/\s+/)).map(limpiar));
 
-const TRANS = 0.35;
 
 /* ─── Guion ───────────────────────────────────────────────── */
 
@@ -40,7 +40,7 @@ export function normalizarCine(crudo, voces = [], recursos = []) {
       textoSinVoz: e.narracion || "",
       camara: e.visual?.camara || "acercar",
       clima: e.visual?.clima || "ninguno",
-      transicion: i === 0 ? "ninguna" : doc ? "corte" : (e.transicion || (i % 2 ? "glitch" : "zoom")),
+      transicion: e.transicion || null,
     };
   });
   if (crudo?.cta?.palabra) {
@@ -50,9 +50,12 @@ export function normalizarCine(crudo, voces = [], recursos = []) {
       duracion: voz?.dur ? Math.max(3.2, voz.dur + RETRASO_VOZ + 0.8) : 3.8,
       cta: String(crudo.cta.palabra).toUpperCase(), texto: crudo.cta.texto || "", voz,
       recurso: escenas.at(-1)?.recurso || null, datos: [], claves: new Set(), camara: "alejar", clima: "ninguno",
-      transicion: "zoom",
+      transicion: doc ? "negro" : "zoom",
     });
   }
+  // Transiciones variadas: la del guion si es válida, sin repetir la misma dos veces seguidas
+  const elegidas = elegirTransiciones(escenas.map((e) => e.transicion), doc ? "doc" : "reel");
+  escenas.forEach((e, i) => { e.transicion = elegidas[i]; e.durTrans = TRANSICIONES[e.transicion] || 0; });
   let t = 0;
   for (const e of escenas) { e.inicio = t; t += e.duracion; }
   return { escenas, total: Math.max(1, t), tema: TEMAS[crudo?.tema] ? crudo.tema : "bosque", formato: doc ? "doc" : "reel" };
@@ -315,12 +318,6 @@ function dibujarCierre(ctx, escena, t, tema) {
 
 /* ─── Fotograma completo ──────────────────────────────────── */
 
-let lienzo = null;
-function lienzoAux() {
-  if (!lienzo) { lienzo = document.createElement("canvas"); lienzo.width = ANCHO; lienzo.height = ALTO; }
-  return lienzo;
-}
-
 function dibujarEscena(ctx, escena, lt, tema) {
   dibujarFondo(ctx, escena, lt, tema);
   clima(ctx, escena.clima, lt, tema);
@@ -338,44 +335,7 @@ export function dibujarFrameCine(ctx, guion, tiempo) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, ANCHO, ALTO);
   if (!escena) return;
   const lt = t - escena.inicio;
-  const enTransicion = lt < TRANS && escena.transicion !== "ninguna";
-
-  if (!enTransicion) {
-    dibujarEscena(ctx, escena, lt, tema);
-  } else {
-    const k = lt / TRANS;
-    const aux = lienzoAux().getContext("2d");
-    dibujarEscena(aux, escena, lt, tema);
-    if (escena.transicion === "glitch") {
-      // Cortes horizontales desplazados + separación de color
-      const fuerza = 1 - easeOut(k);
-      for (let i = 0; i < 14; i++) {
-        const y = Math.floor(hash(i + Math.floor(lt * 30)) * ALTO);
-        const h = 40 + hash(i * 3) * 160;
-        const dx = (hash(i * 7 + Math.floor(lt * 60)) - 0.5) * 160 * fuerza;
-        ctx.drawImage(lienzo, 0, y, ANCHO, h, dx, y, ANCHO, h);
-      }
-      ctx.globalAlpha = 1 - fuerza * 0.6;
-      ctx.drawImage(lienzo, 0, 0);
-      ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = 0.35 * fuerza;
-      ctx.drawImage(lienzo, 14 * fuerza, 0);
-      ctx.globalAlpha = 0.35 * fuerza;
-      ctx.drawImage(lienzo, -14 * fuerza, 0);
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 1;
-    } else {
-      // Zoom: entra desde más cerca, con un destello
-      const s = 1.25 - 0.25 * easeOut(k);
-      ctx.save();
-      ctx.translate(ANCHO / 2, ALTO / 2); ctx.scale(s, s); ctx.translate(-ANCHO / 2, -ALTO / 2);
-      ctx.globalAlpha = easeOut(k * 1.6);
-      ctx.drawImage(lienzo, 0, 0);
-      ctx.restore();
-      ctx.fillStyle = `rgba(255,255,255,${(0.25 * (1 - k)).toFixed(3)})`;
-      ctx.fillRect(0, 0, ANCHO, ALTO);
-    }
-  }
+  dibujarConTransicion(ctx, guion, idx, lt, tema, { x: 0, y: 0, w: ANCHO, h: ALTO }, dibujarEscena);
 
   // Barra de progreso por segmentos y logo
   const n = guion.escenas.length, gap = 8, anchoTotal = ANCHO - 160;
@@ -414,9 +374,6 @@ function fondoDoc(ctx, escena, lt, tema) {
   const r = escena.recurso;
   ctx.save();
   ctx.beginPath(); ctx.rect(BANDA.x, BANDA.y, BANDA.w, BANDA.h); ctx.clip();
-  // Corte seco con un pequeño "asentamiento" de la imagen (da golpe al corte sin efecto llamativo)
-  const golpe = escena.transicion === "corte" ? 1 + 0.035 * (1 - easeOut(lt / 0.3)) : 1;
-  ctx.translate(ANCHO / 2, BANDA.y + BANDA.h / 2); ctx.scale(golpe, golpe); ctx.translate(-ANCHO / 2, -(BANDA.y + BANDA.h / 2));
   const e = encuadre(escena, lt, BANDA);
   if (!e) {
     const g = ctx.createLinearGradient(0, BANDA.y, 0, BANDA.y + BANDA.h);
@@ -484,13 +441,29 @@ function dibujarFrameDoc(ctx, guion, tiempo) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, ANCHO, ALTO);
   if (!escena) return;
   const lt = t - escena.inicio;
-  fondoDoc(ctx, escena, lt, tema);
-  if (escena.cta) dibujarCierre(ctx, escena, lt, tema);
-  else {
-    palabraDoc(ctx, escena, lt, tema);
-    dibujarLogo(ctx, ANCHO / 2, 1770, 96, 0.85);
-  }
+  dibujarConTransicion(ctx, guion, idx, lt, tema, BANDA, (c, e, l, tm) => {
+    fondoDoc(c, e, l, tm);
+    if (e.cta) dibujarCierre(c, e, l, tm);
+    else palabraDoc(c, e, l, tm);
+  });
+  if (!escena.cta) dibujarLogo(ctx, ANCHO / 2, 1770, 96, 0.85);
   // Aparición desde negro al inicio y salida a negro al final
   const negro = Math.max(1 - clamp(t / 0.35), clamp((t - (guion.total - 0.4)) / 0.4));
   if (negro > 0) { ctx.fillStyle = `rgba(0,0,0,${negro.toFixed(3)})`; ctx.fillRect(0, 0, ANCHO, ALTO); }
+}
+
+/* ─── Transiciones ─── */
+// Durante los primeros segundos de una escena se mezclan el final de la anterior y el inicio de la nueva.
+function dibujarConTransicion(ctx, guion, idx, lt, tema, area, dibujar) {
+  const escena = guion.escenas[idx];
+  const previa = guion.escenas[idx - 1];
+  const dur = escena.durTrans || 0;
+  if (!previa || lt >= dur || escena.transicion === "ninguna") { dibujar(ctx, escena, lt, tema); return; }
+  const A = aux("transA"), B = aux("transB");
+  const ca = A.getContext("2d"), cb = B.getContext("2d");
+  ca.fillStyle = "#000"; ca.fillRect(0, 0, ANCHO, ALTO);
+  cb.fillStyle = "#000"; cb.fillRect(0, 0, ANCHO, ALTO);
+  dibujar(ca, previa, previa.duracion + lt, tema);
+  dibujar(cb, escena, lt, tema);
+  componerTransicion(ctx, A, B, lt / dur, escena.transicion, area, tema.acento, idx);
 }

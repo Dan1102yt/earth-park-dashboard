@@ -30,7 +30,9 @@ FORMATO DOCUMENTAL (manda sobre lo anterior si hay conflicto):
 - "datos" SIEMPRE vacío ([]). Nada de etiquetas, flechas ni contadores: en pantalla solo va una palabra a la vez.
 - Continuidad: si dos planos seguidos muestran el mismo sujeto, repite su descripción física exacta en ambos "prompt"
   y cambia solo el plano o la acción (como un documental que corta entre ángulos).
-- "transicion": "corte" en todas (corte seco al ritmo de la voz). "clima" solo si suma atmósfera.
+- "transicion": mitad de las escenas "corte" (ritmo de documental) y el resto variadas según la historia ("fundido",
+  "tinta", "luz", "desenfoque", "zoom", "negro", "barrido"…). "clima" cuando sume atmósfera (también suena: lluvia,
+  viento, grillos).
 - "video" en las ${maxVideo} escenas con más movimiento (vuelo, salto, eclosión, lluvia…); el resto "imagen" con cámara lenta.
 - Tono de narrador de documental: pausado, asombro, frases que enganchan ("Pero aquí viene lo increíble…").`;
 }
@@ -74,7 +76,15 @@ VISUALES — cada escena tiene "visual":
   highway while car headlights stream past".
 - "camara" (para "imagen" y "foto"): "acercar" | "alejar" | "paneo_izq" | "paneo_der" | "subir" | "bajar" | "orbita".
 - "clima" (opcional): "lluvia" | "niebla" | "luciernagas" | "polvo" | "ninguno".
-- "transicion" (opcional, desde la escena 2): "glitch" | "zoom" | "corte".
+- "transicion" (desde la escena 2), elígela por lo que pasa en la historia, como un editor profesional, y VARÍALA
+  (nunca la misma dos veces seguidas):
+  · "corte": corte seco, mismo tema con otro ángulo (la más usada en documental).
+  · "fundido": paso del tiempo o idea que continúa suave. · "negro": cambio de capítulo o momento serio.
+  · "blanco": revelación o golpe de sorpresa. · "zoom": entrar al detalle (de lo general a lo pequeño).
+  · "empuje" / "deslizar": pasar a algo paralelo o comparar. · "barrido": movimiento rápido, energía.
+  · "desenfoque": recuerdo, sueño o cambio de enfoque. · "iris": enfocar al protagonista o un hallazgo.
+  · "cortina": antes/después. · "glitch": dato impactante o tecnología. · "luz": momento bonito o emotivo.
+  · "tinta": transformación o metamorfosis (perfecta para estilo pintado).
 
 DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "datos": coordenadas x,y de 0 a 1000 sobre la zona central del video:
 - {"tipo":"etiqueta","texto":"88","senala":"el dibujo del número 88 en la cara inferior del ala trasera","inicio":0.8}
