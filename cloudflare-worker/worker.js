@@ -173,6 +173,23 @@ export default {
 
     // ── Ruta: generar imagen con IA (Gemini) para fondos de carrusel ──
     // Requiere el secreto GEMINI_API_KEY. Modelo opcional en la variable GEMINI_IMAGE_MODEL.
+    // Modo directo: el navegador arma el cuerpo de Gemini y el Worker solo lo reenvía (sin leer ni convertir nada).
+    // Así el Worker no se queda sin CPU con imágenes grandes (antes a veces salía "Failed to fetch").
+    if (path === "/image/generate" && url.searchParams.get("modo") === "directo") {
+      if (!env.GEMINI_API_KEY) {
+        return new Response(JSON.stringify({ error: "Falta el secreto GEMINI_API_KEY en el Worker" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const model = env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: request.body,
+      });
+      return new Response(res.body, { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (path === "/image/generate") {
       try {
         if (request.method !== "POST") throw new Error("Usa POST");

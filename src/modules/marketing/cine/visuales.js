@@ -98,13 +98,74 @@ export async function generarFotograma(estiloVisual, prompt, opciones = {}) {
     ? " Keep the subject and all important action inside the central 70% of the frame height; top and bottom edges are only sky, ground or texture. Painterly, cinematic, poetic composition with a clear silhouette and a single focal point."
     : "";
   const texto = `${estiloVisual ? estiloVisual + ". " : ""}${plano && PLANOS[plano] ? PLANOS[plano] + ". " : ""}${prompt}. ${ESTILO_FOTOGRAMA}${doc}${guia}`;
-  const res = await fetch(`${WORKER_URL}/image/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: texto, aspectRatio: "9:16", referencias }),
+  return aJpeg916(await imagenGemini(texto, referencias));
+}
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Reintenta cuando la conexión se cae ("Failed to fetch"): hasta 3 intentos. */
+export async function conReintentos(fn, intentos = 3) {
+  for (let k = 1; ; k++) {
+    try { return await fn(); } catch (err) {
+      const deRed = err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(err.message || "");
+      if (!deRed || k >= intentos) throw deRed ? new Error("Se cayó la conexión con el servidor de imágenes. Intenta de nuevo.") : err;
+      await esperar(1500 * k);
+    }
+  }
+}
+
+function base64ABlob(data, mime) {
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime || "image/png" });
+}
+
+/**
+ * Pide la imagen a Gemini por el Worker.
+ * Modo directo: el navegador arma la petición y convierte la respuesta; el Worker solo la reenvía
+ * (antes el Worker hacía la conversión y a veces se quedaba sin CPU → "Failed to fetch").
+ * Si el Worker aún no tiene el modo directo, usa la ruta anterior.
+ */
+async function imagenGemini(texto, referencias) {
+  return conReintentos(async () => {
+    const cuerpo = {
+      contents: [{ parts: [
+        ...referencias.slice(0, 3).map((r) => ({ inlineData: { mimeType: r.mime || "image/jpeg", data: r.data } })),
+        { text: texto },
+      ] }],
+      generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "9:16" } },
+    };
+    const res = await fetch(`${WORKER_URL}/image/generate?modo=directo`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo),
+    });
+    const data = await res.json().catch(() => ({}));
+    const parte = (data.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData || p.inline_data);
+    const inline = parte?.inlineData || parte?.inline_data;
+    if (inline?.data) return base64ABlob(inline.data, inline.mimeType || inline.mime_type);
+    const msg = data.error?.message || data.error || "";
+    if (/Prompt vac/i.test(msg)) {
+      // Worker sin modo directo todavía
+      const r2 = await fetch(`${WORKER_URL}/image/generate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: texto, aspectRatio: "9:16", referencias }),
+      });
+      if (!r2.ok) throw new Error(await errorDe(r2));
+      return r2.blob();
+    }
+    throw new Error(msg || (data.candidates ? "El modelo no devolvió imagen, intenta de nuevo" : `Error ${res.status}`));
   });
-  if (!res.ok) throw new Error(await errorDe(res));
-  return aJpeg916(await res.blob());
+}
+
+/** Foto de Drive elegida por el usuario → JPEG 9:16. */
+export async function fotoDriveElegida(foto) {
+  for (const url of urlsFoto(foto)) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return aJpeg916(await r.blob());
+    } catch { /* probar la siguiente */ }
+  }
+  throw new Error("No se pudo descargar esa foto de Drive");
 }
 
 /** Anima un fotograma como clip de video (con el mismo estilo). */
@@ -154,9 +215,11 @@ export async function guardarArchivo(blob, extension) {
 const cache = new Map(); // url → Promise<recurso>
 
 export async function descargarBlob(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`No se pudo cargar ${url.slice(0, 60)}...`);
-  return r.blob();
+  return conReintentos(async () => {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`No se pudo cargar ${url.slice(0, 60)}...`);
+    return r.blob();
+  });
 }
 
 /** { tipo: "imagen", img } */
