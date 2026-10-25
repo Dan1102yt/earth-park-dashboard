@@ -51,6 +51,12 @@ HISTORIA:
 - "narracion" de cada escena: 10 a 24 palabras, español colombiano hablado y cálido, frases cortas, números escritos como
   se dicen. Marca entre *asteriscos* 1 o 2 palabras clave por escena (salen resaltadas en los subtítulos).
 - No inventes cifras ni datos. Si no estás seguro de un dato, no lo uses.
+- Español de COLOMBIA con "tú": sabes, conoce, vuelves, comenta, mira. PROHIBIDO el voseo argentino (sabés, conocé,
+  volvés, comentá, mirá, vos, sos).
+- CIERRE coherente: "cta.palabra" es UN sustantivo corto (4 a 10 letras, sin tilde) que nombra el TEMA CENTRAL del video y
+  que aparece en la narración (ej. si el video es sobre el cerebro y los paisajes → "PAISAJE"). Nada de verbos ni palabras
+  que se confundan (ej. "RESTAURATE" se lee como "restaurante"). "cta.narracion" y "cta.texto" deben pedir comentar
+  EXACTAMENTE esa palabra y decir qué recibe la persona (ej. "Comenta PAISAJE y te mando los mejores miradores de Earth Park").
 
 VISUALES — cada escena tiene "visual":
 - "estilo_visual" (uno para todo el video, en inglés). ${ESTILOS[dimension] || ESTILOS["3d"]}
@@ -99,4 +105,72 @@ DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "d
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
 {"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
 Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.${dimension === "doc" ? reglasDoc(maxVideo) : ""}`;
+}
+
+/* ─── Revisión automática del guion (gratis, sin IA) ───────────
+   Corrige errores que se colaban: voseo argentino y una palabra de cierre que no tenía que ver con el video. */
+
+const VOSEO = {
+  sabés: "sabes", conocé: "conoce", volvés: "vuelves", comentá: "comenta", mirá: "mira", vení: "ven", tenés: "tienes",
+  podés: "puedes", querés: "quieres", sentís: "sientes", dejá: "deja", escribí: "escribe", contá: "cuenta", decí: "di",
+  andá: "ve", pensá: "piensa", imaginá: "imagina", respirá: "respira", guardá: "guarda", compartí: "comparte",
+  seguí: "sigue", etiquetá: "etiqueta", vivís: "vives", sos: "eres", vos: "tú", hacé: "haz", probá: "prueba",
+  descubrí: "descubre", visitá: "visita", reservá: "reserva", animate: "anímate", sumate: "súmate", fijate: "fíjate",
+  acordate: "acuérdate", escuchá: "escucha", llegás: "llegas", necesitás: "necesitas", buscás: "buscas", ves: "ves",
+  volvé: "vuelve", disfrutá: "disfruta", viví: "vive", elegí: "elige", entrá: "entra", salí: "sal", caminá: "camina",
+};
+
+export function corregirVoseo(texto) {
+  if (!texto) return texto;
+  return String(texto).replace(/[\p{L}]+/gu, (w) => {
+    const r = VOSEO[w.toLowerCase()];
+    if (!r || r === w.toLowerCase()) return w;
+    return w[0] === w[0].toUpperCase() ? r[0].toUpperCase() + r.slice(1) : r;
+  });
+}
+
+const norm = (w) => String(w || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ ]/g, " ");
+const VACIAS = new Set("para como cuando donde porque sobre entre desde hasta este esta estos estas solo cada todo toda todos todas mucho muchos tiene tienen puede pueden hace hacer cuerpo earth park".split(" "));
+
+/** Revisa el guion antes del storyboard. Devuelve {guion, cambios:[texto]}. */
+export function revisarGuion(g) {
+  const cambios = [];
+  if (!g) return { guion: g, cambios };
+  const fix = (t) => { const n = corregirVoseo(t); if (n !== t) cambios.push("voseo"); return n; };
+  g.escenas = (g.escenas || []).map((e) => ({ ...e, narracion: fix(e.narracion) }));
+  if (g.cta) g.cta = { ...g.cta, narracion: fix(g.cta.narracion), texto: fix(g.cta.texto) };
+  if (g.caption) g.caption = fix(g.caption);
+
+  // Palabra del cierre: debe salir en la narración (es el tema del video)
+  if (g.cta?.palabra) {
+    const todo = norm(`${g.titulo || ""} ${g.escenas.map((e) => e.narracion).join(" ")}`);
+    const palabras = new Set(todo.split(/\s+/));
+    const actual = norm(g.cta.palabra).trim();
+    if (!palabras.has(actual) || actual.length < 4) {
+      // Elegir la palabra clave (*marcada*) más repetida del video
+      const conteo = new Map();
+      g.escenas.forEach((e) => (String(e.narracion).match(/\*([^*]+)\*/g) || []).forEach((m) => {
+        m.slice(1, -1).split(/\s+/).map(norm).map((w) => w.trim()).filter((w) => w.length >= 4 && w.length <= 12 && !VACIAS.has(w))
+          .forEach((w) => conteo.set(w, (conteo.get(w) || 0) + 1 + (todo.split(w).length - 2) * 0.5));
+      }));
+      const mejor = [...conteo.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (mejor) {
+        const vieja = String(g.cta.palabra);
+        const nueva = mejor.toUpperCase();
+        const re = new RegExp(vieja.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        g.cta = {
+          ...g.cta, palabra: nueva,
+          texto: re.test(g.cta.texto || "") ? g.cta.texto.replace(re, nueva) : g.cta.texto,
+          narracion: (g.cta.narracion || "").replace(re, nueva),
+        };
+        cambios.push(`palabra del cierre: ${vieja} → ${nueva}`);
+      }
+    }
+    // Que el narrador diga la palabra que sale en pantalla
+    if (!norm(g.cta.narracion).includes(norm(g.cta.palabra).trim())) {
+      g.cta.narracion = `${(g.cta.narracion || "").trim()} Comenta ${g.cta.palabra.toLowerCase()}.`.trim();
+      cambios.push("el cierre ahora menciona la palabra");
+    }
+  }
+  return { guion: g, cambios: [...new Set(cambios)] };
 }
