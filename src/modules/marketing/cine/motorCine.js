@@ -73,39 +73,51 @@ export function tiempoClip(escena, lt) {
 
 /* ─── Fondo ───────────────────────────────────────────────── */
 
-function cubrir(ctx, fuente, w, h, escala, dx, dy) {
-  const r = Math.max(ANCHO / w, ALTO / h) * escala;
-  const W = w * r, H = h * r;
-  ctx.drawImage(fuente, (ANCHO - W) / 2 + dx, (ALTO - H) / 2 + dy, W, H);
+// Encuadre del fondo en cada instante: dónde queda la imagen/clip dentro del lienzo.
+// Se usa para dibujar el fondo y para que las etiquetas apunten al punto exacto de la imagen.
+function encuadre(escena, lt) {
+  const r = escena.recurso;
+  if (!r) return null;
+  const k = easeInOut(lt / escena.duracion);
+  let w, h, s = 1, dx = 0, dy = 0;
+  if (r.tipo === "video") {
+    w = r.el.videoWidth || 720; h = r.el.videoHeight || 1280; s = 1.02 + 0.04 * k;
+  } else {
+    w = r.img.width; h = r.img.height;
+    [s, dx, dy] = {
+      acercar: [1.04 + 0.14 * k, 0, 0],
+      alejar: [1.18 - 0.14 * k, 0, 0],
+      paneo_izq: [1.16, 70 - 140 * k, 0],
+      paneo_der: [1.16, -70 + 140 * k, 0],
+      subir: [1.16, 0, 110 - 220 * k],
+      bajar: [1.16, 0, -110 + 220 * k],
+      orbita: [1.12 + 0.06 * k, Math.sin(k * Math.PI) * 60, 0],
+    }[escena.camara] || [1.04 + 0.14 * k, 0, 0];
+  }
+  const esc = Math.max(ANCHO / w, ALTO / h) * s;
+  const W = w * esc, H = h * esc;
+  return { x: (ANCHO - W) / 2 + dx, y: (ALTO - H) / 2 + dy, W, H };
+}
+
+/** Punto (nx, ny en 0–1 de la imagen) → coordenadas del lienzo en el instante lt. */
+export function puntoEnLienzo(escena, lt, nx, ny) {
+  const e = encuadre(escena, lt);
+  if (!e) return { x: nx * ANCHO, y: ny * ALTO };
+  return { x: e.x + nx * e.W, y: e.y + ny * e.H };
 }
 
 function dibujarFondo(ctx, escena, lt, tema) {
   const r = escena.recurso;
-  const k = easeInOut(lt / escena.duracion);
-  if (!r) {
+  const e = encuadre(escena, lt);
+  if (!e) {
     const g = ctx.createLinearGradient(0, 0, 0, ALTO);
     g.addColorStop(0, tema.fondo); g.addColorStop(1, tema.fondo2);
     ctx.fillStyle = g; ctx.fillRect(0, 0, ANCHO, ALTO);
     return;
   }
-  if (r.tipo === "video") {
-    // El clip ya trae su movimiento; le sumamos un acercamiento muy suave
-    cubrir(ctx, r.el, r.el.videoWidth || 720, r.el.videoHeight || 1280, 1.02 + 0.04 * k, 0, 0);
-    return;
-  }
-  // Imagen fija → movimiento de cámara (Ken Burns)
-  const img = r.img;
-  const mov = {
-    acercar: [1.04 + 0.14 * k, 0, 0],
-    alejar: [1.18 - 0.14 * k, 0, 0],
-    paneo_izq: [1.16, 70 - 140 * k, 0],
-    paneo_der: [1.16, -70 + 140 * k, 0],
-    subir: [1.16, 0, 110 - 220 * k],
-    bajar: [1.16, 0, -110 + 220 * k],
-    orbita: [1.12 + 0.06 * k, Math.sin(k * Math.PI) * 60, 0],
-  }[escena.camara] || [1.04 + 0.14 * k, 0, 0];
+  const fuente = r.tipo === "video" ? r.el : r.img;
   if (escena.cta) { ctx.save(); ctx.filter = "blur(14px)"; }
-  cubrir(ctx, img, img.width, img.height, mov[0], mov[1], mov[2]);
+  ctx.drawImage(fuente, e.x, e.y, e.W, e.H);
   if (escena.cta) ctx.restore();
 }
 
@@ -235,11 +247,20 @@ function agrupar(palabras) {
 
 /* ─── Datos animados encima del video ─────────────────────── */
 
-function dibujarEtiqueta(ctx, d, t, tema) {
+function dibujarEtiqueta(ctx, d, t, tema, escena) {
+  // Si la etiqueta señala algo de la imagen, solo se dibuja cuando se verificó dónde está (ancla)
+  if (d.senala && !d.ancla) return;
   const inicio = num(d.inicio, 0.6);
   const k = easeOut((t - inicio) / 0.5);
   if (k <= 0) return;
-  const destino = d.apunta || { x: d.x, y: d.y + 140 };
+  let destino = d.apunta || { x: d.x, y: d.y + 140 };
+  if (d.ancla) {
+    destino = puntoEnLienzo(escena, t, d.ancla.x, d.ancla.y);
+    // La pastilla se ubica al lado del punto, sin taparlo y dentro de la zona segura
+    d = { ...d,
+      x: Math.min(900, Math.max(180, destino.x + (destino.x < ANCHO / 2 ? 230 : -230))),
+      y: Math.min(1460, Math.max(500, destino.y - 190)) };
+  }
   ctx.save();
   ctx.globalAlpha *= k;
   // Línea guía y punto
@@ -263,7 +284,7 @@ function dibujarEtiqueta(ctx, d, t, tema) {
 
 function dibujarDatos(ctx, escena, lt, tema) {
   for (const d of escena.datos) {
-    if (d.tipo === "etiqueta") dibujarEtiqueta(ctx, d, lt, tema);
+    if (d.tipo === "etiqueta") dibujarEtiqueta(ctx, d, lt, tema, escena);
     else dibujarElemento(ctx, { ...d, acento: d.acento !== false, efecto: d.efecto || "ninguno" }, lt, tema);
   }
 }

@@ -197,3 +197,55 @@ export function posicionar(el, t) {
     setTimeout(listo, 1500); // por si el navegador no avisa
   });
 }
+
+/* ─── Control de calidad: Claude revisa cada fotograma antes de usarlo ─── */
+
+export const PRECIO_VERIFICACION = 0.01;
+
+/**
+ * Revisa que el fotograma muestre lo que dice la narración y ubica los puntos que señalan las etiquetas.
+ * Devuelve { coincide, problema, correccion, puntos: { [indiceDato]: {x, y} | null } }.
+ */
+export async function verificarFotograma(blob, { narracion, prompt, senalamientos = [] }) {
+  const lista = senalamientos.length
+    ? senalamientos.map((s) => `- ${s.i}: ${s.senala}`).join("\n")
+    : "(ninguno)";
+  const instrucciones = `Eres el supervisor de calidad de un video documental. Esta imagen es el fondo de UNA escena.
+Narración de la escena: "${narracion}"
+Lo que la imagen debía mostrar: "${prompt}"
+
+1) ¿La imagen muestra lo que dice la narración en ESE momento? Sé estricto con contradicciones claras: otro sujeto,
+otra etapa (ej. la narración habla de la oruga o del huevo y la protagonista es una mariposa adulta), detalles que
+contradicen los datos, o elementos absurdos. Diferencias de estilo artístico NO son problema.
+2) Para cada señalamiento de la lista, da el punto EXACTO en la imagen donde está eso, como fracción del ancho (x) y
+del alto (y) desde la esquina superior izquierda (0 a 1). Si no aparece claramente en la imagen, pon null.
+Señalamientos:
+${lista}
+
+Responde SOLO un JSON: {"coincide":true|false,"problema":"en español, corto (vacío si coincide)","correccion":"en inglés: qué cambiar en la imagen para que coincida (vacío si coincide)","puntos":{"0":{"x":0.5,"y":0.4}}}`;
+  const res = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 700,
+      messages: [{ role: "user", content: [
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: await blobABase64(blob) } },
+        { type: "text", text: instrucciones },
+      ] }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Verificación: ${await errorDe(res)}`);
+  const data = await res.json();
+  const texto = (data?.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  const ini = texto.indexOf("{"), fin = texto.lastIndexOf("}");
+  let r = null;
+  try { r = JSON.parse(texto.slice(ini, fin + 1)); } catch { /* respuesta rara */ }
+  if (!r) return { coincide: true, problema: "", correccion: "", puntos: {} };
+  const puntos = {};
+  for (const [k, v] of Object.entries(r.puntos || {})) {
+    puntos[k] = v && Number.isFinite(+v.x) && Number.isFinite(+v.y)
+      ? { x: Math.min(1, Math.max(0, +v.x)), y: Math.min(1, Math.max(0, +v.y)) } : null;
+  }
+  return { coincide: r.coincide !== false, problema: r.problema || "", correccion: r.correccion || "", puntos };
+}
