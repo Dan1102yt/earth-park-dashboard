@@ -19,11 +19,12 @@ const TRANS = 0.35;
  * crudo: guion del agente · voces: por escena (+cierre) {dur, palabras} · recursos: por escena {tipo, img|el, dur}
  */
 export function normalizarCine(crudo, voces = [], recursos = []) {
+  const doc = crudo?.dimension === "doc";
   const escenas = (crudo?.escenas || []).map((e, i) => {
     const voz = voces[i] || null;
     const base = clamp(num(e.duracion, 4), 2, 10);
-    const duracion = voz?.dur ? Math.max(2.5, voz.dur + RETRASO_VOZ + 0.35) : base;
-    const datos = (e.datos || []).slice(0, 6).map((d, k) => ({
+    const duracion = voz?.dur ? Math.max(doc ? 1.6 : 2.5, voz.dur + RETRASO_VOZ + (doc ? 0.12 : 0.35)) : (doc ? clamp(base, 2, 4) : base);
+    const datos = (doc ? [] : e.datos || []).slice(0, 6).map((d, k) => ({
       ...d, _k: k,
       // Coordenadas del agente (0–1000) → zona útil del video
       x: 60 + num(d.x, 500) * 0.96, y: 520 + num(d.y, 500) * 1.08,
@@ -39,7 +40,7 @@ export function normalizarCine(crudo, voces = [], recursos = []) {
       textoSinVoz: e.narracion || "",
       camara: e.visual?.camara || "acercar",
       clima: e.visual?.clima || "ninguno",
-      transicion: i === 0 ? "ninguna" : (e.transicion || (i % 2 ? "glitch" : "zoom")),
+      transicion: i === 0 ? "ninguna" : doc ? "corte" : (e.transicion || (i % 2 ? "glitch" : "zoom")),
     };
   });
   if (crudo?.cta?.palabra) {
@@ -54,7 +55,7 @@ export function normalizarCine(crudo, voces = [], recursos = []) {
   }
   let t = 0;
   for (const e of escenas) { e.inicio = t; t += e.duracion; }
-  return { escenas, total: Math.max(1, t), tema: TEMAS[crudo?.tema] ? crudo.tema : "bosque" };
+  return { escenas, total: Math.max(1, t), tema: TEMAS[crudo?.tema] ? crudo.tema : "bosque", formato: doc ? "doc" : "reel" };
 }
 
 function palabrasRepartidas(texto, duracion) {
@@ -75,7 +76,7 @@ export function tiempoClip(escena, lt) {
 
 // Encuadre del fondo en cada instante: dónde queda la imagen/clip dentro del lienzo.
 // Se usa para dibujar el fondo y para que las etiquetas apunten al punto exacto de la imagen.
-function encuadre(escena, lt) {
+function encuadre(escena, lt, area = { x: 0, y: 0, w: ANCHO, h: ALTO }) {
   const r = escena.recurso;
   if (!r) return null;
   const k = easeInOut(lt / escena.duracion);
@@ -94,9 +95,9 @@ function encuadre(escena, lt) {
       orbita: [1.12 + 0.06 * k, Math.sin(k * Math.PI) * 60, 0],
     }[escena.camara] || [1.04 + 0.14 * k, 0, 0];
   }
-  const esc = Math.max(ANCHO / w, ALTO / h) * s;
+  const esc = Math.max(area.w / w, area.h / h) * s;
   const W = w * esc, H = h * esc;
-  return { x: (ANCHO - W) / 2 + dx, y: (ALTO - H) / 2 + dy, W, H };
+  return { x: area.x + (area.w - W) / 2 + dx, y: area.y + (area.h - H) / 2 + dy, W, H };
 }
 
 /** Punto (nx, ny en 0–1 de la imagen) → coordenadas del lienzo en el instante lt. */
@@ -329,6 +330,7 @@ function dibujarEscena(ctx, escena, lt, tema) {
 }
 
 export function dibujarFrameCine(ctx, guion, tiempo) {
+  if (guion.formato === "doc") return dibujarFrameDoc(ctx, guion, tiempo);
   const tema = TEMAS[guion.tema] || TEMAS.bosque;
   const t = clamp(tiempo, 0, guion.total - 1e-6);
   const idx = Math.max(0, guion.escenas.findIndex((e) => t >= e.inicio && t < e.inicio + e.duracion));
@@ -386,4 +388,109 @@ export function dibujarFrameCine(ctx, guion, tiempo) {
     if (avance > 0) { ctx.fillStyle = tema.acento; ctx.beginPath(); ctx.roundRect(x, 120, seg * avance, 6, 3); ctx.fill(); }
   });
   if (!escena.cta) dibujarLogo(ctx, ANCHO / 2, 1780, 120, 0.95);
+}
+
+/* ─── Formato documental (estilo wil_lab) ─────────────────────
+   Franja de imagen 4:5 al centro con barras negras, cortes secos al ritmo de la voz,
+   una sola palabra en pantalla, grano de película y logo pequeño abajo. */
+
+const BANDA = { x: 0, y: 285, w: ANCHO, h: 1350 };
+let grano = null;
+function lienzoGrano() {
+  if (grano) return grano;
+  grano = document.createElement("canvas");
+  grano.width = grano.height = 256;
+  const g = grano.getContext("2d");
+  const im = g.createImageData(256, 256);
+  for (let i = 0; i < im.data.length; i += 4) {
+    const v = Math.floor(hash(i * 0.37 + 1) * 255);
+    im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  return grano;
+}
+
+function fondoDoc(ctx, escena, lt, tema) {
+  const r = escena.recurso;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(BANDA.x, BANDA.y, BANDA.w, BANDA.h); ctx.clip();
+  // Corte seco con un pequeño "asentamiento" de la imagen (da golpe al corte sin efecto llamativo)
+  const golpe = escena.transicion === "corte" ? 1 + 0.035 * (1 - easeOut(lt / 0.3)) : 1;
+  ctx.translate(ANCHO / 2, BANDA.y + BANDA.h / 2); ctx.scale(golpe, golpe); ctx.translate(-ANCHO / 2, -(BANDA.y + BANDA.h / 2));
+  const e = encuadre(escena, lt, BANDA);
+  if (!e) {
+    const g = ctx.createLinearGradient(0, BANDA.y, 0, BANDA.y + BANDA.h);
+    g.addColorStop(0, tema.fondo); g.addColorStop(1, tema.fondo2);
+    ctx.fillStyle = g; ctx.fillRect(BANDA.x, BANDA.y, BANDA.w, BANDA.h);
+  } else {
+    if (escena.cta) ctx.filter = "blur(14px)";
+    ctx.drawImage(r.tipo === "video" ? r.el : r.img, e.x, e.y, e.W, e.H);
+    ctx.filter = "none";
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  clima(ctx, escena.clima, lt, tema);
+  // Viñeta suave dentro de la franja
+  const v = ctx.createRadialGradient(ANCHO / 2, BANDA.y + BANDA.h / 2, BANDA.h * 0.3, ANCHO / 2, BANDA.y + BANDA.h / 2, BANDA.h * 0.75);
+  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = v; ctx.fillRect(BANDA.x, BANDA.y, BANDA.w, BANDA.h);
+  if (escena.cta) { ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(BANDA.x, BANDA.y, BANDA.w, BANDA.h); }
+  // Grano de película (cambia cada cuadro)
+  const gr = lienzoGrano();
+  const f = Math.floor(lt * 24);
+  ctx.globalAlpha = 0.07;
+  ctx.globalCompositeOperation = "overlay";
+  const ox = Math.floor(hash(f) * 256), oy = Math.floor(hash(f + 7) * 256);
+  for (let y = BANDA.y - oy; y < BANDA.y + BANDA.h; y += 256) {
+    for (let x = -ox; x < ANCHO; x += 256) ctx.drawImage(gr, x, y);
+  }
+  ctx.restore();
+}
+
+// Una palabra a la vez, al centro de la imagen, en el instante exacto en que se dice
+function palabraDoc(ctx, escena, lt, tema) {
+  const ps = escena.voz?.palabras;
+  if (!ps?.length) return;
+  const tv = lt - RETRASO_VOZ;
+  let i = -1;
+  for (let k = 0; k < ps.length; k++) if (tv >= ps[k].ini - 0.03) i = k;
+  if (i < 0) return;
+  const p = ps[i];
+  const finVisible = ps[i + 1] ? Infinity : p.fin + 0.45;
+  if (tv > finVisible) return;
+  const w = String(p.w).replace(/[.,;:!?¡¿"]/g, "");
+  if (!w) return;
+  const clave = escena.claves.has(limpiar(w));
+  const k = easeOut((tv - p.ini + 0.03) / 0.09);
+  ctx.save();
+  ctx.translate(ANCHO / 2, BANDA.y + BANDA.h / 2);
+  const s = 1.14 - 0.14 * k;
+  ctx.scale(s, s);
+  ctx.globalAlpha = clamp(k * 1.5);
+  ctx.font = `italic 800 ${clave ? 74 : 64}px ${FUENTE_TITULO}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 22;
+  ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,0.35)";
+  ctx.strokeText(w, 0, 0);
+  ctx.fillStyle = clave ? tema.acento : "#ffffff";
+  ctx.fillText(w, 0, 0);
+  ctx.restore();
+}
+
+function dibujarFrameDoc(ctx, guion, tiempo) {
+  const tema = TEMAS[guion.tema] || TEMAS.bosque;
+  const t = clamp(tiempo, 0, guion.total - 1e-6);
+  const idx = Math.max(0, guion.escenas.findIndex((e) => t >= e.inicio && t < e.inicio + e.duracion));
+  const escena = guion.escenas[idx];
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, ANCHO, ALTO);
+  if (!escena) return;
+  const lt = t - escena.inicio;
+  fondoDoc(ctx, escena, lt, tema);
+  if (escena.cta) dibujarCierre(ctx, escena, lt, tema);
+  else {
+    palabraDoc(ctx, escena, lt, tema);
+    dibujarLogo(ctx, ANCHO / 2, 1770, 96, 0.85);
+  }
+  // Aparición desde negro al inicio y salida a negro al final
+  const negro = Math.max(1 - clamp(t / 0.35), clamp((t - (guion.total - 0.4)) / 0.4));
+  if (negro > 0) { ctx.fillStyle = `rgba(0,0,0,${negro.toFixed(3)})`; ctx.fillRect(0, 0, ANCHO, ALTO); }
 }

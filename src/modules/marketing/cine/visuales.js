@@ -80,7 +80,7 @@ export async function aJpegReferencia(blob, max = 1280) {
  * opciones.plano: tipo de plano de cámara (ver PLANOS).
  */
 export async function generarFotograma(estiloVisual, prompt, opciones = {}) {
-  const { estilo = null, sujeto = [], plano = null } = opciones;
+  const { estilo = null, sujeto = [], plano = null, formato = null } = opciones;
   const referencias = [];
   let guia = "";
   sujeto.slice(0, 2).forEach((data) => referencias.push({ data, mime: "image/jpeg" }));
@@ -93,7 +93,11 @@ export async function generarFotograma(estiloVisual, prompt, opciones = {}) {
     guia += " The last image is ONLY a style reference: match its color palette, lighting and rendering technique, " +
       "but do NOT copy its composition, camera angle, framing or subject placement. Create a completely new composition.";
   }
-  const texto = `${estiloVisual ? estiloVisual + ". " : ""}${plano && PLANOS[plano] ? PLANOS[plano] + ". " : ""}${prompt}. ${ESTILO_FOTOGRAMA}${guia}`;
+  // Documental: el video se ve en una franja 4:5 al centro → todo lo importante en la zona central
+  const doc = formato === "doc"
+    ? " Keep the subject and all important action inside the central 70% of the frame height; top and bottom edges are only sky, ground or texture. Painterly, cinematic, poetic composition with a clear silhouette and a single focal point."
+    : "";
+  const texto = `${estiloVisual ? estiloVisual + ". " : ""}${plano && PLANOS[plano] ? PLANOS[plano] + ". " : ""}${prompt}. ${ESTILO_FOTOGRAMA}${doc}${guia}`;
   const res = await fetch(`${WORKER_URL}/image/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
