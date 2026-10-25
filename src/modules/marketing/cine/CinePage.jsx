@@ -13,9 +13,10 @@ import { exportarVideo } from "../animado/exportar";
 import { listarVoces, generarVoz, construirPista, contextoAudio } from "../animado/voz";
 import { promptCine } from "./cinePrompt";
 import { normalizarCine, dibujarFrameCine, tiempoClip, sinAsteriscos } from "./motorCine";
+import SelectorImagen from "./SelectorImagen";
 import {
   generarFotograma, animarFotograma, fotoDeDrive, guardarArchivo, cargarImagenRecurso, cargarVideoRecurso,
-  descargarBlob, blobABase64, posicionar, aJpegReferencia, verificarFotograma, PRECIO_VERIFICACION, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
+  descargarBlob, blobABase64, posicionar, aJpegReferencia, verificarFotograma, fotoDriveElegida, PRECIO_VERIFICACION, PRECIO_IMAGEN, PRECIO_SEG_VIDEO, SEG_VIDEO_ESTIMADOS,
 } from "./visuales";
 
 const MODEL = "claude-sonnet-4-5";
@@ -156,6 +157,7 @@ export default function CinePage() {
   const setFilaId = (id) => { filaIdRef.current = id; setFilaIdState(id); };
   const [fase, setFase] = useState(null);           // texto de lo que está haciendo
   const [error, setError] = useState(null);
+  const [elegir, setElegir] = useState(null);       // escena con el selector de imagen abierto
   const [estado, setEstado] = useState({});         // por escena: {foto, video, error}
   const [recursos, setRecursos] = useState([]);
 
@@ -442,6 +444,34 @@ export default function CinePage() {
 
   const editarNarracion = (i, valor) => aplicar((g) => ({ ...g, escenas: g.escenas.map((e, j) => (j === i ? { ...e, narracion: valor } : e)) }), false);
   const editarCta = (campoN, valor) => aplicar((g) => ({ ...g, cta: { ...(g.cta || {}), [campoN]: valor } }), false);
+  // Reutilizar la imagen (y el clip, si aplica) de otra escena — sin costo
+  const usarDeEscena = (i, j) => {
+    const fuente = crudoRef.current.escenas[j].visual || {};
+    const actual = crudoRef.current.escenas[i].visual || {};
+    const modo = fuente.modo === "foto" ? "foto" : actual.modo === "foto" ? "imagen" : actual.modo;
+    setVisual(i, {
+      modo, fotograma_url: fuente.fotograma_url,
+      video_url: modo === "video" && fuente.video_url ? fuente.video_url : null,
+      revision: { ok: true, problema: "", elegida: `Misma imagen de la escena ${j + 1}` },
+    });
+    marcar(i, { aviso: null, error: null });
+    setElegir(null);
+  };
+
+  // Foto real de Drive escogida a mano
+  const usarFotoDrive = async (i, foto) => {
+    setElegir(null);
+    marcar(i, { foto: true, error: null, aviso: null });
+    try {
+      const url = await guardarArchivo(await fotoDriveElegida(foto), "jpg");
+      setVisual(i, { modo: "foto", fotograma_url: url, video_url: null, revision: { ok: true, problema: "", elegida: "Foto elegida por ti" } });
+    } catch (err) {
+      marcar(i, { error: err.message });
+    } finally {
+      marcar(i, { foto: false });
+    }
+  };
+
   const cambiarModo = (i, modo) => setVisual(i, { modo, ...(modo === "foto" ? { fotograma_url: null, video_url: null } : {}) });
 
   const ocupado = !!fase || exportando != null || Object.values(estado).some((s) => s.foto || s.video);
@@ -642,6 +672,9 @@ export default function CinePage() {
                           <button onClick={() => hacerFotograma(i, Math.floor(Math.random() * 7) + 1)} disabled={ocupado} className="flex items-center gap-1 text-emerald-300 px-2 py-1 rounded-md border border-emerald-800/60 disabled:opacity-40">
                             {v.modo === "foto" ? <><Images className="w-3 h-3" /> Otra foto</> : <><RefreshCw className="w-3 h-3" /> Otro fotograma</>}
                           </button>
+                          <button onClick={() => setElegir(i)} disabled={ocupado} className="flex items-center gap-1 text-sky-300 px-2 py-1 rounded-md border border-sky-500/40 disabled:opacity-40">
+                            <Images className="w-3 h-3" /> Elegir
+                          </button>
                           {v.modo === "video" && v.fotograma_url && (
                             <button onClick={() => animar(i)} disabled={ocupado} className="flex items-center gap-1 text-fuchsia-300 px-2 py-1 rounded-md border border-fuchsia-500/40 disabled:opacity-40">
                               <Wand2 className="w-3 h-3" /> {v.video_url ? "Re-animar" : "Animar"}
@@ -655,7 +688,7 @@ export default function CinePage() {
                         {st.error && <p className="text-[10px] text-red-300">{st.error}</p>}
                         {st.aviso && <p className="text-[10px] text-amber-300">⚠ {st.aviso}</p>}
                         {!st.aviso && v.revision && (v.revision.ok
-                          ? <p className="text-[10px] text-emerald-400">✓ Revisado: coincide con la narración</p>
+                          ? <p className="text-[10px] text-emerald-400">✓ {v.revision.elegida || "Revisado: coincide con la narración"}</p>
                           : <p className="text-[10px] text-amber-300">⚠ {v.revision.problema || "Revisar esta escena"}</p>)}
                       </div>
                     </div>
@@ -706,6 +739,10 @@ export default function CinePage() {
             </div>
           ))}
         </section>
+      )}
+      {elegir !== null && crudo && (
+        <SelectorImagen escenas={crudo.escenas} indice={elegir} categoriaSugerida={crudo.escenas[elegir]?.visual?.categoria_foto}
+          onElegirEscena={(j) => usarDeEscena(elegir, j)} onElegirFoto={(f) => usarFotoDrive(elegir, f)} onCerrar={() => setElegir(null)} />
       )}
     </div>
   );
