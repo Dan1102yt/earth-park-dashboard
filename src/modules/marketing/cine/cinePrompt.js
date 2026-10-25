@@ -12,7 +12,28 @@ const ESTILOS = {
   soft gradients, editorial explainer look". Los "movimiento" deben ser de animación 2D: capas en parallax, elementos que
   entran, giran o se transforman, partículas, líneas que se dibujan; nada de cámara 3D realista.
   En este modo usa MÁS dibujos encima: hasta 4 "datos" por escena, incluidos íconos de línea animados.`,
+  doc: `DOCUMENTAL CINEMATOGRÁFICO PINTADO (como los reels de divulgación de wil_lab): "estilo_visual" describe UNA dirección de
+  arte de ilustración pintada y cinematográfica, igual en todas las escenas. Ej: "cinematic painterly illustration, like a frame
+  from an award-winning animated nature documentary, textured gouache and digital brushwork, visible paper and film grain,
+  simplified elegant shapes, strong silhouettes, moody atmospheric light, limited muted palette with one vivid accent color".
+  Nada de fotografía ni de 3D plástico: debe parecer una pintura animada.`,
 };
+
+// Reglas propias del modo documental: muchos planos cortos, la imagen cuenta la historia sola (sin datos encima)
+function reglasDoc(maxVideo) {
+  return `
+FORMATO DOCUMENTAL (manda sobre lo anterior si hay conflicto):
+- Entre 12 y 18 escenas = PLANOS cortos. Cada "narracion" de 6 a 12 palabras (≈ 2,5 a 4 segundos). Un plano por idea:
+  cuando la frase cambia de sujeto, cambia el plano. 35 a 60 segundos en total.
+- La IMAGEN cuenta la historia sin textos: cada plano muestra literalmente lo que dice su frase (si dice "ven el mundo
+  en azul y amarillo", el plano se ve en azul y amarillo). Usa metáforas visuales fuertes, siluetas y contraste.
+- "datos" SIEMPRE vacío ([]). Nada de etiquetas, flechas ni contadores: en pantalla solo va una palabra a la vez.
+- Continuidad: si dos planos seguidos muestran el mismo sujeto, repite su descripción física exacta en ambos "prompt"
+  y cambia solo el plano o la acción (como un documental que corta entre ángulos).
+- "transicion": "corte" en todas (corte seco al ritmo de la voz). "clima" solo si suma atmósfera.
+- "video" en las ${maxVideo} escenas con más movimiento (vuelo, salto, eclosión, lluvia…); el resto "imagen" con cámara lenta.
+- Tono de narrador de documental: pausado, asombro, frases que enganchan ("Pero aquí viene lo increíble…").`;
+}
 
 export function promptCine(tema, { categorias = [], maxVideo = 3, dimension = "3d" } = {}) {
   return `Crea el guion de un REEL EXPLICATIVO CINEMATOGRÁFICO para Earth Park (Instagram y TikTok, vertical 9:16) sobre: ${tema || "un tema educativo que tú elijas, que la gente quiera guardar y compartir"}.
@@ -53,7 +74,7 @@ VISUALES — cada escena tiene "visual":
   highway while car headlights stream past".
 - "camara" (para "imagen" y "foto"): "acercar" | "alejar" | "paneo_izq" | "paneo_der" | "subir" | "bajar" | "orbita".
 - "clima" (opcional): "lluvia" | "niebla" | "luciernagas" | "polvo" | "ninguno".
-- "transicion" (opcional, desde la escena 2): "glitch" | "zoom".
+- "transicion" (opcional, desde la escena 2): "glitch" | "zoom" | "corte".
 
 DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "datos": coordenadas x,y de 0 a 1000 sobre la zona central del video:
 - {"tipo":"etiqueta","texto":"88","senala":"el dibujo del número 88 en la cara inferior del ala trasera","inicio":0.8}
@@ -67,5 +88,5 @@ DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "d
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
 {"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
-Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.`;
+Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.${dimension === "doc" ? reglasDoc(maxVideo) : ""}`;
 }

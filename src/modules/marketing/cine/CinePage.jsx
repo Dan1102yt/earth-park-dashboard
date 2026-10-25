@@ -147,7 +147,7 @@ export default function CinePage() {
   const [tema, setTema] = useState("");
   const [color, setColor] = useState("bosque");
   const [maxVideo, setMaxVideo] = useState(+leer("ep_cine_maxvideo", "3"));
-  const [dimension, setDimension] = useState(leer("ep_cine_dim", "2d"));
+  const [dimension, setDimension] = useState(leer("ep_cine_dim", "doc"));
   const [refsNuevas, setRefsNuevas] = useState([]); // fotos del protagonista subidas antes de crear el video
   const [crudo, setCrudoState] = useState(null);
   const crudoRef = useRef(null);
@@ -280,6 +280,7 @@ export default function CinePage() {
           estilo: await referenciaEstilo(i),
           sujeto: usarSujeto ? await referenciasSujeto() : [],
           plano: v.plano,
+          formato: crudoRef.current.dimension,
         });
         sumarCosto(PRECIO_IMAGEN);
         return b;
@@ -470,8 +471,9 @@ export default function CinePage() {
         </div>
         <div className="space-y-1.5 pt-1">
           <span className="text-xs text-gray-400">Estilo del mundo</span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid sm:grid-cols-3 gap-2">
             {[
+              ["doc", "Documental cine", "Pintura cinematográfica, cortes rápidos, una palabra en pantalla (estilo wil_lab)"],
               ["2d", "2D ilustrado", "Motion graphics: ilustración plana con capas, más dibujos y efectos encima"],
               ["3d", "3D cinematográfico", "Mundo 3D estilizado con luz, profundidad y cámara tipo dron"],
             ].map(([id, titulo, desc]) => (
@@ -501,7 +503,7 @@ export default function CinePage() {
               <input type="range" min={1} max={8} value={maxVideo} onChange={(e) => setMaxVideo(+e.target.value)} className="flex-1 accent-emerald-500" />
               <span className="text-sm text-white w-6 text-center">{maxVideo}</span>
             </div>
-            <p className="text-[11px] text-gray-500">≈ {usd(maxVideo * SEG_VIDEO_ESTIMADOS * PRECIO_SEG_VIDEO + 9 * PRECIO_IMAGEN)} por video en Gemini</p>
+            <p className="text-[11px] text-gray-500">≈ {usd(maxVideo * SEG_VIDEO_ESTIMADOS * PRECIO_SEG_VIDEO + (dimension === "doc" ? 14 : 9) * (PRECIO_IMAGEN + PRECIO_VERIFICACION))} por video en Gemini</p>
           </div>
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
@@ -698,7 +700,7 @@ export default function CinePage() {
             <div key={it.id} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm" style={tarjeta}>
               <button onClick={() => abrir(it)} className="flex-1 text-left min-w-0">
                 <span className="text-gray-200 truncate">{it.resultado?.titulo || it.tema}</span>
-                <span className="text-gray-600 text-xs ml-2">{(it.resultado?.dimension || "3d").toUpperCase()} · {new Date(it.creado_at).toLocaleDateString("es-CO")} · {usd(it.resultado?.costo)}</span>
+                <span className="text-gray-600 text-xs ml-2">{({ doc: "DOC" }[it.resultado?.dimension] || (it.resultado?.dimension || "3d").toUpperCase())} · {new Date(it.creado_at).toLocaleDateString("es-CO")} · {usd(it.resultado?.costo)}</span>
               </button>
               <button onClick={() => borrar(it.id)} className="text-gray-600 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
             </div>
