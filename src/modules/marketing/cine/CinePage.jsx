@@ -11,7 +11,7 @@ import { obtenerCategorias } from "../agente/fotosCarrusel";
 import { TEMAS, ANCHO, ALTO, cargarRecursos } from "../animado/motor";
 import { exportarVideo } from "../animado/exportar";
 import { listarVoces, generarVoz, construirPista, contextoAudio } from "../animado/voz";
-import { promptCine } from "./cinePrompt";
+import { promptCine, revisarGuion } from "./cinePrompt";
 import { normalizarCine, dibujarFrameCine, tiempoClip, sinAsteriscos } from "./motorCine";
 import SelectorImagen from "./SelectorImagen";
 import {
@@ -48,7 +48,9 @@ async function pedirGuion(workerUrl, tema, opciones) {
   const texto = (data?.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   const g = extraerObjetoJSON(texto);
   if (!g?.escenas?.length) throw new Error("No se pudo interpretar el guion. Intenta de nuevo.");
-  return g;
+  const { guion, cambios } = revisarGuion(g);
+  if (cambios.length) console.info("[cine] guion corregido:", cambios.join(" · "));
+  return guion;
 }
 
 const narracionesDe = (g) => [
