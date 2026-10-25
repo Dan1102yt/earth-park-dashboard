@@ -1,4 +1,5 @@
 // Narrador: pide la voz a ElevenLabs (vía el Worker), la decodifica y arma la pista de audio del video.
+import { whoosh, impacto, riser, tic, ambiente, sonidoTransicion } from "./sfx";
 import { RETRASO_VOZ } from "./motor";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
@@ -82,22 +83,34 @@ export async function construirPista(guion) {
     src.start(e.inicio + RETRASO_VOZ);
   }
 
-  // Whoosh: ruido filtrado muy bajito en las transiciones
-  const ruido = off.createBuffer(1, sr * 0.5, sr);
-  const d = ruido.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin((Math.PI * i) / d.length);
-  guion.escenas.slice(1).forEach((e) => {
-    const src = off.createBufferSource();
-    src.buffer = ruido;
-    const filtro = off.createBiquadFilter();
-    filtro.type = "bandpass";
-    filtro.frequency.setValueAtTime(400, Math.max(0, e.inicio - 0.25));
-    filtro.frequency.exponentialRampToValueAtTime(3000, e.inicio + 0.2);
-    const g = off.createGain();
-    g.gain.value = 0.07;
-    src.connect(filtro).connect(g).connect(off.destination);
-    src.start(Math.max(0, e.inicio - 0.25));
-  });
+  // Efectos de sonido: bus propio con compresor para que nunca tapen la voz
+  const bus = off.createGain();
+  bus.gain.value = 1;
+  const comp = off.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.ratio.value = 4;
+  bus.connect(comp).connect(off.destination);
+
+  if (!guion.formato) {
+    // Videos animados: whoosh suave en cada cambio de escena (como antes)
+    guion.escenas.slice(1).forEach((e) => whoosh(off, bus, e.inicio - 0.25, { dur: 0.5, vol: 0.1 }));
+  } else {
+    const escenas = guion.escenas;
+    // Gancho: golpe grave al arrancar
+    if (escenas[0]) impacto(off, bus, 0.05, { vol: 0.35 });
+    escenas.forEach((e, i) => {
+      if (i > 0) {
+        // Antes del cierre: tensión que sube y golpe
+        if (e.cta) { riser(off, bus, e.inicio - 1.3, { dur: 1.3 }); impacto(off, bus, e.inicio, { vol: 0.45 }); }
+        else sonidoTransicion(off, bus, e.transicion, e.inicio, e.durTrans || 0.4);
+      }
+      ambiente(off, bus, e.clima, e.inicio, e.duracion);
+      // Tic suave en las palabras clave (formato documental, una palabra en pantalla)
+      if (guion.formato === "doc" && e.claves?.size && e.voz?.palabras) {
+        const limpiar = (w) => w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
+        e.voz.palabras.forEach((p) => { if (e.claves.has(limpiar(p.w))) tic(off, bus, e.inicio + RETRASO_VOZ + p.ini, 0.04); });
+      }
+    });
+  }
 
   return off.startRendering();
 }
