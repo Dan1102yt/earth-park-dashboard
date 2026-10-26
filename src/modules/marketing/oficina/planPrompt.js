@@ -1,6 +1,7 @@
 // El Estratega arma el plan semanal y ajusta propuestas según lo que digas en la reunión.
 import { SISTEMA_AGENTE } from "../agente/agentePrompts";
 import { extraerObjetoJSON } from "../agente/agenteApi";
+import { GUIA_GANCHOS } from "../agente/ganchos";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 const MODEL = "claude-sonnet-4-5";
@@ -30,7 +31,7 @@ const FORMATOS = `- "reel": video explicativo/documental (se produce en Videos c
  * semana: "YYYY-MM-DD" (lunes) · cantidad: publicaciones · previas: temas ya publicados o planeados (para no repetir)
  * indicaciones: lo que Oscar quiera para esa semana (opcional)
  */
-export async function pedirPlanSemana({ semana, cantidad = 4, previas = [], indicaciones = "" }) {
+export async function pedirPlanSemana({ semana, cantidad = 4, previas = [], indicaciones = "", investigacion = "" }) {
   const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", dateStyle: "full" });
   const prompt = `Hoy es ${hoy}. Arma el plan de Instagram de Earth Park para la semana que empieza el lunes ${semana}.
 
@@ -41,6 +42,11 @@ ${FORMATOS}
 - No repitas estos temas recientes: ${previas.length ? previas.slice(0, 30).join(" | ") : "(ninguno)"}.
 - Días y horas buenas para una audiencia de Bogotá (ej. martes y jueves 6:30 p. m., domingo 10:00 a. m.); no dos el mismo día.
 ${indicaciones ? `- Indicaciones de Oscar para esta semana: ${indicaciones}` : ""}
+${investigacion ? `
+INFORME DE INVESTIGACIÓN DE ESTA SEMANA (úsalo para decidir temas, formatos y ganchos):
+${investigacion}
+` : ""}
+${GUIA_GANCHOS}
 
 Responde ÚNICAMENTE con JSON válido:
 {"resumen":"2 o 3 frases como si se lo dijeras a Oscar en una reunión: el enfoque de la semana y por qué",

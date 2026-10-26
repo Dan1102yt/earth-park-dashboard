@@ -62,7 +62,7 @@ function Markdown({ texto }) {
 }
 
 /* ─── Resultados por modo ──────────────────────────────────── */
-function ResultadoCarrusel({ r, nuevo }) {
+function ResultadoCarrusel({ r, nuevo, planId }) {
   const caption = `${r.caption || ""}\n\n${(r.hashtags || []).join(" ")}`.trim();
   return (
     <div className="space-y-5">
@@ -72,7 +72,7 @@ function ResultadoCarrusel({ r, nuevo }) {
           {r.hooks_alternativos.map((h, i) => <p key={i} className="text-sm text-gray-200">{i + 1}. {h}</p>)}
         </div>
       )}
-      <CarruselVisual carrusel={r} autoIA={nuevo} />
+      <CarruselVisual carrusel={r} autoIA={nuevo} planId={planId} />
       <div className="rounded-xl p-4 space-y-3" style={tarjeta}>
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Caption + hashtags</p>
@@ -132,8 +132,8 @@ function ResultadoHistorias({ r }) {
   );
 }
 
-function Resultado({ modo, resultado, nuevo }) {
-  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} nuevo={nuevo} />;
+function Resultado({ modo, resultado, nuevo, planId }) {
+  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} nuevo={nuevo} planId={planId} />;
   if (modo === "historias") return <ResultadoHistorias r={resultado} />;
   const md = resultado?.markdown || "";
   return (
@@ -248,7 +248,7 @@ export default function AgentePage() {
         </div>
       )}
 
-      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} nuevo={!!actual.nuevo} />}
+      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} nuevo={!!actual.nuevo} planId={planId} />}
 
       {/* Historial */}
       {items.length > 0 && (

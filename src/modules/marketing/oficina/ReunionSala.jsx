@@ -5,17 +5,16 @@ import { X, Check, Trash2, Send, Loader2, Film, LayoutGrid, CheckCheck, Calendar
 import { AGENTES } from "./mapaOficina";
 import { ajustarPropuesta, fechaBonita, aInputLocal, desdeInputLocal, fechaColombia } from "./planPrompt";
 
-const sofia = AGENTES[0];
 const tarjeta = { background: "rgba(10,22,6,0.75)", border: "1px solid rgba(77,142,30,0.25)" };
 
 function Avatar({ a, tam = 28 }) {
   return (
     <span className="inline-flex items-center justify-center rounded-full flex-shrink-0"
-      style={{ width: tam, height: tam, background: a.pal.camisa, fontSize: tam * 0.5 }}>{a.emoji}</span>
+      style={{ width: tam, height: tam, background: a.look.camisa, fontSize: tam * 0.5 }}>{a.emoji}</span>
   );
 }
 
-function Propuesta({ fila, onActualizar }) {
+function Propuesta({ fila, onActualizar, sofia }) {
   const [texto, setTexto] = useState("");
   const [ajustando, setAjustando] = useState(false);
   const [error, setError] = useState(null);
@@ -79,7 +78,7 @@ function Propuesta({ fila, onActualizar }) {
 
       <div className="flex gap-1.5">
         <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enviar()}
-          placeholder="Pídele un cambio a Sofía…" disabled={ajustando}
+          placeholder={`Pídele un cambio a ${sofia.nombre}…`} disabled={ajustando}
           className="flex-1 min-w-0 bg-black/40 border border-emerald-900/50 rounded-lg text-white text-xs px-2 py-1.5" />
         <button onClick={enviar} disabled={ajustando || !texto.trim()} className="px-2.5 rounded-lg bg-emerald-700/60 text-white disabled:opacity-40">
           {ajustando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -101,7 +100,8 @@ function Propuesta({ fila, onActualizar }) {
   );
 }
 
-export default function ReunionSala({ propuestas, resumen, onActualizar, onCerrar }) {
+export default function ReunionSala({ agentes = AGENTES, propuestas, resumen, onActualizar, onCerrar }) {
+  const sofia = agentes.find((a) => a.id === "estratega");
   const aprobarTodas = async () => {
     for (const f of propuestas) await onActualizar(f.id, { estado: "aprobada" });
   };
@@ -121,7 +121,7 @@ export default function ReunionSala({ propuestas, resumen, onActualizar, onCerra
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <div className="flex -space-x-2">
-            {AGENTES.map((a) => <Avatar key={a.id} a={a} tam={30} />)}
+            {agentes.map((a) => <Avatar key={a.id} a={a} tam={30} />)}
           </div>
           <div className="flex gap-2">
             <Avatar a={sofia} />
@@ -134,7 +134,7 @@ export default function ReunionSala({ propuestas, resumen, onActualizar, onCerra
 
           {propuestas.length ? (
             <div className="grid sm:grid-cols-2 gap-3">
-              {propuestas.map((f) => <Propuesta key={f.id} fila={f} onActualizar={onActualizar} />)}
+              {propuestas.map((f) => <Propuesta key={f.id} fila={f} onActualizar={onActualizar} sofia={sofia} />)}
             </div>
           ) : (
             <p className="text-sm text-emerald-300 text-center py-8">✓ Todo aprobado. Los agentes ya se pusieron a trabajar.</p>

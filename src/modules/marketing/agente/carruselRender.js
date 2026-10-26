@@ -4,7 +4,10 @@
 export const ANCHO = 1080;
 export const ALTO = 1350;
 
-const VERDE = "#a3e635";      // resaltado (*palabra*)
+import { TEMAS } from "../animado/motor";
+
+let VERDE = "#a3e635";        // color de acento del tema (resaltado *palabra*, viñetas, CTA)
+let TEMA = TEMAS.bosque;
 const BLANCO = "#ffffff";
 const GRIS = "rgba(255,255,255,0.82)";
 const FUENTE_TITULO = "Outfit, Inter, system-ui, sans-serif";
@@ -94,6 +97,13 @@ function dibujarBloque(ctx, bloque, x, y, { color, alineacion = "left", interlin
     const anchoLinea = linea.reduce((s, tk, j) => s + tk.w + (j ? esp : 0), 0);
     let cx = alineacion === "center" ? x - anchoLinea / 2 : x;
     linea.forEach((tk) => {
+      // Reborde oscuro + sombra: el texto se lee sobre cualquier foto
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(4, bloque.tamaño * 0.09);
+      ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = 14;
+      ctx.strokeText(tk.t, cx, y + i * alto);
+      ctx.shadowBlur = 0;
       ctx.fillStyle = tk.h ? VERDE : color;
       ctx.fillText(tk.t, cx, y + i * alto);
       cx += tk.w + esp;
@@ -116,19 +126,39 @@ function rectRedondo(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Imagen recortada para llenar un rectángulo (como object-fit: cover)
+function cubrir(ctx, img, x, y, w, h) {
+  const r = Math.max(w / img.width, h / img.height);
+  const sw = w / r, sh = h / r;
+  ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, w, h);
+}
+
+// Collage de 2 a 4 fotos con separación fina del color del tema
+function collage(ctx, imgs) {
+  const g = 10;
+  const cajas = {
+    2: [[0, 0, ANCHO, ALTO / 2 - g / 2], [0, ALTO / 2 + g / 2, ANCHO, ALTO / 2 - g / 2]],
+    3: [[0, 0, ANCHO, ALTO * 0.55 - g / 2], [0, ALTO * 0.55 + g / 2, ANCHO / 2 - g / 2, ALTO * 0.45 - g / 2], [ANCHO / 2 + g / 2, ALTO * 0.55 + g / 2, ANCHO / 2 - g / 2, ALTO * 0.45 - g / 2]],
+    4: [[0, 0, ANCHO / 2 - g / 2, ALTO / 2 - g / 2], [ANCHO / 2 + g / 2, 0, ANCHO / 2 - g / 2, ALTO / 2 - g / 2],
+      [0, ALTO / 2 + g / 2, ANCHO / 2 - g / 2, ALTO / 2 - g / 2], [ANCHO / 2 + g / 2, ALTO / 2 + g / 2, ANCHO / 2 - g / 2, ALTO / 2 - g / 2]],
+  }[Math.min(4, imgs.length)];
+  ctx.fillStyle = TEMA.fondo; ctx.fillRect(0, 0, ANCHO, ALTO);
+  cajas.forEach((c, i) => cubrir(ctx, imgs[i], ...c));
+}
+
 function dibujarFondo(ctx, img, tipo) {
-  if (img) {
-    const r = Math.max(ANCHO / img.width, ALTO / img.height);
-    const w = img.width * r;
-    const h = img.height * r;
-    ctx.drawImage(img, (ANCHO - w) / 2, (ALTO - h) / 2, w, h);
-  } else {
+  const imgs = (Array.isArray(img) ? img : [img]).filter(Boolean);
+  if (imgs.length > 1) collage(ctx, imgs);
+  else if (imgs.length === 1) cubrir(ctx, imgs[0], 0, 0, ANCHO, ALTO);
+  else {
     const g = ctx.createLinearGradient(0, 0, ANCHO, ALTO);
-    g.addColorStop(0, "#0b2a10");
-    g.addColorStop(0.55, "#14451a");
-    g.addColorStop(1, "#071a07");
+    g.addColorStop(0, TEMA.fondo2);
+    g.addColorStop(0.55, TEMA.fondo2);
+    g.addColorStop(1, TEMA.fondo);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, ANCHO, ALTO);
+    ctx.fillStyle = TEMA.brillo;
+    ctx.beginPath(); ctx.arc(ANCHO * 0.8, ALTO * 0.2, 520, 0, Math.PI * 2); ctx.fill();
   }
   // Capa oscura para que el texto siempre se lea. Más fuerte abajo, donde va el texto.
   const ov = ctx.createLinearGradient(0, 0, 0, ALTO);
@@ -225,7 +255,7 @@ function slideContenido(ctx, s) {
       ctx.fillStyle = VERDE;
       ctx.fill();
       ctx.font = `800 22px ${FUENTE_TITULO}`;
-      ctx.fillStyle = "#0b2a10";
+      ctx.fillStyle = TEMA.fondo;
       ctx.textBaseline = "middle";
       ctx.fillText("✓", PAD + 13, fy + f.tamaño * 0.62 + 1);
       fy = dibujarBloque(ctx, f, PAD + 64, fy, { color: BLANCO, interlineado: 1.25 }) + 22;
@@ -250,7 +280,7 @@ function slideCta(ctx, s, extra) {
     rectRedondo(ctx, cx - w / 2, y, w, 110, 55);
     ctx.fillStyle = VERDE;
     ctx.fill();
-    ctx.fillStyle = "#0b2a10";
+    ctx.fillStyle = TEMA.fondo;
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
     ctx.fillText(etiqueta, cx, y + 57);
@@ -269,6 +299,8 @@ export async function renderizarSlide(slide, indice, total, imagen, extra) {
   canvas.width = ANCHO;
   canvas.height = ALTO;
   const ctx = canvas.getContext("2d");
+  TEMA = TEMAS[extra?.color] || TEMAS.bosque;
+  VERDE = TEMA.acento;
 
   const ultima = indice === total - 1;
   const tipo = slide.tipo === "cta" || (ultima && slide.tipo !== "portada") ? "cta" : (indice === 0 ? "portada" : slide.tipo);

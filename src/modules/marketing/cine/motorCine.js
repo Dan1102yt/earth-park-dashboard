@@ -3,7 +3,7 @@
 // transiciones glitch / zoom y el cierre con el logo.
 import {
   ANCHO, ALTO, TEMAS, RETRASO_VOZ, dibujarElemento, dibujarLogo, dibujarTitular, grupos,
-  clamp, easeOut, easeInOut, easeBack, hash, FUENTE_TITULO,
+  clamp, easeOut, easeInOut, easeBack, hash, FUENTE_TITULO, textoConBorde,
 } from "../animado/motor";
 import { TRANSICIONES, elegirTransiciones, componerTransicion, aux } from "./transiciones";
 
@@ -225,7 +225,8 @@ function dibujarSubtitulos(ctx, escena, lt, tema) {
           ctx.fillStyle = "#ffffff";
         }
         ctx.textAlign = "center";
-        ctx.fillText(p.w, 0, 2);
+        if (clave) ctx.fillText(p.w, 0, 2); // la palabra clave va sobre su pastilla de color
+        else { ctx.shadowBlur = 0; textoConBorde(ctx, p.w, 0, 2, tam); }
         ctx.restore();
       }
       x += anchos[i] + esp;
@@ -425,11 +426,8 @@ function palabraDoc(ctx, escena, lt, tema) {
   ctx.globalAlpha = clamp(k * 1.5);
   ctx.font = `italic 800 ${clave ? 74 : 64}px ${FUENTE_TITULO}`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 22;
-  ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,0.35)";
-  ctx.strokeText(w, 0, 0);
   ctx.fillStyle = clave ? tema.acento : "#ffffff";
-  ctx.fillText(w, 0, 0);
+  textoConBorde(ctx, w, 0, 0, clave ? 74 : 64);
   ctx.restore();
 }
 

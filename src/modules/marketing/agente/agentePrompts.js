@@ -1,4 +1,5 @@
 import { PLANES } from "../../../data/planesConfig";
+import { GUIA_GANCHOS } from "./ganchos";
 
 const fmt = (n) => "$" + Number(n).toLocaleString("es-CO");
 
@@ -36,7 +37,7 @@ export const MODOS = {
     construirPrompt: (tema, ctx = {}) => `Crea un carrusel viral de Instagram para Earth Park sobre: ${tema || "un tema que tú elijas, de alto valor guardable"}.
 
 Reglas del carrusel:
-1. Slide 1 = portada con hook de máximo 10 palabras que abra un bucle de curiosidad (número, error común, secreto, antes/después o POV). Da además 3 hooks alternativos.
+1. Slide 1 = portada con un gancho PROFESIONAL siguiendo la guía de abajo. Da además 3 hooks alternativos con fórmulas distintas.
 2. Entre 6 y 8 slides en total, una idea por slide, máximo 25 palabras por slide, con micro-cliffhangers entre slides.
 3. Valor guardable (guías, listas, qué empacar, rutas, cuánto cuesta, errores). La marca es protagonista de la historia, no un anuncio.
 4. Última slide: CTA (guardar, compartir o comentar una palabra).
@@ -44,6 +45,8 @@ Reglas del carrusel:
 6. Cada slide lleva una imagen de fondo. Para cada una decide qué impacta más:
    - "drive": una foto REAL de Earth Park. Úsala siempre que la slide muestre el lugar, las cabañas, la comida, el embalse,
      las actividades o personas en el parque (nunca muestres el parque con imágenes inventadas: sería engañar al cliente).
+   - "collage": 2 a 4 fotos REALES de Earth Park en una sola slide (ideal para "lo que vas a vivir", listas de
+     actividades, antes/después o un resumen del plan). Pon la categoría en categoria_foto.
    - "ia": una imagen generada. Úsala para ideas que no son el parque: conceptos, emociones, metáforas, objetos
      (la ciudad con estrés, una maleta abierta, un reloj, una libreta, texturas de naturaleza en primer plano).
    Criterios de impacto:
@@ -55,8 +58,10 @@ Reglas del carrusel:
    Si usas ia, escribe prompt_ia EN INGLÉS: fotografía vertical realista, luz natural, paleta de verdes y tonos tierra,
    sujeto en la mitad superior, la mitad inferior más oscura y despejada para el texto, SIN texto, letras, logos ni marcas de agua.
 
+${GUIA_GANCHOS}
+
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
-{"hooks_alternativos":["...","...","..."],"slides":[{"tipo":"portada|contenido|lista|cta","titulo":"...","texto":"...","items":["..."],"fondo":"drive|ia","categoria_foto":"...","prompt_ia":"... (solo si fondo es ia)","foto":"qué debe mostrar el fondo, en una frase"}],"caption":"...","hashtags":["#..."],"palabra_comentar":"...","mejor_momento":"día y hora sugeridos"}
+{"hooks_alternativos":["...","...","..."],"slides":[{"tipo":"portada|contenido|lista|cta","titulo":"...","texto":"...","items":["..."],"fondo":"drive|ia|collage","categoria_foto":"...","prompt_ia":"... (solo si fondo es ia)","foto":"qué debe mostrar el fondo, en una frase"}],"caption":"...","hashtags":["#..."],"palabra_comentar":"...","mejor_momento":"día y hora sugeridos"}
 Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.`,
   },
 

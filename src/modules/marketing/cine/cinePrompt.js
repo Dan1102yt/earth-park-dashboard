@@ -1,4 +1,5 @@
 import { NOMBRES_ICONOS } from "../animado/iconos";
+import { GUIA_GANCHOS } from "../agente/ganchos";
 
 const ESTILOS = {
   "3d": `MUNDO 3D ESTILIZADO (NO fotografía realista): render 3D de animación de alta gama, como los reels de referencia.
@@ -43,6 +44,9 @@ export function promptCine(tema, { categorias = [], maxVideo = 3, dimension = "3
 REFERENCIA DE ESTILO: los reels tipo "nunca te lo explicaron": un mundo visual 3D estilizado y coherente, cámara siempre en
 movimiento, narrador que cuenta una curiosidad paso a paso, subtítulos que aparecen al ritmo de la voz con palabras clave
 resaltadas, datos que aparecen encima de la imagen (etiquetas, distancias, contadores) y transiciones rápidas.
+
+${GUIA_GANCHOS}
+La narración de la escena 1 ES el gancho: aplícale estas reglas.
 
 HISTORIA:
 - Gancho en la primera frase (pregunta o dato que sorprende) → explicación paso a paso con un giro → lo que aprende el

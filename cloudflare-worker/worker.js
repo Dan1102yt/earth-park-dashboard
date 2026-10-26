@@ -1,4 +1,12 @@
 export default {
+  // Temporizador de Cloudflare (Triggers → Cron, ej. cada 5 minutos): publica lo programado y renueva el token
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      try { await procesarPublicaciones(env); } catch (e) { console.log("[ig] cola:", e.message); }
+      try { await renovarTokenSiToca(env); } catch (e) { console.log("[ig] token:", e.message); }
+    })());
+  },
+
   async fetch(request, env) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
@@ -12,6 +20,29 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // ── Instagram (Lu, community manager) ────────────────
+    // GET  /ig/estado            → cuenta conectada y cupo de publicaciones
+    // POST /ig/publicar-ahora    → {id} publica ya una publicación del plan (lista o programada)
+    // POST /ig/procesar          → revisa la cola (lo mismo que hace el temporizador cada 5 min)
+    if (path.startsWith("/ig/")) {
+      const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      try {
+        const origen = request.headers.get("Origin") || "";
+        if (origen && !/^https:\/\/dan1102yt\.github\.io$|^http:\/\/localhost(:\d+)?$/.test(origen)) return json({ error: "Origen no permitido" }, 403);
+        if (path === "/ig/estado") return json(await igEstado(env));
+        if (path === "/ig/procesar" && request.method === "POST") return json(await procesarPublicaciones(env));
+        if (path === "/ig/publicar-ahora" && request.method === "POST") {
+          const { id } = await request.json();
+          if (!id) throw new Error("Falta el id de la publicación");
+          await sbActualizar(env, id, { estado: "programada", fecha_publicacion: new Date().toISOString(), error: null });
+          return json(await procesarPublicaciones(env, id));
+        }
+        return json({ error: "Ruta de Instagram desconocida" }, 404);
+      } catch (err) {
+        return json({ error: err.message }, 400);
+      }
+    }
 
     // ── Ruta: Google Sheets lectura ──────────────────────
     if (path === "/sheets/read") {
@@ -447,4 +478,149 @@ async function getGoogleToken(env, scopeType = "sheets") {
     throw new Error(`Google auth failed: ${JSON.stringify(tokenData)}`);
   }
   return tokenData.access_token;
+}
+
+
+/* ═══ Instagram: publicación del plan de contenido ════════════════════════
+   Secretos/variables del Worker:
+     IG_TOKEN       token largo de Instagram (API con inicio de sesión de Instagram)
+     SUPABASE_URL   URL del proyecto de Supabase
+     SUPABASE_KEY   clave anon de Supabase
+   Opcional (recomendado): un espacio KV vinculado como EP_KV para guardar el token renovado automáticamente. */
+
+const IG = "https://graph.instagram.com";
+
+async function igToken(env) {
+  if (env.EP_KV) {
+    const t = await env.EP_KV.get("ig_token");
+    if (t) return t;
+  }
+  if (!env.IG_TOKEN) throw new Error("Falta el secreto IG_TOKEN en el Worker");
+  return env.IG_TOKEN;
+}
+
+async function ig(env, ruta, { metodo = "GET", params = {} } = {}) {
+  const token = await igToken(env);
+  const u = new URL(`${IG}/${ruta}`);
+  const cuerpo = new URLSearchParams({ ...params, access_token: token });
+  let res;
+  if (metodo === "GET") {
+    cuerpo.forEach((v, k) => u.searchParams.set(k, v));
+    res = await fetch(u.toString());
+  } else {
+    res = await fetch(u.toString(), { method: "POST", body: cuerpo });
+  }
+  const data = await res.json();
+  if (data.error) throw new Error(`Instagram: ${data.error.message}`);
+  return data;
+}
+
+async function igEstado(env) {
+  const yo = await ig(env, "me", { params: { fields: "user_id,username,account_type,media_count" } });
+  let cupo = null;
+  try { cupo = await ig(env, `${yo.user_id}/content_publishing_limit`, { params: { fields: "quota_usage,config" } }); } catch { /* opcional */ }
+  return { conectado: true, usuario: yo.username, tipo: yo.account_type, publicaciones: yo.media_count, cupo: cupo?.data?.[0] || null, renovacionAutomatica: !!env.EP_KV };
+}
+
+/* Supabase (REST) */
+function sb(env, ruta, opciones = {}) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error("Faltan SUPABASE_URL y SUPABASE_KEY en el Worker");
+  return fetch(`${env.SUPABASE_URL}/rest/v1/${ruta}`, {
+    ...opciones,
+    headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}`, "Content-Type": "application/json", ...(opciones.headers || {}) },
+  });
+}
+async function sbActualizar(env, id, cambios) {
+  const r = await sb(env, `contenido_plan?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH", body: JSON.stringify({ ...cambios, actualizado_at: new Date().toISOString() }),
+  });
+  if (!r.ok) throw new Error(`Supabase: ${await r.text()}`);
+}
+
+/** Crea el contenedor de Instagram para una publicación del plan. */
+async function crearContenedor(env, igId, fila) {
+  const urls = fila.media_urls || [];
+  if (!urls.length) throw new Error("La publicación no tiene archivos (envíala desde el carrusel o el video)");
+  const caption = (fila.caption || "").slice(0, 2200);
+  if (fila.tipo === "reel") {
+    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { media_type: "REELS", video_url: urls[0], caption, share_to_feed: "true" } });
+    return c.id;
+  }
+  if (urls.length === 1) {
+    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { image_url: urls[0], caption } });
+    return c.id;
+  }
+  const hijos = [];
+  for (const u of urls.slice(0, 20)) {
+    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { image_url: u, is_carousel_item: "true" } });
+    hijos.push(c.id);
+  }
+  const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { media_type: "CAROUSEL", children: hijos.join(","), caption } });
+  return c.id;
+}
+
+/**
+ * Revisa la cola: publicaciones "programadas" cuya hora ya llegó.
+ * Paso 1: crea el contenedor (Instagram descarga el archivo). Paso 2: cuando está FINISHED, publica.
+ * Los videos tardan en procesarse: si aún no están listos, se reintenta en la siguiente vuelta.
+ */
+async function procesarPublicaciones(env, soloId = null) {
+  const ahora = new Date().toISOString();
+  const filtro = soloId
+    ? `id=eq.${encodeURIComponent(soloId)}`
+    : `estado=eq.programada&fecha_publicacion=lte.${encodeURIComponent(ahora)}&order=fecha_publicacion.asc&limit=5`;
+  const r = await sb(env, `contenido_plan?select=*&${filtro}`);
+  if (!r.ok) throw new Error(`Supabase: ${await r.text()}`);
+  const filas = await r.json();
+  if (!filas.length) return { procesadas: 0, resultados: [] };
+
+  const yo = await ig(env, "me", { params: { fields: "user_id" } });
+  const resultados = [];
+  for (const fila of filas) {
+    if (fila.estado !== "programada") continue;
+    try {
+      let contenedor = fila.ig_contenedor;
+      if (!contenedor) {
+        contenedor = await crearContenedor(env, yo.user_id, fila);
+        await sbActualizar(env, fila.id, { ig_contenedor: contenedor, error: null });
+      }
+      // Esperar un poco por el procesamiento (las fotos suelen estar listas de inmediato)
+      let estado = "IN_PROGRESS";
+      for (let k = 0; k < 6; k++) {
+        estado = (await ig(env, contenedor, { params: { fields: "status_code" } })).status_code;
+        if (estado !== "IN_PROGRESS") break;
+        await new Promise((res) => setTimeout(res, 5000));
+      }
+      if (estado === "FINISHED") {
+        const pub = await ig(env, `${yo.user_id}/media_publish`, { metodo: "POST", params: { creation_id: contenedor } });
+        let permalink = null;
+        try { permalink = (await ig(env, pub.id, { params: { fields: "permalink" } })).permalink; } catch { /* opcional */ }
+        await sbActualizar(env, fila.id, { estado: "publicada", ig_media_id: pub.id, ig_permalink: permalink, error: null });
+        resultados.push({ id: fila.id, estado: "publicada", permalink });
+      } else if (estado === "ERROR" || estado === "EXPIRED") {
+        await sbActualizar(env, fila.id, { estado: "lista", ig_contenedor: null, error: `Instagram no pudo procesar el archivo (${estado}). Revisa el formato y vuelve a programar.` });
+        resultados.push({ id: fila.id, estado: "error" });
+      } else {
+        resultados.push({ id: fila.id, estado: "procesando" }); // se revisa en la próxima vuelta del temporizador
+      }
+    } catch (e) {
+      await sbActualizar(env, fila.id, { error: e.message }).catch(() => {});
+      resultados.push({ id: fila.id, estado: "error", error: e.message });
+    }
+  }
+  return { procesadas: resultados.length, resultados };
+}
+
+/** Renueva el token largo (dura 60 días) una vez por semana, si hay KV para guardarlo. */
+async function renovarTokenSiToca(env) {
+  if (!env.EP_KV) return;
+  const ultima = Number(await env.EP_KV.get("ig_token_renovado") || 0);
+  if (Date.now() - ultima < 7 * 86400000) return;
+  const token = await igToken(env);
+  const res = await fetch(`${IG}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (data.access_token) {
+    await env.EP_KV.put("ig_token", data.access_token);
+    await env.EP_KV.put("ig_token_renovado", String(Date.now()));
+  }
 }

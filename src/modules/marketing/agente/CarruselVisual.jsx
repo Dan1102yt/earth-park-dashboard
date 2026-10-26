@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  ChevronLeft, ChevronRight, Upload, Download, Share2, Loader2, ImageOff, Wand2, Images, AlertCircle,
+  Upload, Download, Share2, Loader2, ImageOff, Wand2, Images, AlertCircle, LayoutGrid,
 } from "lucide-react";
+import SelectorFotos from "../comun/SelectorFotos";
+import { TEMAS } from "../animado/motor";
+import { enviarALu, canvasAJpeg, captionCompleto } from "../oficina/instagram";
 import { renderizarSlide, canvasABlob, cargarImagen } from "./carruselRender";
 import {
   obtenerCategorias, obtenerFotos, obtenerTodasLasFotos, urlsFoto, buscarCategoria, generarImagenIA,
@@ -39,17 +42,20 @@ const promptIA = (s, variante) =>
  * autoIA: si es true, genera de una vez las imágenes IA (solo para carruseles recién creados,
  * para no gastar al abrir uno viejo del historial).
  */
-export default function CarruselVisual({ carrusel, autoIA = false }) {
+export default function CarruselVisual({ carrusel, autoIA = false, planId = null }) {
   const slides = carrusel.slides || [];
   const total = slides.length;
 
-  // Por slide: { modo: "drive"|"ia"|"propia", opciones, idx, propia, ia: {url, cargando, error, variante} }
+  // Por slide: { modo: "drive"|"ia"|"propia"|"collage", opciones, idx, elegida, collage, propia, ia: {url, cargando, error, variante} }
   const [fondos, setFondos] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [preparando, setPreparando] = useState(true);
   const [ocupado, setOcupado] = useState(false);
   const canvases = useRef([]);
   const imagenes = useRef(new Map());
+  const [color, setColor] = useState(carrusel.color || "bosque");
+  const [selector, setSelector] = useState(null); // { i, multiple }
+  const [envio, setEnvio] = useState(null);         // { cargando, ok, error }
 
   const actualizar = (i, cambio) =>
     setFondos((fs) => fs.map((f, j) => (j === i ? { ...f, ...(typeof cambio === "function" ? cambio(f) : cambio) } : f)));
@@ -73,8 +79,13 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
         const elegida = base.length ? base[Math.floor(Math.random() * base.length)] : null;
         if (elegida) usadas.add(elegida.id);
         const quiereIA = s.fondo === "ia";
+        const quiereCollage = s.fondo === "collage" && opciones.length >= 2;
+        const collageFotos = quiereCollage
+          ? [...opciones].sort(() => Math.random() - 0.5).slice(0, Math.min(3, opciones.length))
+          : null;
         asignados.push({
-          modo: quiereIA && autoIA ? "ia" : "drive",
+          modo: quiereCollage ? "collage" : quiereIA && autoIA ? "ia" : "drive",
+          collage: collageFotos,
           sugeridoIA: quiereIA,
           opciones,
           idx: Math.max(0, opciones.indexOf(elegida)),
@@ -106,21 +117,27 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
     if (f.modo === "propia" && f.propia) img = await cargarImagen(f.propia);
     else if (f.modo === "ia" && f.ia.url) img = await cargarImagen(f.ia.url);
     else if (f.modo === "ia" && !f.ia.error) return; // generando: se queda la vista anterior
-    else { // Drive (o IA que falló: se usa la foto de Drive mientras tanto)
-      const foto = f.opciones?.[f.idx];
+    else if (f.modo === "collage" && f.collage?.length) {
+      img = [];
+      for (const foto of f.collage) {
+        if (!imagenes.current.has(foto.id)) imagenes.current.set(foto.id, await cargarFoto(foto));
+        img.push(imagenes.current.get(foto.id));
+      }
+    } else { // Drive (o IA que falló: se usa la foto de Drive mientras tanto)
+      const foto = f.elegida || f.opciones?.[f.idx];
       if (foto) {
         if (!imagenes.current.has(foto.id)) imagenes.current.set(foto.id, await cargarFoto(foto));
         img = imagenes.current.get(foto.id);
       }
     }
-    const canvas = await renderizarSlide(slides[i], i, total, img, carrusel);
+    const canvas = await renderizarSlide(slides[i], i, total, img, { ...carrusel, color });
     canvases.current[i] = canvas;
     const url = canvas.toDataURL("image/jpeg", 0.8);
     setPreviews((p) => { const n = [...p]; n[i] = { url, conFoto: !!img }; return n; });
-  }, [slides, total, carrusel]);
+  }, [slides, total, carrusel, color]);
 
   // Solo redibuja cuando cambia lo que se ve (no por el estado "cargando")
-  const firmas = fondos.map((f) => `${f.modo}|${f.idx}|${f.propia}|${f.ia.url}|${!!f.ia.error}`).join("§");
+  const firmas = fondos.map((f) => `${f.modo}|${f.idx}|${f.elegida?.id}|${(f.collage || []).map((x) => x.id)}|${f.propia}|${f.ia.url}|${!!f.ia.error}`).join("§") + color;
   useEffect(() => {
     if (preparando) return;
     fondos.forEach((f, i) => dibujar(i, f));
@@ -128,9 +145,13 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
   }, [firmas, preparando, dibujar]);
 
   /* ─── Acciones ─── */
-  const cambiarFoto = (i, paso) => actualizar(i, (f) => (
-    f.opciones.length ? { modo: "drive", idx: (f.idx + paso + f.opciones.length) % f.opciones.length } : {}
-  ));
+  const elegirFotos = (fotos) => {
+    const { i, multiple } = selector;
+    setSelector(null);
+    if (!fotos?.length) return;
+    if (multiple && fotos.length > 1) actualizar(i, { modo: "collage", collage: fotos });
+    else actualizar(i, { modo: "drive", elegida: fotos[0] });
+  };
   const usarDrive = (i) => actualizar(i, { modo: "drive" });
   const usarIA = (i) => actualizar(i, (f) => ({ modo: "ia", ia: { ...f.ia, error: null } }));
   const otraIA = (i) => actualizar(i, (f) => ({ modo: "ia", ia: { url: null, cargando: false, error: null, variante: f.ia.variante + 1 } }));
@@ -164,6 +185,17 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
     }
   };
 
+  const enviar = async () => {
+    setEnvio({ cargando: true });
+    try {
+      const archivos = await Promise.all(canvases.current.slice(0, total).map(canvasAJpeg));
+      await enviarALu(planId, { tipo: "carrusel", archivos, caption: captionCompleto(carrusel.caption, carrusel.hashtags) });
+      setEnvio({ ok: true });
+    } catch (e) {
+      setEnvio({ error: e.message });
+    }
+  };
+
   const generandoIA = fondos.some((f) => f.modo === "ia" && f.ia.cargando);
   const listo = !preparando && !generandoIA && previews.filter(Boolean).length === total;
   const sugeridasSinGenerar = fondos.filter((f) => f.sugeridoIA && f.modo !== "ia").length;
@@ -188,6 +220,12 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
               <Share2 className="w-3.5 h-3.5" /> Guardar en galería / Compartir
             </button>
           )}
+          {planId && (
+            <button onClick={enviar} disabled={!listo || ocupado || envio?.cargando}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-emerald-950 bg-lime-300 hover:bg-lime-200 disabled:opacity-50">
+              {envio?.cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />} Enviar a Lu para publicar
+            </button>
+          )}
           <button onClick={descargarTodas} disabled={!listo || ocupado}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
             style={{ background: "rgba(77,142,30,0.80)", border: "1px solid rgba(77,142,30,0.40)" }}>
@@ -195,6 +233,18 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
             {generandoIA ? "Generando imágenes..." : "Descargar todas (PNG)"}
           </button>
         </div>
+      </div>
+
+      {envio?.ok && <p className="text-xs text-lime-300">✓ Listo. Lu ya lo tiene: prográmalo desde la Oficina IA.</p>}
+      {envio?.error && <p className="text-xs text-red-300">{envio.error}</p>}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-gray-400">Color</span>
+        {Object.entries(TEMAS).map(([id, t]) => (
+          <button key={id} onClick={() => setColor(id)}
+            className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border ${color === id ? "border-white text-white" : "border-white/15 text-gray-300"}`}>
+            <span className="w-3 h-3 rounded-full" style={{ background: t.acento }} /> {t.nombre}
+          </button>
+        ))}
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory">
@@ -216,7 +266,7 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
                 {f && (
                   <span className={`absolute top-2 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     enIA ? "bg-fuchsia-500/80 text-white" : f.modo === "propia" ? "bg-sky-500/80 text-white" : "bg-emerald-500/80 text-emerald-950"}`}>
-                    {enIA ? "IA" : f.modo === "propia" ? "TU FOTO" : "DRIVE"}
+                    {enIA ? "IA" : f.modo === "propia" ? "TU FOTO" : f.modo === "collage" ? `COLLAGE ${f.collage.length}` : "DRIVE"}
                   </span>
                 )}
               </div>
@@ -225,26 +275,27 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
                 <p className="flex items-start gap-1 text-[10px] text-red-300"><AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />{f.ia.error}</p>
               )}
 
-              <div className="flex items-center justify-between gap-1">
-                <button onClick={() => cambiarFoto(i, -1)} disabled={!f?.opciones?.length}
-                  className="p-1.5 rounded-md text-gray-300 hover:text-white hover:bg-white/5 disabled:opacity-30" title="Foto de Drive anterior">
-                  <ChevronLeft className="w-4 h-4" />
+              <div className="flex flex-wrap items-center gap-1">
+                <button onClick={() => setSelector({ i, multiple: false })}
+                  className="flex items-center gap-1 text-[11px] text-emerald-300 px-2 py-1 rounded-md border border-emerald-700/60" title="Elegir foto de Drive">
+                  <Images className="w-3 h-3" /> Foto
+                </button>
+                <button onClick={() => setSelector({ i, multiple: true })}
+                  className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border ${f?.modo === "collage" ? "text-lime-200 border-lime-400/60" : "text-sky-300 border-sky-500/40"}`} title="Collage de varias fotos">
+                  <LayoutGrid className="w-3 h-3" /> Collage
                 </button>
                 {enIA ? (
-                  <>
-                    <button onClick={() => otraIA(i)} disabled={f.ia.cargando}
-                      className="flex items-center gap-1 text-[11px] text-fuchsia-300 px-2 py-1 rounded-md border border-fuchsia-500/40 disabled:opacity-40" title="Generar otra versión">
-                      <Wand2 className="w-3 h-3" /> Otra
-                    </button>
-                    <button onClick={() => usarDrive(i)} className="p-1.5 text-emerald-400" title="Usar foto de Drive"><Images className="w-3.5 h-3.5" /></button>
-                  </>
+                  <button onClick={() => otraIA(i)} disabled={f.ia.cargando}
+                    className="flex items-center gap-1 text-[11px] text-fuchsia-300 px-2 py-1 rounded-md border border-fuchsia-500/40 disabled:opacity-40" title="Generar otra versión">
+                    <Wand2 className="w-3 h-3" /> Otra IA
+                  </button>
                 ) : (
                   <button onClick={() => usarIA(i)}
                     className="flex items-center gap-1 text-[11px] text-fuchsia-300 px-2 py-1 rounded-md border border-fuchsia-500/40" title="Generar fondo con IA">
                     <Wand2 className="w-3 h-3" /> IA
                   </button>
                 )}
-                <label className="p-1.5 text-sky-300 hover:text-sky-200 cursor-pointer" title="Subir mi foto">
+                <label className="p-1.5 text-sky-300 hover:text-sky-200 cursor-pointer ml-auto" title="Subir mi foto">
                   <Upload className="w-3.5 h-3.5" />
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => subirFoto(i, e.target.files?.[0])} />
                 </label>
@@ -252,16 +303,17 @@ export default function CarruselVisual({ carrusel, autoIA = false }) {
                   className="p-1.5 rounded-md text-gray-300 hover:text-white hover:bg-white/5 disabled:opacity-30" title="Descargar esta slide">
                   <Download className="w-4 h-4" />
                 </button>
-                <button onClick={() => cambiarFoto(i, 1)} disabled={!f?.opciones?.length}
-                  className="p-1.5 rounded-md text-gray-300 hover:text-white hover:bg-white/5 disabled:opacity-30" title="Foto de Drive siguiente">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
               </div>
               {s.foto && <p className="text-[10px] text-gray-500 italic leading-snug">{f?.sugeridoIA ? "✨ IA sugerida: " : "📷 Ideal: "}{s.foto}</p>}
             </div>
           );
         })}
       </div>
+      {selector && (
+        <SelectorFotos titulo={selector.multiple ? `Collage para la slide ${selector.i + 1}` : `Foto para la slide ${selector.i + 1}`}
+          categoriaSugerida={slides[selector.i]?.categoria_foto} multiple={selector.multiple}
+          onElegir={elegirFotos} onCerrar={() => setSelector(null)} />
+      )}
     </div>
   );
 }

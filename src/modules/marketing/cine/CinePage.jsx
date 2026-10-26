@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { marcarPlan } from "../oficina/usePlan";
+import { enviarALu, captionCompleto } from "../oficina/instagram";
 import {
   ArrowLeft, Clapperboard, Sparkles, Loader2, AlertCircle, Play, Pause, RotateCcw, Download, Share2,
   Copy, Check, History, Trash2, Music, Mic, Volume2, VolumeX, RefreshCw, Wand2, Image as ImageIcon, Images, Film, DollarSign,
@@ -451,6 +452,14 @@ export default function CinePage() {
     }
   };
   const nombre = `earthpark-${(crudo?.titulo || "reel").toLowerCase().normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "")}`;
+  const [envio, setEnvio] = useState(null);
+  const enviarLu = async () => {
+    setEnvio({ cargando: true });
+    try {
+      await enviarALu(planId, { tipo: "reel", archivos: [video.blob], caption: captionCompleto(crudo?.caption, crudo?.hashtags) });
+      setEnvio({ ok: true });
+    } catch (e) { setEnvio({ error: e.message }); }
+  };
   const descargar = () => { const a = document.createElement("a"); a.href = video.url; a.download = `${nombre}.${video.extension}`; a.click(); };
   const compartir = async () => {
     const f = new File([video.blob], `${nombre}.${video.extension}`, { type: video.blob.type });
@@ -626,6 +635,13 @@ export default function CinePage() {
                 {navigator.canShare && <button onClick={compartir} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-950 bg-emerald-400"><Share2 className="w-3.5 h-3.5" /> Guardar / Compartir</button>}
                 <button onClick={descargar} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-emerald-700"><Download className="w-3.5 h-3.5" /> Descargar {video.extension.toUpperCase()}</button>
                 <button onClick={exportar} className="px-3 py-2 rounded-lg text-xs text-gray-300 border border-emerald-900/50">Volver a exportar</button>
+                {planId && (
+                  <button onClick={enviarLu} disabled={envio?.cargando} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-emerald-950 bg-lime-300 disabled:opacity-50">
+                    {envio?.cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />} Enviar a Lu para publicar
+                  </button>
+                )}
+                {envio?.ok && <p className="w-full text-center text-xs text-lime-300">✓ Lu ya lo tiene: prográmalo desde la Oficina IA.</p>}
+                {envio?.error && <p className="w-full text-center text-xs text-red-300">{envio.error}</p>}
               </div>
             ) : (
               <button onClick={exportar} disabled={ocupado} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-emerald-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50">
