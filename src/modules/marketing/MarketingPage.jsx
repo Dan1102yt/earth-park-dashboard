@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Megaphone, Loader2, Sparkles, Calendar, Wand2,
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
-  AlertCircle, Images, Clapperboard, Bot, Film,
+  AlertCircle, Images, Clapperboard, Bot, Film, Users,
 } from "lucide-react";
 import { useMarketingStorage } from "./useMarketingStorage";
 
@@ -762,6 +762,12 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
           </div>
           {/* En el celular los accesos van en una grilla debajo del título */}
           <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+          <Link
+            to="/marketing/oficina"
+            className="col-span-2 sm:col-span-1 flex items-center gap-1.5 text-xs text-emerald-950 bg-gradient-to-r from-lime-300 to-emerald-300 hover:from-lime-200 font-bold transition px-3 py-2 rounded-lg justify-center"
+          >
+            <Users className="w-3.5 h-3.5" /> Oficina IA
+          </Link>
           <Link
             to="/marketing/agente"
             className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-300 hover:bg-emerald-200 font-semibold transition px-3 py-1.5 rounded-lg justify-center"

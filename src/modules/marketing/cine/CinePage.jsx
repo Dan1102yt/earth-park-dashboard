@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { marcarPlan } from "../oficina/usePlan";
 import {
   ArrowLeft, Clapperboard, Sparkles, Loader2, AlertCircle, Play, Pause, RotateCcw, Download, Share2,
   Copy, Check, History, Trash2, Music, Mic, Volume2, VolumeX, RefreshCw, Wand2, Image as ImageIcon, Images, Film, DollarSign,
@@ -147,7 +148,9 @@ function Reproductor({ guion, pista }) {
 /* ─── Página ──────────────────────────────────────────────── */
 export default function CinePage() {
   const workerUrl = import.meta.env.VITE_WORKER_URL;
-  const [tema, setTema] = useState("");
+  const [params] = useSearchParams();
+  const planId = params.get("plan");             // viene de la Oficina IA (publicación aprobada)
+  const [tema, setTema] = useState(params.get("tema") || "");
   const [color, setColor] = useState("bosque");
   const [maxVideo, setMaxVideo] = useState(+leer("ep_cine_maxvideo", "3"));
   const [dimension, setDimension] = useState(leer("ep_cine_dim", "doc"));
@@ -395,6 +398,7 @@ export default function CinePage() {
       const g = { ...(await pedirGuion(workerUrl, tema.trim(), { categorias, maxVideo, dimension })), tema: color, dimension, costo: 0, referencias_sujeto: refsNuevas };
       const fila = await guardar("cine", tema.trim() || g.titulo, g);
       setFilaId(fila?.id || null);
+      if (planId && fila) await marcarPlan(planId, { estado: "en_produccion", resultado_id: fila.id });
       crudoRef.current = g; setCrudoState(g);
       audiosRef.current = []; setAudios([]); setEstado({});
       await storyboard();
@@ -416,6 +420,16 @@ export default function CinePage() {
     if (g.dimension) setDimension(g.dimension);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Si la publicación del plan ya tiene guion, abrirlo
+  const resultadoId = params.get("resultado");
+  const abiertoRef = useRef(false);
+  useEffect(() => {
+    if (abiertoRef.current || !resultadoId) return;
+    const it = items.find((i) => i.id === resultadoId);
+    if (it) { abiertoRef.current = true; abrir(it); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultadoId, items]);
 
   /* ─── Exportar ─── */
   const exportar = async () => {

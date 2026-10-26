@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { marcarPlan } from "../oficina/usePlan";
 import {
   Bot, ArrowLeft, Loader2, AlertCircle, Sparkles, Copy, Check,
   LayoutGrid, MessageCircle, Compass, Trash2, History, Globe,
@@ -146,13 +147,22 @@ function Resultado({ modo, resultado, nuevo }) {
 /* ─── Página ───────────────────────────────────────────────── */
 export default function AgentePage() {
   const workerUrl = import.meta.env.VITE_WORKER_URL;
+  const [params] = useSearchParams();
+  const planId = params.get("plan");             // viene de la Oficina IA (publicación aprobada)
   const [modoId, setModoId] = useState("carrusel");
-  const [tema, setTema] = useState("");
+  const [tema, setTema] = useState(params.get("tema") || "");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [actual, setActual] = useState(null); // { modo, tema, resultado }
   const { items: todos, guardar, borrar } = useAgenteHistorial();
   const items = todos.filter((i) => MODOS[i.modo]); // los guiones de video se ven en su propia página
+
+  // Si la publicación del plan ya se produjo, abrir ese resultado
+  const resultadoId = params.get("resultado");
+  useEffect(() => {
+    const it = resultadoId && todos.find((i) => i.id === resultadoId);
+    if (it) setActual({ modo: it.modo, tema: it.tema, resultado: it.resultado });
+  }, [resultadoId, todos]);
 
   const modo = MODOS[modoId];
 
@@ -165,7 +175,8 @@ export default function AgentePage() {
       const salida = await llamarAgente(workerUrl, modo, tema, ctx);
       const resultado = modo.formato === "json" ? salida : { markdown: salida };
       setActual({ modo: modoId, tema, resultado, nuevo: true });
-      await guardar(modoId, tema, resultado);
+      const fila = await guardar(modoId, tema, resultado);
+      if (planId && fila && modoId === "carrusel") await marcarPlan(planId, { estado: "en_produccion", resultado_id: fila.id });
     } catch (e) {
       setError(e.message);
     } finally {
