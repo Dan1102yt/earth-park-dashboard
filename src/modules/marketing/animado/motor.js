@@ -11,6 +11,7 @@ export const FPS = 30;
 export const TEMAS = {
   bosque: { nombre: "Bosque", fondo: "#04110a", fondo2: "#0b2414", brillo: "rgba(90,180,70,0.24)", linea: "#f1ecdf", tenue: "rgba(241,236,223,0.55)", acento: "#a3e635", acentoRGB: "163,230,53" },
   calido: { nombre: "Cálido", fondo: "#0f0905", fondo2: "#24150a", brillo: "rgba(240,130,40,0.22)", linea: "#f6ecdc", tenue: "rgba(246,236,220,0.55)", acento: "#f59e0b", acentoRGB: "245,158,11" },
+  amarillo: { nombre: "Amarillo", fondo: "#100d02", fondo2: "#2a2205", brillo: "rgba(250,204,21,0.22)", linea: "#fbf7e6", tenue: "rgba(251,247,230,0.55)", acento: "#facc15", acentoRGB: "250,204,21" },
   noche:  { nombre: "Noche",  fondo: "#050813", fondo2: "#0d1630", brillo: "rgba(90,130,240,0.22)", linea: "#eaf0fb", tenue: "rgba(234,240,251,0.55)", acento: "#7dd3fc", acentoRGB: "125,211,252" },
 };
 
@@ -24,6 +25,20 @@ const Y_SUBTITULOS = 1545;
 const Y_LOGO = 1770;
 const TRANS = 0.32; // duración de la transición entre escenas (s)
 export const RETRASO_VOZ = 0.2; // la voz empieza un poco después de que entra la escena
+
+/** Texto con reborde oscuro: se lee siempre, sobre cualquier fondo (subtítulos, titulares). */
+export function textoConBorde(ctx, txt, x, y, tamaño) {
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  ctx.lineWidth = Math.max(5, tamaño * 0.16);
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.shadowColor = "rgba(0,0,0,0.6)";
+  ctx.shadowBlur = tamaño * 0.25;
+  ctx.strokeText(txt, x, y);
+  ctx.restore();
+  ctx.fillText(txt, x, y);
+}
 
 /* ─── Utilidades ──────────────────────────────────────────── */
 
@@ -264,7 +279,7 @@ function dibujarTitular(ctx, texto, t, dur, tema, { centrado = true, y = ZONA_TI
         }
         ctx.fillStyle = p.h ? tema.acento : tema.linea;
         ctx.textAlign = "center";
-        ctx.fillText(p.w, 0, 0);
+        textoConBorde(ctx, p.w, 0, 0, tamaño);
         ctx.restore();
       }
       x += p.ancho + esp;
@@ -320,7 +335,7 @@ function dibujarSubtitulos(ctx, voz, lt, tema) {
     if (activa) ctx.scale(1.08, 1.08);
     ctx.fillStyle = activa ? tema.acento : dicha ? tema.linea : "rgba(255,255,255,0.62)";
     ctx.textAlign = "center";
-    ctx.fillText(p.w.toUpperCase(), 0, 0);
+    textoConBorde(ctx, p.w.toUpperCase(), 0, 0, tam);
     ctx.restore();
     x += anchos[i] + esp;
   });
@@ -358,7 +373,7 @@ function etiquetaBajo(ctx, texto, y, tema, alpha) {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.letterSpacing = "4px";
-  ctx.fillText(String(texto).toUpperCase(), 0, y);
+  textoConBorde(ctx, String(texto).toUpperCase(), 0, y, 34);
   ctx.restore();
 }
 
@@ -447,8 +462,8 @@ function dibujarElemento(ctx, el, t, tema) {
       const acento = w.h || el.acento;
       if (acento) { ctx.shadowColor = `rgba(${tema.acentoRGB},0.6)`; ctx.shadowBlur = 26; }
       ctx.fillStyle = acento ? tema.acento : tema.linea;
-      ctx.fillText(w.w, cx, 0);
       ctx.shadowBlur = 0;
+      textoConBorde(ctx, w.w, cx, 0, tf);
       cx += ctx.measureText(w.w).width + esp;
     });
   } else if (tipo === "contador") {
@@ -461,8 +476,8 @@ function dibujarElemento(ctx, el, t, tema) {
     ctx.fillStyle = el.acento === false ? tema.linea : tema.acento;
     ctx.shadowColor = `rgba(${tema.acentoRGB},0.55)`; ctx.shadowBlur = 34;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(txt, 0, 0);
     ctx.shadowBlur = 0;
+    textoConBorde(ctx, txt, 0, 0, tf);
     etiquetaBajo(ctx, el.etiqueta, tf * 0.62, tema, 1);
   } else if (tipo === "barras") {
     const vals = (el.valores || []).map((v) => num(v, 0)).slice(0, 8);

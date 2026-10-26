@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS contenido_plan (
   media_urls        jsonb       NOT NULL DEFAULT '[]', -- archivos finales para publicar
   caption           text,
   ig_media_id       text,                              -- id de la publicación en Instagram
+  ig_contenedor     text,                              -- contenedor en proceso (lo usa el Worker)
+  ig_permalink      text,                              -- enlace a la publicación
   error             text,
   creado_at         timestamptz NOT NULL DEFAULT now(),
   actualizado_at    timestamptz NOT NULL DEFAULT now()
@@ -33,3 +35,7 @@ CREATE POLICY "anon_full_access" ON contenido_plan
   FOR ALL
   USING (true)
   WITH CHECK (true);
+
+-- Si ya habías creado la tabla antes, estas líneas agregan las columnas nuevas (no pasa nada si ya existen)
+ALTER TABLE contenido_plan ADD COLUMN IF NOT EXISTS ig_contenedor text;
+ALTER TABLE contenido_plan ADD COLUMN IF NOT EXISTS ig_permalink text;
