@@ -189,7 +189,8 @@ export default function CarruselVisual({ carrusel, autoIA = false, planId = null
     setEnvio({ cargando: true });
     try {
       const archivos = await Promise.all(canvases.current.slice(0, total).map(canvasAJpeg));
-      await enviarALu(planId, { tipo: "carrusel", archivos, caption: captionCompleto(carrusel.caption, carrusel.hashtags) });
+      await enviarALu(planId, { tipo: "carrusel", archivos, caption: captionCompleto(carrusel.caption, carrusel.hashtags),
+        tema: String(slides[0]?.titulo || "Carrusel").replace(/\*/g, "") });
       setEnvio({ ok: true });
     } catch (e) {
       setEnvio({ error: e.message });
@@ -220,7 +221,7 @@ export default function CarruselVisual({ carrusel, autoIA = false, planId = null
               <Share2 className="w-3.5 h-3.5" /> Guardar en galería / Compartir
             </button>
           )}
-          {planId && (
+          {(
             <button onClick={enviar} disabled={!listo || ocupado || envio?.cargando}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-emerald-950 bg-lime-300 hover:bg-lime-200 disabled:opacity-50">
               {envio?.cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />} Enviar a Lu para publicar
@@ -235,7 +236,7 @@ export default function CarruselVisual({ carrusel, autoIA = false, planId = null
         </div>
       </div>
 
-      {envio?.ok && <p className="text-xs text-lime-300">✓ Listo. Lu ya lo tiene: prográmalo desde la Oficina IA.</p>}
+      {envio?.ok && <p className="text-xs text-lime-300">✓ Listo. Lu ya lo tiene: en Marketing → Oficina IA, en "Plan aprobado", ponle fecha y toca Programar (o Publicar ya).</p>}
       {envio?.error && <p className="text-xs text-red-300">{envio.error}</p>}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-gray-400">Color</span>

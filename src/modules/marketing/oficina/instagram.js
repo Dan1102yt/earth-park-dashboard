@@ -1,6 +1,6 @@
 // Lu (community manager): preparar archivos para Instagram y hablar con el Worker que publica.
 import { supabase } from "../../../lib/supabaseClient";
-import { marcarPlan } from "./usePlan";
+import { marcarPlan, lunesDe } from "./usePlan";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 
@@ -31,19 +31,47 @@ async function subir(blob, extension) {
 export const canvasAJpeg = (canvas) => new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
 
 /**
- * Deja la publicación del plan "lista" para que Lu la programe:
- * sube los archivos y guarda el caption.
+ * Le entrega a Lu una pieza terminada: sube los archivos y deja la publicación "lista" para programar.
+ * Si la pieza no venía del plan de la Oficina (planId vacío), crea la publicación en el plan.
+ * fecha (opcional, ISO): si viene, queda programada de una vez.
  */
-export async function enviarALu(planId, { tipo, archivos, caption }) {
-  if (!planId) throw new Error("Esta pieza no viene del plan de la Oficina");
+export async function enviarALu(planId, { tipo, archivos, caption, tema, fecha = null }) {
+  if (!supabase) throw new Error("Supabase no está configurado");
+  if (!archivos?.length) throw new Error("No hay archivos para enviar");
   if (tipo === "reel") {
     const v = archivos[0];
     if (!v || !String(v.type).includes("mp4")) throw new Error("Instagram necesita el video en MP4. Exporta de nuevo desde Chrome o Edge.");
   }
+  let id = planId;
+  if (!id) {
+    const { data, error } = await supabase.from("contenido_plan").insert({
+      semana: lunesDe(), tipo, tema: (tema || "Publicación").slice(0, 200), estado: "lista",
+      propuesta: { origen: "manual" }, fecha_publicacion: fecha,
+    }).select().single();
+    if (error) throw new Error(error.message.includes("does not exist")
+      ? "Falta crear la tabla contenido_plan en Supabase (supabase/contenido_plan.sql)" : error.message);
+    id = data.id;
+  }
   const urls = [];
   for (const a of archivos) urls.push(await subir(a, tipo === "reel" ? "mp4" : "jpg"));
-  await marcarPlan(planId, { estado: "lista", media_urls: urls, caption: caption || "", error: null, ig_contenedor: null });
-  return urls;
+  await marcarPlan(id, {
+    estado: fecha ? "programada" : "lista", media_urls: urls, caption: caption || "", error: null, ig_contenedor: null,
+    ...(fecha ? { fecha_publicacion: fecha } : {}),
+  });
+  return id;
+}
+
+/** Imagen subida por el usuario (PNG, HEIC convertido por el navegador, etc.) → JPEG. */
+export async function aJpegInstagram(archivo) {
+  if (archivo.type === "image/jpeg") return archivo;
+  const url = URL.createObjectURL(archivo);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext("2d").drawImage(img, 0, 0);
+    return await canvasAJpeg(c);
+  } finally { URL.revokeObjectURL(url); }
 }
 
 /** Caption con hashtags. */

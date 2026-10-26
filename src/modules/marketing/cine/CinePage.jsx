@@ -456,7 +456,7 @@ export default function CinePage() {
   const enviarLu = async () => {
     setEnvio({ cargando: true });
     try {
-      await enviarALu(planId, { tipo: "reel", archivos: [video.blob], caption: captionCompleto(crudo?.caption, crudo?.hashtags) });
+      await enviarALu(planId, { tipo: "reel", archivos: [video.blob], caption: captionCompleto(crudo?.caption, crudo?.hashtags), tema: crudo?.titulo || tema });
       setEnvio({ ok: true });
     } catch (e) { setEnvio({ error: e.message }); }
   };
@@ -635,12 +635,12 @@ export default function CinePage() {
                 {navigator.canShare && <button onClick={compartir} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-950 bg-emerald-400"><Share2 className="w-3.5 h-3.5" /> Guardar / Compartir</button>}
                 <button onClick={descargar} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-emerald-700"><Download className="w-3.5 h-3.5" /> Descargar {video.extension.toUpperCase()}</button>
                 <button onClick={exportar} className="px-3 py-2 rounded-lg text-xs text-gray-300 border border-emerald-900/50">Volver a exportar</button>
-                {planId && (
+                {(
                   <button onClick={enviarLu} disabled={envio?.cargando} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-emerald-950 bg-lime-300 disabled:opacity-50">
                     {envio?.cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />} Enviar a Lu para publicar
                   </button>
                 )}
-                {envio?.ok && <p className="w-full text-center text-xs text-lime-300">✓ Lu ya lo tiene: prográmalo desde la Oficina IA.</p>}
+                {envio?.ok && <p className="w-full text-center text-xs text-lime-300">✓ Lu ya lo tiene: en Marketing → Oficina IA, en "Plan aprobado", ponle fecha y toca Programar (o Publicar ya).</p>}
                 {envio?.error && <p className="w-full text-center text-xs text-red-300">{envio.error}</p>}
               </div>
             ) : (
