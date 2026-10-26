@@ -11,6 +11,8 @@ import InformeInvestigacion from "./InformeInvestigacion";
 import EditorAvatares, { useAvatares, Retrato } from "./EditorAvatares";
 import { ultimoInforme, informeVencido, investigarSemana, informeParaPlan } from "./investigacion";
 import { estadoInstagram, publicarAhora } from "./instagram";
+import SubirALu from "./SubirALu";
+import { aInputLocal, desdeInputLocal } from "./planPrompt";
 
 const tarjeta = { background: "rgba(10,22,6,0.6)", border: "1px solid rgba(77,142,30,0.18)" };
 const DUR_CAMINATA = 3.5; // segundos para ir del escritorio a la mesa
@@ -74,10 +76,24 @@ export default function OficinaPage() {
   const canvasRef = useRef(null);
   const etiquetas = useRef({});
   const oscarRef = useRef(null);
-  const avance = useRef({ global: 0 });
+  const avance = useRef({ global: 0, cafe: {} });
   const looks = useMemo(() => Object.fromEntries(agentes.map((a) => [a.id, a.look])), [agentes]);
-  const datos = useRef({ equipo, hayReunion, looks });
-  datos.current = { equipo, hayReunion, looks };
+  // KPI del tablero: avance del plan de esta semana (se actualiza solo con cada cambio)
+  const kpis = useMemo(() => {
+    const semana = items.filter((i) => i.semana === lunesDe() && i.estado !== "descartada");
+    const en = (...es) => semana.filter((i) => es.includes(i.estado)).length;
+    const proximas = items.filter((i) => i.estado === "programada" && i.fecha_publicacion && new Date(i.fecha_publicacion) > new Date())
+      .sort((a, b) => a.fecha_publicacion.localeCompare(b.fecha_publicacion));
+    return {
+      total: semana.length,
+      aprobadas: en("aprobada", "en_produccion", "lista", "programada", "publicada"),
+      producidas: en("lista", "programada", "publicada"),
+      publicadas: en("publicada"),
+      proxima: proximas[0] ? new Date(proximas[0].fecha_publicacion).toLocaleString("es-CO", { timeZone: "America/Bogota", weekday: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null,
+    };
+  }, [items]);
+  const datos = useRef({ equipo, hayReunion, looks, kpis });
+  datos.current = { equipo, hayReunion, looks, kpis };
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -85,7 +101,7 @@ export default function OficinaPage() {
     let raf, previo = performance.now();
     const cuadro = (ahora) => {
       const dt = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
-      const { equipo: eq, hayReunion: hr, looks: lk } = datos.current;
+      const { equipo: eq, hayReunion: hr, looks: lk, kpis: kp } = datos.current;
       const estados = {};
       // En reunión todos caminan a la mesa, uno detrás de otro; al terminar vuelven a su escritorio
       const objetivo = hr ? 1 : 0;
@@ -94,13 +110,19 @@ export default function OficinaPage() {
       const S = 0.15;
       AGENTES.forEach((a, i) => {
         const k = Math.min(1, Math.max(0, avance.current.global * (1 + S * (AGENTES.length - 1)) - S * i));
-        estados[a.id] = { trabajando: !!eq[a.id]?.trabajando, enReunion: k };
+        // Quien no tiene trabajo se va un rato al café (cada agente a su hora, para que la oficina se vea viva)
+        const libre = !eq[a.id]?.trabajando && !hr;
+        const ciclo = (ahora / 1000 + i * 13) % 75;
+        const quiereCafe = libre && ciclo < 20;
+        const c = avance.current.cafe[a.id] || 0;
+        avance.current.cafe[a.id] = quiereCafe ? Math.min(1, c + dt / 3.5) : Math.max(0, c - dt / 3.5);
+        estados[a.id] = { trabajando: !!eq[a.id]?.trabajando, enReunion: k, enCafe: k > 0 ? 0 : avance.current.cafe[a.id] };
         const el = etiquetas.current[a.id];
         if (el) {
           // En la mesa de reuniones solo se ve el ícono (los nombres se amontonan)
           const nombre = el.querySelector("[data-nombre]");
-          if (nombre) nombre.style.display = estados[a.id].enReunion > 0 ? "none" : "";
-          const p = posicionAgente(a, estados[a.id].enReunion);
+          if (nombre) nombre.style.display = estados[a.id].enReunion > 0 || estados[a.id].enCafe > 0 ? "none" : "";
+          const p = posicionAgente(a, estados[a.id].enReunion, estados[a.id].enCafe);
           el.style.left = `${(p.x / W) * 100}%`;
           el.style.top = `${(p.y / H) * 100}%`;
         }
@@ -110,7 +132,7 @@ export default function OficinaPage() {
         oscarRef.current.style.left = `${(p.x / W) * 100}%`;
         oscarRef.current.style.top = `${(p.y / H) * 100}%`;
       }
-      dibujarOficina(ctx, ahora / 1000, estados, { reunionPendiente: hr, looks: lk });
+      dibujarOficina(ctx, ahora / 1000, estados, { reunionPendiente: hr, looks: lk, kpis: kp });
       raf = requestAnimationFrame(cuadro);
     };
     raf = requestAnimationFrame(cuadro);
@@ -143,7 +165,12 @@ export default function OficinaPage() {
   useEffect(() => {
     estadoInstagram().then((d) => setIg(d)).catch((e) => setIg({ error: e.message }));
   }, []);
-  const programar = (f) => actualizarFila(f.id, { estado: "programada", error: null });
+  const [subir, setSubir] = useState(false);
+  const programar = (f) => {
+    if (!f.fecha_publicacion) { actualizarFila(f.id, { error: "Ponle fecha y hora antes de programar" }); return; }
+    if (new Date(f.fecha_publicacion) <= new Date()) { publicarYa(f); return; }
+    actualizarFila(f.id, { estado: "programada", error: null });
+  };
   const publicarYa = async (f) => {
     setPublicando(f.id);
     try { await publicarAhora(f.id); } catch (e) { await actualizarFila(f.id, { error: e.message }).catch(() => {}); }
@@ -296,6 +323,9 @@ export default function OficinaPage() {
                 : ig.usuario ? <span className="text-gray-200">Conectado como <b className="text-white">@{ig.usuario}</b>{!ig.renovacionAutomatica && <span className="block text-[10px] text-amber-300">El permiso vence en 60 días: activa la renovación automática (KV)</span>}</span>
                 : <span className="text-amber-300">Instagram sin conectar. {nombre("community")} no puede publicar todavía.</span>}
             </div>
+            <button onClick={() => setSubir(true)} className="flex-shrink-0 text-[11px] font-semibold text-pink-950 bg-pink-300 px-2 py-1.5 rounded-lg">
+              Entregar a {nombre("community")}
+            </button>
           </div>
 
           <div className="rounded-2xl p-3 space-y-2" style={tarjeta}>
@@ -344,6 +374,9 @@ export default function OficinaPage() {
                     <span className="ml-7 sm:ml-0 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: est.color, border: `1px solid ${est.color}66` }}>{est.texto}</span>
                     {f.estado === "lista" && (
                       <>
+                        <input type="datetime-local" value={aInputLocal(f.fecha_publicacion)}
+                          onChange={(e) => actualizarFila(f.id, { fecha_publicacion: desdeInputLocal(e.target.value), error: null })}
+                          className="bg-black/40 border border-pink-900/60 rounded-md text-white text-[11px] px-1.5 py-1" style={{ width: "auto" }} />
                         <button onClick={() => programar(f)} className="flex items-center gap-1 text-[11px] font-semibold text-emerald-950 bg-pink-300 px-2 py-1 rounded-lg">
                           <CalendarClock className="w-3 h-3" /> Programar
                         </button>
@@ -373,6 +406,7 @@ export default function OficinaPage() {
           )}
       </div>
 
+      {subir && <SubirALu nombreLu={nombre("community")} onListo={recargar} onCerrar={() => setSubir(false)} />}
       {verInforme && inv.fila && (
         <InformeInvestigacion fila={inv.fila} agente={agentes.find((a) => a.id === "investigador")} onCerrar={() => setVerInforme(false)} />
       )}
