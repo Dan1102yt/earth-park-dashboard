@@ -17,6 +17,7 @@ import EditorVideoPage from "./modules/marketing/editor/EditorVideoPage";
 import AgentePage from "./modules/marketing/agente/AgentePage";
 import AnimadoPage from "./modules/marketing/animado/AnimadoPage";
 import CinePage from "./modules/marketing/cine/CinePage";
+import OficinaPage from "./modules/marketing/oficina/OficinaPage";
 import Devoluciones from "./modules/financiero/Devoluciones";
 
 function AppContent() {
@@ -57,6 +58,7 @@ function AppContent() {
               <Route path="/marketing/agente" element={<AgentePage />} />
               <Route path="/marketing/animado" element={<AnimadoPage />} />
               <Route path="/marketing/cine" element={<CinePage />} />
+              <Route path="/marketing/oficina" element={<OficinaPage />} />
               <Route path="/devoluciones" element={<Devoluciones />} />
               <Route path="*" element={<Navigate to="/reservas" replace />} />
             </Routes>
