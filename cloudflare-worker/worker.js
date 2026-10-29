@@ -482,27 +482,46 @@ async function getGoogleToken(env, scopeType = "sheets") {
 
 
 /* ═══ Instagram: publicación del plan de contenido ════════════════════════
-   Secretos/variables del Worker:
-     IG_TOKEN       token largo de Instagram (API con inicio de sesión de Instagram)
-     SUPABASE_URL   URL del proyecto de Supabase
-     SUPABASE_KEY   clave anon de Supabase
-   Opcional (recomendado): un espacio KV vinculado como EP_KV para guardar el token renovado automáticamente. */
+   Funciona de dos formas (el Worker detecta cuál según el secreto que exista):
+   A) FB_TOKEN  → API de Instagram con inicio de sesión de Facebook (Instagram vinculado a una página de Facebook).
+                  Se recomienda el token de la PÁGINA sacado de un token de usuario largo: no vence.
+   B) IG_TOKEN  → API de Instagram con inicio de sesión de Instagram (token de 60 días; se renueva solo con EP_KV).
+   Además:  SUPABASE_URL y SUPABASE_KEY (clave anon de Supabase). */
 
-const IG = "https://graph.instagram.com";
-
-async function igToken(env) {
-  if (env.EP_KV) {
-    const t = await env.EP_KV.get("ig_token");
-    if (t) return t;
+/** Cuenta conectada: { host, token, igId, usuario, modo } */
+async function cuentaIG(env) {
+  if (env.FB_TOKEN) {
+    const host = "https://graph.facebook.com";
+    const pedir = async (ruta, token) => {
+      const r = await fetch(`${host}/${ruta}${ruta.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(token)}`);
+      const d = await r.json();
+      if (d.error) throw new Error(`Facebook: ${d.error.message}`);
+      return d;
+    };
+    // Token de página: /me es la página
+    const yo = await pedir("me?fields=id,name,instagram_business_account{id,username}", env.FB_TOKEN).catch(() => null);
+    if (yo?.instagram_business_account?.id) {
+      return { host, token: env.FB_TOKEN, igId: yo.instagram_business_account.id, usuario: yo.instagram_business_account.username, pagina: yo.name, modo: "facebook" };
+    }
+    // Token de usuario: buscar la página que tiene el Instagram vinculado
+    const paginas = await pedir("me/accounts?fields=name,access_token,instagram_business_account{id,username}&limit=50", env.FB_TOKEN);
+    const p = (paginas.data || []).find((x) => x.instagram_business_account?.id);
+    if (!p) throw new Error("Ninguna página de Facebook de esta cuenta tiene un Instagram profesional vinculado");
+    return { host, token: p.access_token, igId: p.instagram_business_account.id, usuario: p.instagram_business_account.username, pagina: p.name, modo: "facebook" };
   }
-  if (!env.IG_TOKEN) throw new Error("Falta el secreto IG_TOKEN en el Worker");
-  return env.IG_TOKEN;
+  let token = env.IG_TOKEN;
+  if (env.EP_KV) token = (await env.EP_KV.get("ig_token")) || token;
+  if (!token) throw new Error("Falta el secreto FB_TOKEN (o IG_TOKEN) en el Worker");
+  const host = "https://graph.instagram.com";
+  const r = await fetch(`${host}/me?fields=user_id,username&access_token=${encodeURIComponent(token)}`);
+  const d = await r.json();
+  if (d.error) throw new Error(`Instagram: ${d.error.message}`);
+  return { host, token, igId: d.user_id, usuario: d.username, modo: "instagram" };
 }
 
-async function ig(env, ruta, { metodo = "GET", params = {} } = {}) {
-  const token = await igToken(env);
-  const u = new URL(`${IG}/${ruta}`);
-  const cuerpo = new URLSearchParams({ ...params, access_token: token });
+async function ig(cta, ruta, { metodo = "GET", params = {} } = {}) {
+  const u = new URL(`${cta.host}/${ruta}`);
+  const cuerpo = new URLSearchParams({ ...params, access_token: cta.token });
   let res;
   if (metodo === "GET") {
     cuerpo.forEach((v, k) => u.searchParams.set(k, v));
@@ -516,10 +535,14 @@ async function ig(env, ruta, { metodo = "GET", params = {} } = {}) {
 }
 
 async function igEstado(env) {
-  const yo = await ig(env, "me", { params: { fields: "user_id,username,account_type,media_count" } });
+  const cta = await cuentaIG(env);
   let cupo = null;
-  try { cupo = await ig(env, `${yo.user_id}/content_publishing_limit`, { params: { fields: "quota_usage,config" } }); } catch { /* opcional */ }
-  return { conectado: true, usuario: yo.username, tipo: yo.account_type, publicaciones: yo.media_count, cupo: cupo?.data?.[0] || null, renovacionAutomatica: !!env.EP_KV };
+  try { cupo = await ig(cta, `${cta.igId}/content_publishing_limit`, { params: { fields: "quota_usage,config" } }); } catch { /* opcional */ }
+  return {
+    conectado: true, usuario: cta.usuario, pagina: cta.pagina || null, modo: cta.modo, cupo: cupo?.data?.[0] || null,
+    // Con token de Facebook (página) no hay que renovar nada
+    renovacionAutomatica: cta.modo === "facebook" || !!env.EP_KV,
+  };
 }
 
 /* Supabase (REST) */
@@ -538,24 +561,24 @@ async function sbActualizar(env, id, cambios) {
 }
 
 /** Crea el contenedor de Instagram para una publicación del plan. */
-async function crearContenedor(env, igId, fila) {
+async function crearContenedor(cta, igId, fila) {
   const urls = fila.media_urls || [];
   if (!urls.length) throw new Error("La publicación no tiene archivos (envíala desde el carrusel o el video)");
   const caption = (fila.caption || "").slice(0, 2200);
   if (fila.tipo === "reel") {
-    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { media_type: "REELS", video_url: urls[0], caption, share_to_feed: "true" } });
+    const c = await ig(cta, `${igId}/media`, { metodo: "POST", params: { media_type: "REELS", video_url: urls[0], caption, share_to_feed: "true" } });
     return c.id;
   }
   if (urls.length === 1) {
-    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { image_url: urls[0], caption } });
+    const c = await ig(cta, `${igId}/media`, { metodo: "POST", params: { image_url: urls[0], caption } });
     return c.id;
   }
   const hijos = [];
   for (const u of urls.slice(0, 20)) {
-    const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { image_url: u, is_carousel_item: "true" } });
+    const c = await ig(cta, `${igId}/media`, { metodo: "POST", params: { image_url: u, is_carousel_item: "true" } });
     hijos.push(c.id);
   }
-  const c = await ig(env, `${igId}/media`, { metodo: "POST", params: { media_type: "CAROUSEL", children: hijos.join(","), caption } });
+  const c = await ig(cta, `${igId}/media`, { metodo: "POST", params: { media_type: "CAROUSEL", children: hijos.join(","), caption } });
   return c.id;
 }
 
@@ -574,27 +597,27 @@ async function procesarPublicaciones(env, soloId = null) {
   const filas = await r.json();
   if (!filas.length) return { procesadas: 0, resultados: [] };
 
-  const yo = await ig(env, "me", { params: { fields: "user_id" } });
+  const cta = await cuentaIG(env);
   const resultados = [];
   for (const fila of filas) {
     if (fila.estado !== "programada") continue;
     try {
       let contenedor = fila.ig_contenedor;
       if (!contenedor) {
-        contenedor = await crearContenedor(env, yo.user_id, fila);
+        contenedor = await crearContenedor(cta, cta.igId, fila);
         await sbActualizar(env, fila.id, { ig_contenedor: contenedor, error: null });
       }
       // Esperar un poco por el procesamiento (las fotos suelen estar listas de inmediato)
       let estado = "IN_PROGRESS";
       for (let k = 0; k < 6; k++) {
-        estado = (await ig(env, contenedor, { params: { fields: "status_code" } })).status_code;
+        estado = (await ig(cta, contenedor, { params: { fields: "status_code" } })).status_code;
         if (estado !== "IN_PROGRESS") break;
         await new Promise((res) => setTimeout(res, 5000));
       }
       if (estado === "FINISHED") {
-        const pub = await ig(env, `${yo.user_id}/media_publish`, { metodo: "POST", params: { creation_id: contenedor } });
+        const pub = await ig(cta, `${cta.igId}/media_publish`, { metodo: "POST", params: { creation_id: contenedor } });
         let permalink = null;
-        try { permalink = (await ig(env, pub.id, { params: { fields: "permalink" } })).permalink; } catch { /* opcional */ }
+        try { permalink = (await ig(cta, pub.id, { params: { fields: "permalink" } })).permalink; } catch { /* opcional */ }
         await sbActualizar(env, fila.id, { estado: "publicada", ig_media_id: pub.id, ig_permalink: permalink, error: null });
         resultados.push({ id: fila.id, estado: "publicada", permalink });
       } else if (estado === "ERROR" || estado === "EXPIRED") {
@@ -613,11 +636,12 @@ async function procesarPublicaciones(env, soloId = null) {
 
 /** Renueva el token largo (dura 60 días) una vez por semana, si hay KV para guardarlo. */
 async function renovarTokenSiToca(env) {
-  if (!env.EP_KV) return;
+  if (!env.EP_KV || env.FB_TOKEN) return;
   const ultima = Number(await env.EP_KV.get("ig_token_renovado") || 0);
   if (Date.now() - ultima < 7 * 86400000) return;
-  const token = await igToken(env);
-  const res = await fetch(`${IG}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
+  const token = (await env.EP_KV.get("ig_token")) || env.IG_TOKEN;
+  if (!token) return;
+  const res = await fetch(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
   const data = await res.json();
   if (data.access_token) {
     await env.EP_KV.put("ig_token", data.access_token);
