@@ -760,45 +760,25 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
             <h1 className="text-xl font-bold text-white leading-tight">Marketing</h1>
             <p className="text-xs text-gray-500">Genera contenido listo para @earthpark.co · Instagram & TikTok</p>
           </div>
-          {/* En el celular los accesos van en una grilla debajo del título */}
-          <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-          <Link
-            to="/marketing/oficina"
-            className="col-span-2 sm:col-span-1 flex items-center gap-1.5 text-xs text-emerald-950 bg-gradient-to-r from-lime-300 to-emerald-300 hover:from-lime-200 font-bold transition px-3 py-2 rounded-lg justify-center"
-          >
-            <Users className="w-3.5 h-3.5" /> Oficina IA
-          </Link>
-          <Link
-            to="/marketing/agente"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-300 hover:bg-emerald-200 font-semibold transition px-3 py-1.5 rounded-lg justify-center"
-          >
-            <Bot className="w-3.5 h-3.5" /> Agente IA
-          </Link>
-          <Link
-            to="/marketing/animado"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-lime-300 hover:bg-lime-200 font-semibold transition px-3 py-2 rounded-lg justify-center"
-          >
-            <Film className="w-3.5 h-3.5" /> Videos animados
-          </Link>
-          <Link
-            to="/marketing/cine"
-            className="flex items-center gap-1.5 text-xs text-fuchsia-950 bg-fuchsia-300 hover:bg-fuchsia-200 font-semibold transition px-3 py-2 rounded-lg justify-center"
-          >
-            <Clapperboard className="w-3.5 h-3.5" /> Videos cine IA
-          </Link>
-          <Link
-            to="/marketing/editor-video"
-            className="flex items-center gap-1.5 text-xs text-emerald-950 bg-emerald-500 hover:bg-emerald-400 font-semibold transition px-3 py-2 rounded-lg justify-center"
-          >
-            <Clapperboard className="w-3.5 h-3.5" /> Editor de video
-          </Link>
-          <Link
-            to="/marketing/galeria-web"
-            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-emerald-700/50 justify-center"
-          >
-            <Images className="w-3.5 h-3.5" /> Galería web
-          </Link>
-          </div>
+        </div>
+
+        {/* Herramientas: mosaico uniforme (3 por fila en el celular) */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 -mt-6">
+          {[
+            ["/marketing/oficina", Users, "Oficina IA", "Tu equipo de agentes", true],
+            ["/marketing/agente", Bot, "Agente IA", "Carruseles e historias"],
+            ["/marketing/cine", Clapperboard, "Videos cine", "Documental con IA"],
+            ["/marketing/animado", Film, "Animados", "Explicativos"],
+            ["/marketing/editor-video", Clapperboard, "Editor", "Edita tus videos"],
+            ["/marketing/galeria-web", Images, "Galería", "Fotos de la web"],
+          ].map(([to, Icono, titulo, desc, destacado]) => (
+            <Link key={to} to={to}
+              className={`flex flex-col items-center sm:items-start gap-1 rounded-2xl p-3 text-center sm:text-left transition border ${destacado ? "bg-lime-300/15 border-lime-400/60" : "bg-white/5 border-emerald-900/50 hover:border-emerald-600/60"}`}>
+              <Icono className={`w-6 h-6 ${destacado ? "text-lime-300" : "text-emerald-400"}`} />
+              <span className="text-xs font-semibold text-white leading-tight">{titulo}</span>
+              <span className="hidden sm:block text-[10px] text-gray-500 leading-tight">{desc}</span>
+            </Link>
+          ))}
         </div>
 
         {/* ══════════════════════════════════════════════════
