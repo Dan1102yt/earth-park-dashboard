@@ -2,6 +2,7 @@
 import { supabase } from "../../../lib/supabaseClient";
 import { marcarPlan, lunesDe } from "./usePlan";
 
+const LIMITE_MB = 50; // máximo por archivo en Supabase (plan gratis)
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 
 async function llamar(ruta, cuerpo) {
@@ -41,6 +42,13 @@ export async function enviarALu(planId, { tipo, archivos, caption, tema, fecha =
   if (tipo === "reel") {
     const v = archivos[0];
     if (!v || !String(v.type).includes("mp4")) throw new Error("Instagram necesita el video en MP4. Exporta de nuevo desde Chrome o Edge.");
+  }
+  const grande = archivos.find((a) => a.size > LIMITE_MB * 1024 * 1024);
+  if (grande) {
+    throw new Error(`El archivo pesa ${(grande.size / 1048576).toFixed(0)} MB y el máximo es ${LIMITE_MB} MB. `
+      + (tipo === "reel"
+        ? "Si lo hiciste en Videos cine IA, vuelve a exportarlo (ahora sale más liviano). Si es un video tuyo, comprímelo (por ejemplo con CapCut a 1080p) y súbelo de nuevo."
+        : "Reduce el tamaño de la foto e intenta de nuevo."));
   }
   let id = planId;
   if (!id) {

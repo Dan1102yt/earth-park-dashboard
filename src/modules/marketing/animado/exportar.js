@@ -6,10 +6,18 @@ import { contextoAudio } from "./voz";
 
 const CODECS = ["avc1.640028", "avc1.4d0028", "avc1.42003e", "avc1.42001f"];
 
-async function videoSoportado() {
+// El archivo final debe pesar menos de ~45 MB (límite de Supabase para enviarlo a Instagram):
+// la calidad se ajusta según la duración (máx. 8 Mbps, mín. 2,5 Mbps).
+const MAX_MB = 45;
+export function bitrateParaDuracion(segundos) {
+  const disponible = (MAX_MB * 8 * 1_000_000) / Math.max(1, segundos) - 180_000; // menos el audio
+  return Math.round(Math.max(2_500_000, Math.min(8_000_000, disponible)));
+}
+
+async function videoSoportado(bitrate = 8_000_000) {
   if (typeof VideoEncoder === "undefined") return null;
   for (const codec of CODECS) {
-    const cfg = { codec, width: ANCHO, height: ALTO, bitrate: 8_000_000, framerate: FPS };
+    const cfg = { codec, width: ANCHO, height: ALTO, bitrate, framerate: FPS };
     try {
       if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg;
     } catch { /* siguiente */ }
@@ -44,7 +52,7 @@ export async function exportarVideo(guion, pista = null, onProgreso = () => {}, 
   canvas.height = ALTO;
   const ctx = canvas.getContext("2d");
 
-  const vcfg = await videoSoportado();
+  const vcfg = await videoSoportado(bitrateParaDuracion(guion.total || 60));
   const acfg = await audioSoportado(pista);
   // Si hay narración pero el navegador no puede codificar AAC, mejor grabar en vivo (con audio)
   if (vcfg && (!pista || acfg)) return exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso, dibujar, preparar);
@@ -121,7 +129,7 @@ async function grabarEnVivo(guion, canvas, ctx, pista, onProgreso, dibujar) {
     fuente.connect(destino);
     destino.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
   }
-  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrateParaDuracion(guion.total || 60) });
   const partes = [];
   rec.ondataavailable = (e) => e.data.size && partes.push(e.data);
   const fin = new Promise((r) => { rec.onstop = r; });
