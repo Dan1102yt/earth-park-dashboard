@@ -161,8 +161,8 @@ export default function AnimadoPage() {
   useEffect(() => {
     listarVoces()
       .then(({ voces: vs, porDefecto }) => {
-        setVoces(vs);
-        setVozId((actual) => (vs.some((v) => v.id === actual) ? actual : porDefecto || vs[0]?.id || ""));
+        setVoces(vs || []);
+        setVozId((actual) => ((vs || []).some((v) => v.id === actual) ? actual : porDefecto || vs?.[0]?.id || ""));
       })
       .catch((e) => setErrorVoces(e.message));
   }, []);

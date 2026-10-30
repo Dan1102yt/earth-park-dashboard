@@ -1,4 +1,4 @@
-import { listarSubcarpetas, listarFotosCarpeta } from "../../../services/driveService";
+import { listarSubcarpetas, listarCarpeta } from "../../../services/driveService";
 
 // Misma carpeta raíz de la Galería web: una subcarpeta por categoría de fotos.
 export const FOTOS_ROOT_ID = "14VB2pCIKlIHqOtEm7hlLNdKnoZXRyE65";
@@ -20,13 +20,31 @@ export function obtenerCategorias() {
   return categoriasPromesa;
 }
 
-/** Fotos (solo imágenes) de una categoría, en caché. */
-export async function obtenerFotos(categoria) {
+const contenidoCache = new Map(); // folderId → Promise<{carpetas, fotos}>
+
+/** Subcarpetas y fotos de una carpeta, en caché. */
+export function obtenerContenido(folderId) {
+  if (!contenidoCache.has(folderId)) {
+    const p = listarCarpeta(folderId).catch((e) => {
+      contenidoCache.delete(folderId);
+      console.warn("[fotos] carpeta:", e.message);
+      return { carpetas: [], fotos: [] };
+    });
+    contenidoCache.set(folderId, p);
+  }
+  return contenidoCache.get(folderId);
+}
+
+/** Fotos de una categoría, incluidas las de sus subcarpetas (hasta 2 niveles), en caché. */
+export async function obtenerFotos(categoria, nivel = 0) {
   if (!categoria) return [];
   if (!fotosPorCategoria.has(categoria.id)) {
-    const p = listarFotosCarpeta(categoria.id)
-      .then((fs) => fs.filter((f) => f.mimeType?.startsWith("image/")))
-      .catch(() => []);
+    const p = (async () => {
+      const { carpetas, fotos } = await obtenerContenido(categoria.id);
+      if (nivel >= 2 || !carpetas.length) return fotos;
+      const subs = await Promise.all(carpetas.map((c) => obtenerFotos(c, nivel + 1)));
+      return [...fotos, ...subs.flat()];
+    })();
     fotosPorCategoria.set(categoria.id, p);
   }
   return fotosPorCategoria.get(categoria.id);
@@ -35,7 +53,7 @@ export async function obtenerFotos(categoria) {
 /** Todas las fotos de todas las categorías (para cuando no hay categoría sugerida). */
 export async function obtenerTodasLasFotos() {
   const cats = await obtenerCategorias();
-  const listas = await Promise.all(cats.map(obtenerFotos));
+  const listas = await Promise.all(cats.map((c) => obtenerFotos(c)));
   return listas.flat();
 }
 

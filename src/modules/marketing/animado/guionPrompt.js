@@ -11,7 +11,11 @@ ESTILO (como los explainers animados que se vuelven virales):
   · "narracion": lo que dice el narrador en esa escena (entre 10 y 26 palabras), en español colombiano natural y hablado,
     cálido, como un buen storyteller de YouTube. Debe sonar bien leído en voz alta: frases cortas, sin listas ni símbolos,
     números escritos como se dicen. La narración amplía el titular, no lo repite palabra por palabra.
-- Estructura: 1) gancho en los primeros 2 segundos (pregunta, contraste o dato que sorprende) → 2) problema → 3) giro → 4) lo que enseña (valor real, guardable) → 5) Earth Park aparece natural, no como anuncio → cierre con CTA de comentar una palabra.
+- Estructura en 4 partes: 1) GANCHO en los primeros 2 segundos (rompe el patrón: pregunta, contraste o dato que sorprende)
+  → 2) INTRO: promete en una frase qué se va a llevar quien mira → 3) DESARROLLO: problema y giro, abriendo temprano un
+  BUCLE (una pregunta que solo se resuelve al final) y con mini-ganchos cada 2 o 3 escenas; Earth Park aparece natural,
+  no como anuncio → 4) CIERRE: resuelve el bucle (la recompensa por quedarse) y da el siguiente paso (comentar una palabra,
+  guardar o venir a vivirlo).
 - Entre 6 y 9 escenas, duración total entre 25 y 45 segundos (la duración real la marca la voz).
 - Dinamismo: en cada escena algo se mueve o cambia (un elemento que se desplaza con mover, un contador que sube,
   una opción que se atenúa para enfocar otra, elementos que entran escalonados). Evita escenas con un solo ícono quieto.

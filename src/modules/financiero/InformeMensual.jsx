@@ -443,7 +443,8 @@ export default function InformeMensual() {
       </div>
 
       {/* ─────────────── Informe imprimible ─────────────── */}
-      <div className="informe-print">
+      {/* En el celular la hoja A4 se desliza de lado dentro de su caja (no agranda toda la página) */}
+      <div className="informe-print overflow-x-auto print:overflow-visible">
 
         {/* Página 1 — Portada y resumen ejecutivo */}
         <section className="informe-page">

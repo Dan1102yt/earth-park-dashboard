@@ -28,6 +28,14 @@ const usd = (v) => `US$${(v || 0).toFixed(2)}`;
 const leer = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const escribir = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
 
+// Partes de la estructura del video (gancho → intro → desarrollo → cierre)
+const PARTES = {
+  gancho: { texto: "Gancho", clase: "bg-pink-500/25 text-pink-200" },
+  intro: { texto: "Intro", clase: "bg-sky-500/25 text-sky-200" },
+  desarrollo: { texto: "Desarrollo", clase: "bg-white/10 text-gray-300" },
+  cierre: { texto: "Cierre", clase: "bg-lime-500/25 text-lime-200" },
+};
+
 const IDEAS = [
   "¿Por qué el agua del embalse cambia de color?",
   "¿Cómo sabe una mariposa hacia dónde volar?",
@@ -185,8 +193,8 @@ export default function CinePage() {
   useEffect(() => { escribir("ep_cine_dim", dimension); }, [dimension]);
   useEffect(() => {
     listarVoces().then(({ voces: vs, porDefecto }) => {
-      setVoces(vs);
-      setVozId((a) => (vs.some((v) => v.id === a) ? a : porDefecto || vs[0]?.id || ""));
+      setVoces(vs || []);
+      setVozId((a) => ((vs || []).some((v) => v.id === a) ? a : porDefecto || vs?.[0]?.id || ""));
     }).catch(() => {});
   }, []);
 
@@ -655,6 +663,10 @@ export default function CinePage() {
           <div className="space-y-3 min-w-0">
             <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Storyboard</p>
             {crudo.estilo_visual && <p className="text-[11px] text-gray-500">Estilo: {crudo.estilo_visual}</p>}
+            {crudo.bucle?.pregunta && (
+              <p className="text-xs text-amber-200/90">❓ <b>Bucle:</b> {crudo.bucle.pregunta} <span className="text-lime-300">→ {crudo.bucle.respuesta}</span></p>
+            )}
+            {(crudo.avisos_estructura || []).map((a) => <p key={a} className="text-xs text-amber-300">⚠ {a}</p>)}
             <div className="rounded-xl p-3 space-y-2" style={tarjeta}>
               <p className="text-xs font-semibold text-white">Fotos reales del protagonista <span className="text-gray-500 font-normal">(opcional, hasta 2)</span></p>
               <p className="text-[11px] text-gray-400">Sube fotos reales del sujeto (ej. la mariposa 88 por debajo y por encima). La IA las usa para que salga fiel a la realidad en las escenas donde aparece.</p>
@@ -691,7 +703,14 @@ export default function CinePage() {
                       </div>
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-bold text-emerald-400">Escena {i + 1}</span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-emerald-400">Escena {i + 1}</span>
+                            {e.parte && (
+                              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${PARTES[e.parte]?.clase || ""}`}>{PARTES[e.parte]?.texto || e.parte}</span>
+                            )}
+                            {crudo.bucle && Number(crudo.bucle.escena_pregunta) === i + 1 && <span className="text-[10px] text-amber-300" title={crudo.bucle.pregunta}>❓ abre bucle</span>}
+                            {crudo.bucle && Number(crudo.bucle.escena_respuesta) === i + 1 && <span className="text-[10px] text-lime-300" title={crudo.bucle.respuesta}>✅ lo resuelve</span>}
+                          </span>
                           <select value={v.modo || "imagen"} onChange={(ev) => cambiarModo(i, ev.target.value)} disabled={ocupado}
                             className="rounded-md bg-black/40 border border-emerald-900/50 text-[11px] text-white" style={{ width: 96, padding: "2px 6px" }}>
                             <option value="video">🎬 Video IA</option>

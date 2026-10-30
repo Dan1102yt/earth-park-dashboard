@@ -46,6 +46,17 @@ export async function listarSubcarpetas(folderId: string): Promise<CarpetaDrive[
     .map((f) => ({ id: f.id, nombre: f.name }));
 }
 
+// Contenido de una carpeta: subcarpetas y archivos (para navegar por carpetas dentro de carpetas).
+export async function listarCarpeta(folderId: string): Promise<{ carpetas: CarpetaDrive[]; fotos: FotoDrive[] }> {
+  const files = await listarHijos(folderId);
+  return {
+    carpetas: files.filter((f) => f.mimeType === MIME_CARPETA).map((f) => ({ id: f.id, nombre: f.name })),
+    fotos: files
+      .filter((f) => f.mimeType !== MIME_CARPETA && f.mimeType?.startsWith("image/"))
+      .map((f) => ({ id: f.id, nombre: f.name, urlMiniatura: f.thumbnailLink || "", urlCompleta: f.webContentLink || "", mimeType: f.mimeType })),
+  };
+}
+
 async function listarHijos(folderId: string): Promise<DriveFile[]> {
   const res = await fetch(`${WORKER_URL}/drive/list?folderId=${encodeURIComponent(folderId)}`);
   const data = await res.json();

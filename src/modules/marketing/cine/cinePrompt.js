@@ -48,9 +48,16 @@ resaltadas, datos que aparecen encima de la imagen (etiquetas, distancias, conta
 ${GUIA_GANCHOS}
 La narración de la escena 1 ES el gancho: aplícale estas reglas.
 
-HISTORIA:
-- Gancho en la primera frase (pregunta o dato que sorprende) → explicación paso a paso con un giro → lo que aprende el
-  espectador (valor real, guardable) → Earth Park aparece de forma natural, no como anuncio → cierre invitando a comentar.
+ESTRUCTURA DEL VIDEO (obligatoria, 4 partes; marca cada escena con "parte"):
+1. "gancho" (escena 1, 0–3 s): rompe el patrón para que la persona deje de deslizar (ver guía de ganchos).
+2. "intro" (escena 2, hasta ~7 s): promete en una frase qué se va a llevar quien mira ("en 30 segundos vas a saber…").
+3. "desarrollo" (escenas del medio): explica paso a paso. ABRE UN BUCLE temprano: una pregunta o misterio que solo se
+   resuelve al final ("pero lo más raro es lo que pasa cuando…", "y al final te digo por qué…"). Cada 2 o 3 escenas mete
+   un mini-gancho que renueve la curiosidad. Earth Park aparece de forma natural, no como anuncio.
+4. "cierre" (últimas 1 o 2 escenas): CIERRA el bucle con la respuesta (la recompensa por quedarse) y da el siguiente
+   paso claro (guardar, comentar la palabra o venir a vivirlo en Earth Park).
+Llena también "bucle": {"pregunta":"la pregunta que abres","escena_pregunta":n,"respuesta":"cómo se resuelve","escena_respuesta":m}
+(n y m empiezan en 1; m debe estar en el cierre).
 - Entre 6 y 9 escenas, 25 a 45 segundos en total (la duración real la marca la voz).
 - "narracion" de cada escena: 10 a 24 palabras, español colombiano hablado y cálido, frases cortas, números escritos como
   se dicen. Marca entre *asteriscos* 1 o 2 palabras clave por escena (salen resaltadas en los subtítulos).
@@ -107,7 +114,7 @@ DATOS ENCIMA (opcional, máximo ${dimension === "2d" ? 4 : 3} por escena) — "d
 Úsalos solo cuando refuercen lo que dice el narrador, y con las MISMAS cifras que dice la narración.
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
-{"titulo":"nombre corto","estilo_visual":"...","escenas":[{"narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
+{"titulo":"nombre corto","estilo_visual":"...","bucle":{"pregunta":"...","escena_pregunta":3,"respuesta":"...","escena_respuesta":8},"escenas":[{"parte":"gancho|intro|desarrollo|cierre","narracion":"frase con *clave*","visual":{"modo":"video","plano":"macro","protagonista":true,"prompt":"...","movimiento":"...","camara":"acercar","clima":"ninguno"},"transicion":"glitch","datos":[]}],"cta":{"palabra":"UNA PALABRA","texto":"frase corta en pantalla","narracion":"lo que dice el narrador al cierre"},"caption":"texto para publicar","hashtags":["#..."],"musica":"música de fondo sugerida (bajita, debajo de la voz)"}
 Usa comillas simples dentro de los textos si necesitas citar algo; nunca comillas dobles dentro de los valores.${dimension === "doc" ? reglasDoc(maxVideo) : ""}`;
 }
 
@@ -176,5 +183,17 @@ export function revisarGuion(g) {
       cambios.push("el cierre ahora menciona la palabra");
     }
   }
+  // Estructura: gancho → intro → desarrollo (con bucle abierto) → cierre que lo resuelve
+  const n = g.escenas.length;
+  g.escenas = g.escenas.map((e, i) => ({
+    ...e,
+    parte: ["gancho", "intro", "desarrollo", "cierre"].includes(e.parte) ? e.parte
+      : i === 0 ? "gancho" : i === 1 ? "intro" : i >= n - 2 ? "cierre" : "desarrollo",
+  }));
+  const avisos = [];
+  if (!g.bucle?.pregunta) avisos.push("El guion no abre un bucle (pregunta que se resuelva al final).");
+  else if (Number(g.bucle.escena_respuesta) && Number(g.bucle.escena_respuesta) < n - 2) avisos.push("El bucle se resuelve antes del cierre: la gente puede irse antes de tiempo.");
+  if (!g.escenas.some((e) => e.parte === "cierre")) avisos.push("Falta el cierre.");
+  g.avisos_estructura = avisos;
   return { guion: g, cambios: [...new Set(cambios)] };
 }

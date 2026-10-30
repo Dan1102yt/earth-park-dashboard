@@ -3,8 +3,7 @@
 //   2) solo las escenas marcadas como "video" se animan (Gemini Omni Flash), partiendo de su fotograma
 // Todo se guarda en Supabase Storage para no volver a pagar por lo mismo.
 import { supabase } from "../../../lib/supabaseClient";
-import { listarFotosCarpeta } from "../../../services/driveService";
-import { obtenerCategorias, buscarCategoria, urlsFoto } from "../agente/fotosCarrusel";
+import { obtenerCategorias, buscarCategoria, urlsFoto, obtenerFotos } from "../agente/fotosCarrusel";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 
@@ -188,7 +187,7 @@ export async function fotoDeDrive(categoriaNombre, saltar = 0) {
   const cats = await obtenerCategorias();
   const cat = buscarCategoria(cats, categoriaNombre) || cats[0];
   if (!cat) throw new Error("No hay carpetas de fotos en Drive");
-  const fotos = (await listarFotosCarpeta(cat.id)).filter((f) => f.mimeType?.startsWith("image/"));
+  const fotos = await obtenerFotos(cat);
   if (!fotos.length) throw new Error(`La carpeta ${cat.nombre} no tiene fotos`);
   const foto = fotos[(Math.floor(Math.random() * fotos.length) + saltar) % fotos.length];
   for (const url of urlsFoto(foto)) {
