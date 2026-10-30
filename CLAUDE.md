@@ -1,52 +1,33 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guía para Claude Code al trabajar en este repositorio. La explicación para humanos está en `README.md` (Léeme).
 
-## Commands
+## Antes de tocar marketing o agentes de IA
+
+Lee `cerebro/`. Ahí está el conocimiento central: `marca.md`, `ganchos.md`, `estructura-video.md`, `agentes.md` y `decisiones.md`. Los prompts los importan con `@cerebro/<archivo>.md?raw` (alias definido en `vite.config.js`). No dupliques ese texto dentro del código: edítalo en `cerebro/`.
+
+## Comandos
 
 ```bash
-npm run dev        # Start dev server (Vite, localhost:5173)
-npm run build      # Production build → dist/
-npm run preview    # Preview production build locally
-npm run deploy     # Build + deploy to GitHub Pages (gh-pages -d dist)
-npm test           # Run all tests once (vitest run)
+npm run dev      # servidor local (Vite)
+npm run build    # compila a dist/
+npm test         # pruebas (Vitest)
 ```
 
-Run a single test file:
-```bash
-npx vitest run tests/calcularHospedaje.test.js
-```
+Deploy: push a `main` → GitHub Actions (`.github/workflows/deploy.yml`) publica en GitHub Pages (`base: "/earth-park-dashboard/"`, HashRouter).
 
-## Architecture
+## Estructura
 
-This is a single-page React 18 app with no backend. All state lives in the browser.
+- `src/modulos/<area>/`: reservas, cocina, hospedaje, financiero, asistente, marketing (oficina, agente, cine, animado, editor, galeria, comun).
+- `src/compartido/`: componentes, contexto (Auth y Reservas), servicios (Drive), lib (Supabase), hooks (Sheets), utilidades (cálculos puros con pruebas en `tests/`).
+- `src/configuracion/`: precios, planes (`planesConfig.js`), menú, costos. Fuente única de precios.
+- `servidor/worker.js`: Cloudflare Worker (proxy de Claude, Gemini, ElevenLabs, Drive/Sheets, Instagram y cron cada 5 min). Se despliega a mano en Cloudflare.
+- `base-de-datos/NN_*.sql`: tablas de Supabase en orden de creación.
+- `docs/`: guías (Instagram, servidor, base de datos).
 
-**Auth**: `LoginGuard` wraps the entire app and checks `sessionStorage` for a hardcoded password (`earthpark2026`). No real auth system.
+## Reglas
 
-**State**: A single `ReservasContext` (React `useReducer`) holds `{ reservas, egresos }`. State is persisted to `localStorage` under key `earthpark_v1`. On first load it falls back to seed data in `src/data/seedData.js`.
-
-**Routing**: `HashRouter` with five routes:
-- `/nueva` — create a reservation form
-- `/reservas` — list/manage reservations
-- `/cocina` — kitchen view (shopping list, menu instructions)
-- `/hospedaje` — lodging occupancy view
-- `/financiero` — financial dashboard with charts
-
-**Config files** (`src/data/`):
-- `config.js` — `CONFIG`: pricing, food costs, room capacities, margin benchmarks
-- `planesConfig.js` — `PLANES`: the three tour packages (2D1N, 3D2N, visita) with per-item costs and helper functions `calcularCostoOperativoPlan` / `calcularIngresoEsperado`
-- `menuConfig.js` — `MENU`: recipes and per-portion costs for hamburguesa, pechuga, desayuno
-- `costosConfig.js` — `COSTOS_PRODUCTOS`: product cost reference used in financiero
-
-**Utility functions** (`src/utils/`):
-- `calcularInsumos.js` — `calcularIngresos`, `calcularPagos`, `calcularListaCompras`, `calcularMargen`, `alertaSalud`
-- `calcularHospedaje.js` — room assignment logic (Mariposa 5-cap → Ancestros 2-cap → external overflow)
-- `validarReserva.js` — `validarFormReserva`, `generarReservaId`, `calcularFechaFin`
-- `formatCOP.js` — Colombian peso formatter
-- `importarCSV.js` / `importarEgresos.js` / `importarUtils.js` — CSV import helpers (PapaParse)
-
-**Key data flow**: When a reservation is created in `NuevaReserva`, all financial figures are derived on the fly from `CONFIG` and `PLANES` — nothing is stored pre-calculated except `costo_operativo_estimado`. `FinancieroPage` re-derives totals from the stored reservas + egresos on each render.
-
-**Deployment**: Deployed to GitHub Pages. `vite.config.js` sets `base: "/earth-park-dashboard/"`, so all asset paths are relative to that subpath. The app uses `HashRouter` to work on static hosting without server-side routing.
-
-**Tests**: Vitest + jsdom, no React Testing Library integration tests — only unit tests for pure utility functions (`tests/`).
+- Textos de la app y de los agentes en español de Colombia con "tú" (sin voseo).
+- El repo es público: nunca subas claves, tokens ni archivos del negocio. Los secretos van en Cloudflare o en GitHub Secrets. Los documentos van en `privado/` (ignorado).
+- En celular, los inputs llevan 16 px (evita el zoom) y los modales usan portal a pantalla completa.
+- Nada se publica en Instagram sin aprobación (flujo de estados en `cerebro/agentes.md`).

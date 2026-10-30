@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generarReservaId, validarFormReserva, calcularFechaFin } from '../src/utils/validarReserva';
+import { generarReservaId, validarFormReserva, calcularFechaFin } from '../src/compartido/utilidades/validarReserva';
 
 describe('generarReservaId', () => {
   it('should generate ID from name and date', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcularHospedaje } from '../src/utils/calcularHospedaje';
+import { calcularHospedaje } from '../src/compartido/utilidades/calcularHospedaje';
 
 describe('calcularHospedaje', () => {
   it('should fill Mariposa first for 3 people', () => {

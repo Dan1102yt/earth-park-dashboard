@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calcularIngresos, calcularPagos, calcularListaCompras, totalListaCompras, calcularMargen, alertaSalud } from '../src/utils/calcularInsumos';
-import { CONFIG } from '../src/data/config';
+import { calcularIngresos, calcularPagos, calcularListaCompras, totalListaCompras, calcularMargen, alertaSalud } from '../src/compartido/utilidades/calcularInsumos';
+import { CONFIG } from '../src/configuracion/config';
 
 describe('calcularIngresos', () => {
   const reserva = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCOP } from '../src/utils/formatCOP';
+import { formatCOP } from '../src/compartido/utilidades/formatCOP';
 
 describe('formatCOP', () => {
   it('should format a number as COP currency', () => {

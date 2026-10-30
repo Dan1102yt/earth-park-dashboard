@@ -6,3 +6,11 @@ dist
 .env.local
 .vscode
 .idea
+
+# Archivos privados del negocio: nunca se suben a GitHub (el repositorio es público)
+privado/
+*.csv
+*.xlsx
+*.docx
+*.pdf
+.claude/settings.local.json
