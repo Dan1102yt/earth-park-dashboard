@@ -1,9 +1,12 @@
-// Iván, el investigador: una vez por semana busca en internet qué está funcionando en el nicho
-// (naturaleza, ecoturismo, glamping, bienestar, Colombia) y le deja a Sofía un informe para planear la semana.
+// Iván, el investigador: experto en ecoturismo del Valle de Tenza. Investiga lo que le pidas (o la semana, solo)
+// con búsqueda web + los números reales de Instagram de Earth Park y la competencia, y le deja el informe a Sofía.
+// Su perfil vive en cerebro/ivan.md y la lista de cuentas en cerebro/competencia.md.
 import { SISTEMA_AGENTE } from "../agente/agentePrompts";
 import { extraerObjetoJSON } from "../agente/agenteApi";
 import { GUIA_GANCHOS } from "../agente/ganchos";
 import { supabase } from "../../../compartido/lib/supabaseClient";
+import IVAN from "@cerebro/ivan.md?raw";
+import { kpisParaIvan } from "./kpisRedes";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 export const DIAS_ENTRE_INFORMES = 7;
@@ -20,36 +23,60 @@ export async function ultimoInforme() {
 export const informeVencido = (fila) =>
   !fila || Date.now() - new Date(fila.creado_at).getTime() > DIAS_ENTRE_INFORMES * 86400000;
 
-export async function investigarSemana() {
-  const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", dateStyle: "full" });
-  const prompt = `Hoy es ${hoy}. Eres Iván, el investigador de contenido de Earth Park. Investiga en internet (usa la búsqueda web)
-qué contenido está funcionando AHORA en Instagram y TikTok en nuestro nicho: ecoturismo y glamping en Colombia y Latinoamérica,
-naturaleza y ciencia de la naturaleza (mariposas, aves, bosques, restauración ecológica), bienestar y desconexión, escapadas
-de fin de semana desde Bogotá. Busca cuentas y publicaciones con muchas reproducciones o guardados, formatos y tendencias de
-las últimas semanas, fechas especiales de Colombia en los próximos 14 días y temporada (puentes festivos, vacaciones).
+export const PEDIDOS_RAPIDOS = [
+  "Analiza la competencia del Valle de Tenza: por qué les va mejor y qué tomamos de ellos",
+  "Qué reels de ecoturismo están funcionando ahora y cómo los haríamos nosotros",
+  "Cómo conseguir más reservas de fin de semana para grupos de 2 a 15 personas",
+  "Precios y planes de la competencia comparados con los nuestros",
+  "Fechas, puentes y temporada de las próximas semanas: qué publicar",
+];
 
-Luego dale a Sofía (estratega) una asesoría concreta para que la semana sea viral, educativa y haga que la gente quiera
-visitarnos. Sé específico, nada genérico. Si no encuentras un dato, no lo inventes.
+/**
+ * Iván investiga lo que le pidas (o la semana, si no le pides nada).
+ * pedido: texto libre · kpis: números de redes (kpisRedes.js) · cuentas: lista de competencia/referentes
+ */
+export async function investigar({ pedido = "", kpis = null, cuentas = [] } = {}) {
+  const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", dateStyle: "full" });
+  const tarea = pedido.trim()
+    || "Investigación semanal: qué está funcionando ahora en nuestro nicho, cómo va la competencia y qué debería publicar Earth Park esta semana para conseguir reservas.";
+  const prompt = `${IVAN}
+
+Hoy es ${hoy}.
+
+TAREA QUE TE PIDE OSCAR (el dueño): ${tarea}
+
+CUENTAS QUE SEGUIMOS (búscalas en internet si hace falta: Instagram, TikTok, Google, Facebook):
+${cuentas.map((c) => `- @${c.usuario} (${c.tipo})${c.nota ? `: ${c.nota}` : ""}`).join("\n") || "- (ninguna)"}
+
+NÚMEROS REALES DE INSTAGRAM (últimas 12 publicaciones de cada cuenta; úsalos, no los inventes):
+${kpisParaIvan(kpis)}
+
+Usa la búsqueda web para completar lo que los números no dicen: qué ofrecen, precios publicados, qué formatos les funcionan,
+reseñas, colaboraciones, fechas y temporada en Colombia. Si no encuentras algo, dilo.
 
 ${GUIA_GANCHOS}
 
 Responde ÚNICAMENTE con JSON válido:
-{"resumen":"3 o 4 frases: lo más importante que encontraste y qué recomiendas",
- "tendencias":[{"titulo":"...","que_es":"...","ejemplo":"cuenta o publicación de referencia (si la encontraste)","por_que_funciona":"...","como_aplicarlo":"cómo lo haría Earth Park"}],
- "formatos":["formato recomendado y por qué (ej. reel documental de 40 s, carrusel guía de 8 slides)"],
- "ganchos":["5 ganchos listos para usar esta semana, con la esencia de Earth Park"],
+{"titulo":"título corto del informe",
+ "resumen":"3 o 4 frases: la respuesta directa a lo que pidió Oscar y lo más importante que debe hacer",
+ "lectura_numeros":"2 o 3 frases leyendo los números: dónde estamos frente a los demás y qué explica la diferencia",
+ "competencia":[{"cuenta":"@usuario","tipo":"competencia|referente","que_hacen_bien":"...","por_que_les_funciona":"...","que_tomamos":"cómo lo traducimos a Earth Park sin copiar","ojo":"lo que NO conviene imitar (opcional)"}],
+ "oportunidades":["huecos que nadie está llenando y Earth Park puede ocupar"],
+ "acciones":[{"accion":"qué hacer, concreto","impacto":"alto|medio|bajo","esfuerzo":"alto|medio|bajo","para_reservas":"cómo acerca a una reserva"}],
+ "tendencias":[{"titulo":"...","que_es":"...","ejemplo":"cuenta o publicación de referencia","por_que_funciona":"...","como_aplicarlo":"cómo lo haría Earth Park"}],
+ "ganchos":["5 ganchos listos para usar, con la esencia de Earth Park"],
  "temas":[{"tipo":"reel|carrusel","tema":"...","gancho":"...","objetivo":"alcance|guardados|conversación|reservas","por_que":"..."}],
  "fechas":["fecha o temporada relevante y cómo aprovecharla"],
- "evitar":["lo que NO conviene publicar esta semana y por qué"],
+ "evitar":["lo que NO conviene hacer y por qué"],
  "fuentes":["url"]}
-Usa comillas simples dentro de los textos; nunca comillas dobles dentro de los valores.`;
+Ordena "acciones" de mayor a menor prioridad (máximo 6). Usa comillas simples dentro de los textos; nunca comillas dobles dentro de los valores.`;
 
   const res = await fetch(WORKER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5", max_tokens: 8000, system: SISTEMA_AGENTE,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
+      model: "claude-sonnet-4-5", max_tokens: 12000, system: SISTEMA_AGENTE,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }],
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -61,14 +88,28 @@ Usa comillas simples dentro de los textos; nunca comillas dobles dentro de los v
   // Fuentes reales que devolvió la búsqueda (por si el modelo no las listó)
   const urls = new Set(informe.fuentes || []);
   (data?.content || []).forEach((b) => (b.content || []).forEach?.((r) => r?.url && urls.add(r.url)));
-  informe.fuentes = [...urls].slice(0, 12);
+  informe.fuentes = [...urls].slice(0, 15);
+  informe.pedido = pedido.trim();
+  informe.kpis = kpis || null; // los números con los que se hizo, para mostrarlos en el informe
 
-  let fila = { modo: "investigacion", tema: `Investigación semana ${hoy}`, resultado: informe, creado_at: new Date().toISOString() };
+  const tema = informe.titulo || (pedido.trim() ? pedido.trim().slice(0, 120) : `Investigación semana ${hoy}`);
+  let fila = { modo: "investigacion", tema, resultado: informe, creado_at: new Date().toISOString() };
   if (supabase) {
-    const { data: d, error } = await supabase.from("marketing_agente").insert({ modo: fila.modo, tema: fila.tema, resultado: informe }).select().single();
+    const { data: d, error } = await supabase.from("marketing_agente").insert({ modo: fila.modo, tema, resultado: informe }).select().single();
     if (!error && d?.creado_at) fila = d;
   }
   return fila;
+}
+
+/** Compatibilidad: la investigación automática de cada semana. */
+export const investigarSemana = (opciones = {}) => investigar(opciones);
+
+/** Informes anteriores (para volver a leerlos). */
+export async function informesAnteriores(n = 10) {
+  if (!supabase) return [];
+  const { data } = await supabase.from("marketing_agente").select("id, tema, creado_at, resultado")
+    .eq("modo", "investigacion").order("creado_at", { ascending: false }).limit(n);
+  return data || [];
 }
 
 /** Texto compacto del informe para dárselo a Sofía al armar el plan. */
@@ -78,6 +119,9 @@ export function informeParaPlan(fila) {
   const lista = (xs, f = (x) => x) => (xs || []).slice(0, 6).map((x) => `- ${f(x)}`).join("\n");
   return [
     `Resumen: ${r.resumen}`,
+    r.lectura_numeros ? `Números de redes: ${r.lectura_numeros}` : "",
+    r.acciones?.length ? `Acciones prioritarias:\n${lista(r.acciones, (a) => `${a.accion} (impacto ${a.impacto})`)}` : "",
+    r.competencia?.length ? `De la competencia tomamos:\n${lista(r.competencia, (c) => `${c.cuenta}: ${c.que_tomamos}`)}` : "",
     r.tendencias?.length ? `Tendencias:\n${lista(r.tendencias, (t) => `${t.titulo}: ${t.como_aplicarlo || t.que_es}`)}` : "",
     r.formatos?.length ? `Formatos:\n${lista(r.formatos)}` : "",
     r.ganchos?.length ? `Ganchos sugeridos:\n${lista(r.ganchos)}` : "",

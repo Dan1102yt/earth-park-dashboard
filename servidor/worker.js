@@ -25,6 +25,7 @@ export default {
     // GET  /ig/estado            → cuenta conectada y cupo de publicaciones
     // POST /ig/publicar-ahora    → {id} publica ya una publicación del plan (lista o programada)
     // POST /ig/procesar          → revisa la cola (lo mismo que hace el temporizador cada 5 min)
+    // POST /ig/kpis              → {usuarios:[...]} números de Earth Park y de otras cuentas profesionales (Iván)
     if (path.startsWith("/ig/")) {
       const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       try {
@@ -32,6 +33,10 @@ export default {
         if (origen && !/^https:\/\/dan1102yt\.github\.io$|^http:\/\/localhost(:\d+)?$/.test(origen)) return json({ error: "Origen no permitido" }, 403);
         if (path === "/ig/estado") return json(await igEstado(env));
         if (path === "/ig/procesar" && request.method === "POST") return json(await procesarPublicaciones(env));
+        if (path === "/ig/kpis" && request.method === "POST") {
+          const { usuarios = [] } = await request.json().catch(() => ({}));
+          return json(await kpisRedes(env, usuarios));
+        }
         if (path === "/ig/publicar-ahora" && request.method === "POST") {
           const { id } = await request.json();
           if (!id) throw new Error("Falta el id de la publicación");
@@ -547,6 +552,53 @@ async function igEstado(env) {
     // Con token de Facebook (página) no hay que renovar nada
     renovacionAutomatica: cta.modo === "facebook" || !!env.EP_KV,
   };
+}
+
+/* KPIs de redes (Iván): Earth Park + competencia/referentes con business_discovery de Instagram.
+   Solo funciona con cuentas profesionales (empresa o creador); las personales devuelven error. */
+const CAMPOS_PERFIL = "username,name,biography,followers_count,follows_count,media_count,profile_picture_url";
+const CAMPOS_MEDIA = "caption,like_count,comments_count,media_type,media_product_type,permalink,timestamp";
+
+function resumirCuenta(perfil, media) {
+  const posts = (media || []).filter((m) => m.timestamp);
+  const seg = perfil.followers_count || 0;
+  const interacciones = posts.map((m) => (m.like_count || 0) + (m.comments_count || 0));
+  const prom = interacciones.length ? interacciones.reduce((a, b) => a + b, 0) / interacciones.length : 0;
+  const fechas = posts.map((m) => new Date(m.timestamp).getTime()).sort((a, b) => b - a);
+  const semanas = fechas.length > 1 ? Math.max(1, (fechas[0] - fechas.at(-1)) / (7 * 86400000)) : 1;
+  const reels = posts.filter((m) => m.media_product_type === "REELS").length;
+  const top = [...posts].sort((a, b) => ((b.like_count || 0) + (b.comments_count || 0)) - ((a.like_count || 0) + (a.comments_count || 0))).slice(0, 3);
+  return {
+    usuario: perfil.username, nombre: perfil.name || "", bio: (perfil.biography || "").slice(0, 300), foto: perfil.profile_picture_url || null,
+    seguidores: seg, publicaciones: perfil.media_count || 0,
+    analizadas: posts.length,
+    promedio_interacciones: Math.round(prom),
+    engagement: seg ? +(prom / seg * 100).toFixed(2) : 0,          // % de seguidores que interactúa por publicación
+    por_semana: posts.length > 1 ? +(posts.length / semanas).toFixed(1) : posts.length,
+    reels_pct: posts.length ? Math.round((reels / posts.length) * 100) : 0,
+    ultima: fechas[0] ? new Date(fechas[0]).toISOString() : null,
+    top: top.map((m) => ({ tipo: m.media_product_type === "REELS" ? "reel" : m.media_type === "CAROUSEL_ALBUM" ? "carrusel" : "foto",
+      interacciones: (m.like_count || 0) + (m.comments_count || 0), texto: (m.caption || "").slice(0, 160), url: m.permalink, fecha: m.timestamp })),
+  };
+}
+
+async function kpisRedes(env, usuarios) {
+  const cta = await cuentaIG(env);
+  if (cta.modo !== "facebook") throw new Error("Para ver la competencia, el Worker debe usar FB_TOKEN (inicio de sesión con Facebook)");
+  const propio = await ig(cta, cta.igId, { params: { fields: `${CAMPOS_PERFIL},media.limit(12){${CAMPOS_MEDIA}}` } });
+  const cuentas = [{ ...resumirCuenta(propio, propio.media?.data), propia: true }];
+  const lista = [...new Set(usuarios.map((u) => String(u).replace(/^@/, "").trim().toLowerCase()).filter(Boolean))].slice(0, 15);
+  for (const u of lista) {
+    try {
+      const d = await ig(cta, cta.igId, { params: { fields: `business_discovery.username(${u}){${CAMPOS_PERFIL},media.limit(12){${CAMPOS_MEDIA}}}` } });
+      const b = d.business_discovery;
+      cuentas.push(resumirCuenta(b, b.media?.data));
+    } catch (e) {
+      cuentas.push({ usuario: u, error: /not.*business|cannot be found|Invalid user/i.test(e.message)
+        ? "Cuenta personal o privada: Instagram no comparte sus números" : e.message.slice(0, 160) });
+    }
+  }
+  return { fecha: new Date().toISOString(), cuentas };
 }
 
 /* Supabase (REST) */

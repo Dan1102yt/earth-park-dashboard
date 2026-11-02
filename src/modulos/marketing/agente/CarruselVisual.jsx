@@ -42,7 +42,7 @@ const promptIA = (s, variante) =>
  * autoIA: si es true, genera de una vez las imágenes IA (solo para carruseles recién creados,
  * para no gastar al abrir uno viejo del historial).
  */
-export default function CarruselVisual({ carrusel, autoIA = false, planId = null }) {
+export default function CarruselVisual({ carrusel, autoIA = false, planId = null, resultadoId = null }) {
   const slides = carrusel.slides || [];
   const total = slides.length;
 
@@ -190,7 +190,7 @@ export default function CarruselVisual({ carrusel, autoIA = false, planId = null
     try {
       const archivos = await Promise.all(canvases.current.slice(0, total).map(canvasAJpeg));
       await enviarALu(planId, { tipo: "carrusel", archivos, caption: captionCompleto(carrusel.caption, carrusel.hashtags),
-        tema: String(slides[0]?.titulo || "Carrusel").replace(/\*/g, "") });
+        tema: String(slides[0]?.titulo || "Carrusel").replace(/\*/g, ""), resultadoId });
       setEnvio({ ok: true });
     } catch (e) {
       setEnvio({ error: e.message });

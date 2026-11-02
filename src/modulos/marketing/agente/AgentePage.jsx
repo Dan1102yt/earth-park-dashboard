@@ -62,7 +62,7 @@ function Markdown({ texto }) {
 }
 
 /* ─── Resultados por modo ──────────────────────────────────── */
-function ResultadoCarrusel({ r, nuevo, planId }) {
+function ResultadoCarrusel({ r, nuevo, planId, resultadoId }) {
   const caption = `${r.caption || ""}\n\n${(r.hashtags || []).join(" ")}`.trim();
   return (
     <div className="space-y-5">
@@ -72,7 +72,7 @@ function ResultadoCarrusel({ r, nuevo, planId }) {
           {r.hooks_alternativos.map((h, i) => <p key={i} className="text-sm text-gray-200">{i + 1}. {h}</p>)}
         </div>
       )}
-      <CarruselVisual carrusel={r} autoIA={nuevo} planId={planId} />
+      <CarruselVisual carrusel={r} autoIA={nuevo} planId={planId} resultadoId={resultadoId} />
       <div className="rounded-xl p-4 space-y-3" style={tarjeta}>
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Caption + hashtags</p>
@@ -132,8 +132,8 @@ function ResultadoHistorias({ r }) {
   );
 }
 
-function Resultado({ modo, resultado, nuevo, planId }) {
-  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} nuevo={nuevo} planId={planId} />;
+function Resultado({ modo, resultado, nuevo, planId, resultadoId }) {
+  if (modo === "carrusel") return <ResultadoCarrusel r={resultado} nuevo={nuevo} planId={planId} resultadoId={resultadoId} />;
   if (modo === "historias") return <ResultadoHistorias r={resultado} />;
   const md = resultado?.markdown || "";
   return (
@@ -161,7 +161,7 @@ export default function AgentePage() {
   const resultadoId = params.get("resultado");
   useEffect(() => {
     const it = resultadoId && todos.find((i) => i.id === resultadoId);
-    if (it) setActual({ modo: it.modo, tema: it.tema, resultado: it.resultado });
+    if (it) setActual({ id: it.id, modo: it.modo, tema: it.tema, resultado: it.resultado });
   }, [resultadoId, todos]);
 
   const modo = MODOS[modoId];
@@ -176,6 +176,7 @@ export default function AgentePage() {
       const resultado = modo.formato === "json" ? salida : { markdown: salida };
       setActual({ modo: modoId, tema, resultado, nuevo: true });
       const fila = await guardar(modoId, tema, resultado);
+      if (fila?.id) setActual((x) => (x ? { ...x, id: fila.id } : x));
       if (planId && fila && modoId === "carrusel") await marcarPlan(planId, { estado: "en_produccion", resultado_id: fila.id });
     } catch (e) {
       setError(e.message);
@@ -248,7 +249,7 @@ export default function AgentePage() {
         </div>
       )}
 
-      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} nuevo={!!actual.nuevo} planId={planId} />}
+      {actual && <Resultado modo={actual.modo} resultado={actual.resultado} nuevo={!!actual.nuevo} planId={planId} resultadoId={actual.id} />}
 
       {/* Historial */}
       {items.length > 0 && (
@@ -260,7 +261,7 @@ export default function AgentePage() {
           <div className="space-y-1.5">
             {items.map((it) => (
               <div key={it.id} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm" style={tarjeta}>
-                <button onClick={() => { setActual({ modo: it.modo, tema: it.tema, resultado: it.resultado }); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                <button onClick={() => { setActual({ id: it.id, modo: it.modo, tema: it.tema, resultado: it.resultado }); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                   className="flex-1 text-left min-w-0">
                   <span className="text-emerald-400 text-xs mr-2">{MODOS[it.modo]?.titulo || it.modo}</span>
                   <span className="text-gray-200 truncate">{it.tema || "(sin tema)"}</span>

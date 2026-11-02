@@ -9,7 +9,8 @@ import { pedirPlanSemana, fechaColombia, fechaBonita } from "./planPrompt";
 import ReunionSala from "./ReunionSala";
 import InformeInvestigacion from "./InformeInvestigacion";
 import EditorAvatares, { useAvatares, Retrato } from "./EditorAvatares";
-import { ultimoInforme, informeVencido, investigarSemana, informeParaPlan } from "./investigacion";
+import { ultimoInforme, informeVencido, investigar as investigarIvan, informeParaPlan, PEDIDOS_RAPIDOS, informesAnteriores } from "./investigacion";
+import { actualizarKpis, historialKpis, conVariacion, cuentasSeguidas, DIAS_ENTRE_KPIS } from "./kpisRedes";
 import { estadoInstagram, publicarAhora } from "./instagram";
 import SubirALu from "./SubirALu";
 import { aInputLocal, desdeInputLocal } from "./planPrompt";
@@ -143,12 +144,32 @@ export default function OficinaPage() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  /* ─── Investigador: una vez por semana, al abrir la oficina ─── */
-  const investigar = async () => {
+  /* ─── Iván: números de redes (cada semana) + investigación a pedido o semanal ─── */
+  const [redes, setRedes] = useState({ datos: null, cargando: false, error: null });
+  const kpisRef = useRef(null);
+  const traerKpis = async () => {
+    setRedes((k) => ({ ...k, cargando: true, error: null }));
+    try {
+      const [ant] = await historialKpis(1);
+      const nuevo = await actualizarKpis();
+      const datos = conVariacion(nuevo, ant?.resultado);
+      kpisRef.current = datos;
+      setRedes({ datos, cargando: false, error: null });
+      return datos;
+    } catch (e) {
+      setRedes((k) => ({ ...k, cargando: false, error: e.message }));
+      return kpisRef.current;
+    }
+  };
+  const [pedidoIvan, setPedidoIvan] = useState("");
+  const [anteriores, setAnteriores] = useState(null);
+  const investigar = async (pedido = "") => {
     setInv((v) => ({ ...v, investigando: true, error: null }));
     try {
-      const fila = await investigarSemana();
+      const fila = await investigarIvan({ pedido, kpis: kpisRef.current, cuentas: cuentasSeguidas() });
       setInv({ fila, investigando: false, error: null, revisado: true });
+      setPedidoIvan(""); setAnteriores(null);
+      setVerInforme(fila);
     } catch (e) {
       setInv((v) => ({ ...v, investigando: false, error: e.message }));
     }
@@ -156,10 +177,21 @@ export default function OficinaPage() {
   useEffect(() => {
     if (cargando || error || inv.revisado) return;
     setInv((v) => ({ ...v, revisado: true }));
-    ultimoInforme().then((fila) => {
+    (async () => {
+      // Números: la última foto; si tiene más de una semana, se toma una nueva
+      const hist = await historialKpis(2);
+      let datos = hist[0] ? conVariacion(hist[0].resultado, hist[1]?.resultado) : null;
+      kpisRef.current = datos; setRedes((k) => ({ ...k, datos }));
+      if (!hist[0] || Date.now() - new Date(hist[0].creado_at).getTime() > DIAS_ENTRE_KPIS * 86400000) datos = await traerKpis();
+      const fila = await ultimoInforme();
       setInv((v) => ({ ...v, fila }));
-      if (informeVencido(fila)) investigar();
-    });
+      if (informeVencido(fila)) {
+        setInv((v) => ({ ...v, investigando: true }));
+        investigarIvan({ kpis: datos, cuentas: cuentasSeguidas() })
+          .then((f) => setInv({ fila: f, investigando: false, error: null, revisado: true }))
+          .catch((e) => setInv((v) => ({ ...v, investigando: false, error: e.message })));
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargando, error]);
 
@@ -179,6 +211,7 @@ export default function OficinaPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [historial, items, agentes]);
   const planRef = useRef(null);
+  const ivanRef = useRef(null);
   const formRef = useRef(null);
   const verPlan = () => planRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const accionMision = () => {
@@ -310,9 +343,9 @@ export default function OficinaPage() {
               <p className="text-xs text-gray-200 mt-2">{equipo[agenteSel.id]?.texto}</p>
               {agenteSel.id === "investigador" && (
                 <div className="mt-2 flex gap-2">
-                  {inv.fila && <button onClick={() => setVerInforme(true)} className="flex-1 flex items-center justify-center gap-1 text-xs font-semibold py-1.5 rounded-lg bg-lime-300 text-emerald-950"><FileSearch className="w-3.5 h-3.5" /> Ver informe</button>}
-                  <button onClick={investigar} disabled={inv.investigando} className="flex-1 text-xs py-1.5 rounded-lg border border-lime-500/40 text-lime-200 disabled:opacity-40">
-                    {inv.investigando ? "Investigando…" : "Investigar ahora"}
+                  {inv.fila && <button onClick={() => setVerInforme(inv.fila)} className="flex-1 flex items-center justify-center gap-1 text-xs font-semibold py-1.5 rounded-lg bg-lime-300 text-emerald-950"><FileSearch className="w-3.5 h-3.5" /> Ver informe</button>}
+                  <button onClick={() => { setSeleccion(null); ivanRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="flex-1 text-xs py-1.5 rounded-lg border border-lime-500/40 text-lime-200">
+                    Pedirle algo
                   </button>
                 </div>
               )}
@@ -331,7 +364,7 @@ export default function OficinaPage() {
           <div className="rounded-2xl p-3 space-y-2" style={tarjeta}>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Equipo</p>
             {agentes.map((a) => (
-              <button key={a.id} onClick={() => (a.id === "investigador" && inv.fila ? setVerInforme(true) : setSeleccion(a.id))} className="w-full flex items-center gap-2 text-left">
+              <button key={a.id} onClick={() => (a.id === "investigador" && inv.fila ? setVerInforme(inv.fila) : setSeleccion(a.id))} className="w-full flex items-center gap-2 text-left">
                 <span className="w-9 h-11 rounded-lg flex items-end justify-center flex-shrink-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}><Retrato agente={a} look={a.look} tam={42} /></span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm text-white leading-tight">{a.nombre} <span className="text-[11px] text-gray-500">· {a.rol}</span></span>
@@ -341,6 +374,45 @@ export default function OficinaPage() {
                 <NivelAgente n={juego.agentes[a.id]} />
               </button>
             ))}
+          </div>
+
+          <div ref={ivanRef} className="rounded-2xl p-3 space-y-2" style={tarjeta}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pedirle a {nombre("investigador")}</p>
+              {inv.fila && <button onClick={() => setVerInforme(inv.fila)} className="text-[11px] text-lime-300">Último informe</button>}
+            </div>
+            <textarea value={pedidoIvan} onChange={(e) => setPedidoIvan(e.target.value)} rows={2}
+              placeholder="¿Qué quieres que investigue? Ej: por qué Macana Aventuras tiene más reservas en puentes"
+              className="w-full bg-black/40 border border-emerald-900/50 rounded-lg text-white text-xs px-2 py-1.5" />
+            <div className="flex flex-wrap gap-1">
+              {PEDIDOS_RAPIDOS.map((p) => (
+                <button key={p} onClick={() => setPedidoIvan(p)} className="text-[10px] text-left px-2 py-1 rounded-full text-emerald-300 border border-emerald-800/60">{p}</button>
+              ))}
+            </div>
+            <button onClick={() => investigar(pedidoIvan)} disabled={inv.investigando || !!error}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-2 rounded-xl bg-lime-400 text-emerald-950 disabled:opacity-40">
+              {inv.investigando ? <><Loader2 className="w-4 h-4 animate-spin" /> {nombre("investigador")} está investigando (1–3 min)…</> : <><FileSearch className="w-4 h-4" /> {pedidoIvan.trim() ? "Investigar esto" : "Investigación de la semana"}</>}
+            </button>
+            {inv.error && <p className="text-[11px] text-red-300">{inv.error}</p>}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-900/40 text-[11px]">
+              <span className="text-gray-400 min-w-0 truncate">
+                {redes.cargando ? "Trayendo números de Instagram…"
+                  : redes.datos ? `Números del ${new Date(redes.datos.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "short" })} · ${redes.datos.cuentas.filter((c) => !c.error).length} cuentas`
+                  : redes.error ? <span className="text-amber-300">Sin números: {redes.error}</span> : "Sin números todavía"}
+              </span>
+              <span className="flex gap-2 flex-shrink-0">
+                {redes.datos && <button onClick={() => setVerInforme({ tema: "Números de redes", creado_at: redes.datos.fecha, resultado: { soloNumeros: true, titulo: "Números de redes", resumen: "Comparación de Earth Park con la competencia y los referentes.", kpis: redes.datos } })} className="text-lime-300">Ver</button>}
+                <button onClick={traerKpis} disabled={redes.cargando} className="text-sky-300 disabled:opacity-40">Actualizar</button>
+              </span>
+            </div>
+            <button onClick={() => (anteriores ? setAnteriores(null) : informesAnteriores().then(setAnteriores))} className="text-[11px] text-gray-400 underline">
+              {anteriores ? "Ocultar informes anteriores" : "Ver informes anteriores"}
+            </button>
+            {anteriores && (anteriores.length ? anteriores.map((f) => (
+              <button key={f.id} onClick={() => setVerInforme(f)} className="w-full text-left text-[11px] text-gray-300 truncate">
+                <span className="text-gray-500">{new Date(f.creado_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}</span> · {f.resultado?.titulo || f.tema}
+              </button>
+            )) : <p className="text-[11px] text-gray-500">No hay informes anteriores.</p>)}
           </div>
 
           <Recompensas juego={juego} compradas={compradas} onComprar={comprar} />
@@ -427,6 +499,10 @@ export default function OficinaPage() {
                         <Play className="w-3 h-3" /> {f.estado === "aprobada" ? "Producir" : "Abrir"}
                       </button>
                     )}
+                    {["aprobada", "en_produccion", "lista"].includes(f.estado) && (
+                      <button onClick={() => actualizarFila(f.id, { estado: "publicada", error: null })} title="Si ya la subiste a Instagram por otro lado"
+                        className="text-[11px] text-gray-400 hover:text-lime-300">ya la publiqué</button>
+                    )}
                     <button onClick={() => actualizarFila(f.id, { estado: "descartada" })} className="ml-auto sm:ml-0 text-[11px] text-gray-500 hover:text-red-300">quitar</button>
                   </div>
                 );
@@ -436,8 +512,8 @@ export default function OficinaPage() {
       </div>
 
       {subir && <SubirALu nombreLu={nombre("community")} onListo={recargar} onCerrar={() => setSubir(false)} />}
-      {verInforme && inv.fila && (
-        <InformeInvestigacion fila={inv.fila} agente={agentes.find((a) => a.id === "investigador")} onCerrar={() => setVerInforme(false)} />
+      {verInforme && (
+        <InformeInvestigacion fila={verInforme} agente={agentes.find((a) => a.id === "investigador")} kpisActuales={redes.datos} onCerrar={() => setVerInforme(false)} />
       )}
       {editarEquipo && <EditorAvatares cfg={cfgAvatares} onGuardar={guardarAvatares} onCerrar={() => setEditarEquipo(false)} />}
       {reunion && (

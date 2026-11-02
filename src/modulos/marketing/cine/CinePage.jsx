@@ -467,7 +467,7 @@ export default function CinePage() {
   const enviarLu = async () => {
     setEnvio({ cargando: true });
     try {
-      await enviarALu(planId, { tipo: "reel", archivos: [video.blob], caption: captionCompleto(crudo?.caption, crudo?.hashtags), tema: crudo?.titulo || tema });
+      await enviarALu(planId, { tipo: "reel", archivos: [video.blob], caption: captionCompleto(crudo?.caption, crudo?.hashtags), tema: crudo?.titulo || tema, resultadoId: filaIdRef.current });
       setEnvio({ ok: true });
     } catch (e) { setEnvio({ error: e.message }); }
   };

@@ -36,7 +36,7 @@ export const canvasAJpeg = (canvas) => new Promise((r) => canvas.toBlob(r, "imag
  * Si la pieza no venía del plan de la Oficina (planId vacío), crea la publicación en el plan.
  * fecha (opcional, ISO): si viene, queda programada de una vez.
  */
-export async function enviarALu(planId, { tipo, archivos, caption, tema, fecha = null }) {
+export async function enviarALu(planId, { tipo, archivos, caption, tema, fecha = null, resultadoId = null }) {
   if (!supabase) throw new Error("Supabase no está configurado");
   if (!archivos?.length) throw new Error("No hay archivos para enviar");
   if (tipo === "reel") {
@@ -51,6 +51,12 @@ export async function enviarALu(planId, { tipo, archivos, caption, tema, fecha =
         : "Reduce el tamaño de la foto e intenta de nuevo."));
   }
   let id = planId;
+  // Si la pieza se abrió desde el historial (sin ?plan=), buscar la publicación del plan que la produjo
+  if (!id && resultadoId) {
+    const { data } = await supabase.from("contenido_plan").select("id")
+      .eq("resultado_id", resultadoId).in("estado", ["aprobada", "en_produccion", "lista", "programada"]).limit(1);
+    id = data?.[0]?.id || null;
+  }
   if (!id) {
     const { data, error } = await supabase.from("contenido_plan").insert({
       semana: lunesDe(), tipo, tema: (tema || "Publicación").slice(0, 200), estado: "lista",

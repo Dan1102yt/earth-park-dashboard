@@ -46,6 +46,8 @@ Todo lo que los agentes de IA "saben" de Earth Park está en una sola carpeta. *
 | `marca.md` | Quiénes somos, historia, audiencia, tono, reglas (no inventar cifras, etc.) | Sí, todos |
 | `ganchos.md` | Cómo escribir ganchos profesionales (la primera frase) | Sí |
 | `estructura-video.md` | Las 4 partes de un video: gancho, intro, desarrollo con bucle y cierre | Sí (Videos cine IA) |
+| `ivan.md` | Perfil experto de Iván (ecoturismo, Valle de Tenza, solo reservas) | Sí (Iván) |
+| `competencia.md` | Cuentas de competencia y referentes que Iván sigue | Sí (Iván) |
 | `agentes.md` | Quién es cada agente de la Oficina IA y qué hace | Documentación |
 | `decisiones.md` | Por qué se hizo cada cosa importante | Documentación |
 

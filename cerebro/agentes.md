@@ -4,7 +4,7 @@ Los agentes aparecen en `src/modulos/marketing/oficina/` (personajes en `mapaOfi
 
 | Agente | Rol | Qué hace |
 |---|---|---|
-| Iván | Investigador | Cada semana busca en internet tendencias, ganchos y referentes del nicho. Entrega un informe |
+| Iván | Investigador | Experto en ecoturismo del Valle de Tenza. Investiga lo que le pidas (o la semana, solo) y sigue los números de Instagram de Earth Park y de la competencia (`competencia.md`). Entrega un informe con acciones por prioridad |
 | Sofía | Estratega | Arma el plan semanal de contenido a partir del informe y de las metas |
 | Mateo | Guionista | Escribe guiones de videos y textos de carruseles, con la estructura de `estructura-video.md` |
 | Valen | Diseñadora | Hace los carruseles: fotos reales de Drive, collage o imágenes IA, colores y textos |
