@@ -191,8 +191,8 @@ export default function AgentePage() {
         <Link to="/marketing" className="text-gray-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <Bot className="w-6 h-6 text-emerald-400" />
         <div className="flex-1 min-w-[200px]">
-          <h1 className="text-xl font-bold text-white leading-tight">Agente de marketing</h1>
-          <p className="text-xs text-gray-500 hidden sm:block">Carruseles virales, historias para leads y estrategia de marca para @earthpark.co</p>
+          <h1 className="text-xl font-bold text-white leading-tight">Carruseles, imágenes y estrategia</h1>
+          <p className="text-xs text-gray-500 hidden sm:block">Crea carruseles e historias con fotos reales o IA, y la estrategia de marca para @earthpark.co</p>
         </div>
       </div>
 

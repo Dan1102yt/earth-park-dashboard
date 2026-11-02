@@ -111,8 +111,8 @@ function Reproductor({ guion, pista }) {
   return (
     <div className="space-y-2">
       <canvas ref={canvasRef} width={ANCHO} height={ALTO}
-        className="w-full max-w-[340px] mx-auto block rounded-2xl border border-emerald-900/50 bg-black" />
-      <div className="flex items-center gap-2 max-w-[340px] mx-auto">
+        className="mx-auto block rounded-2xl border border-emerald-900/50 bg-black" style={{ width: "min(100%, calc(80dvh * 9 / 16), 460px)", aspectRatio: "9 / 16" }} />
+      <div className="flex items-center gap-2 mx-auto" style={{ width: "min(100%, calc(80dvh * 9 / 16), 460px)" }}>
         <button onClick={() => setReproduciendo((r) => !r)} className="p-2 rounded-lg text-white bg-emerald-700/70">
           {reproduciendo ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
         </button>
@@ -381,7 +381,7 @@ export default function AnimadoPage() {
       )}
 
       {guion && (
-        <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[460px_minmax(0,1fr)] gap-6 items-start">
           {/* Vista previa + exportar */}
           <div className="space-y-3 lg:sticky lg:top-4">
             <Reproductor guion={guion} pista={conVoz ? pista : null} />

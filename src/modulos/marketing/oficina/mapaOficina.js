@@ -509,6 +509,81 @@ function mariposas(ctx, t) {
   });
 }
 
+
+/* ─── Recompensas del juego (se compran con monedas en la Oficina) ─── */
+function orquidea(ctx, x, y, t) {
+  const p = maceta(ctx, x, y, 4, { arriba: "#3f2a1a", izq: "#f5f5f4", der: "#d6d3d1" });
+  ctx.fillStyle = "#166534";
+  [[-2.4, -1, 0.4], [2.2, -1.2, -0.4]].forEach(([dx, dy, a]) => { ctx.beginPath(); ctx.ellipse(p.x + dx, p.y + dy, 2.6, 0.9, a, 0, Math.PI * 2); ctx.fill(); });
+  ctx.strokeStyle = "#4d7c0f"; ctx.lineWidth = 0.35;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y - 1); ctx.quadraticCurveTo(p.x - 0.5, p.y - 9, p.x + 3.2, p.y - 11); ctx.stroke();
+  [[0.2, -6], [1, -8.6], [2.4, -10.2], [3.4, -11]].forEach(([dx, dy], i) => {
+    const c = { x: p.x + dx, y: p.y + dy + Math.sin(t * 1.5 + i) * 0.15 };
+    ctx.fillStyle = "#f0abfc";
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; ctx.beginPath(); ctx.ellipse(c.x + Math.cos(a) * 0.9, c.y + Math.sin(a) * 0.9, 0.8, 0.55, a, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#a21caf"; ctx.beginPath(); ctx.arc(c.x, c.y, 0.45, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function estanqueKoi(ctx, x, y, t) {
+  const c = iso(x, y);
+  ctx.fillStyle = "#78716c"; ctx.beginPath(); ctx.ellipse(c.x, c.y, 11, 5.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#1e6091"; ctx.beginPath(); ctx.ellipse(c.x, c.y, 9.6, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.ellipse(c.x - 3, c.y - 1.6, 4, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+  [["#f97316", 0], ["#f5f5f4", 2.1], ["#facc15", 4.2]].forEach(([color, f]) => {
+    const a = t * 0.6 + f;
+    const fx = c.x + Math.cos(a) * 6, fy = c.y + Math.sin(a) * 2.6;
+    ctx.save(); ctx.translate(fx, fy); ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(0, 0, 1.8, 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-1.6, 0); ctx.lineTo(-2.8, -0.8 * Math.sin(t * 8 + f)); ctx.lineTo(-2.8, 0.8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+  ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.ellipse(c.x + 5, c.y + 1.5, 1.6, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#f9a8d4"; ctx.beginPath(); ctx.arc(c.x + 5, c.y + 1.1, 0.6, 0, Math.PI * 2); ctx.fill();
+}
+
+function totem88(ctx, x, y, t) {
+  caja(ctx, x - 0.3, y - 0.3, 0.6, 0.6, 3, { arriba: "#a8a29e", izq: "#78716c", der: "#57534e" });
+  caja(ctx, x - 0.15, y - 0.15, 0.3, 0.3, 16, MADERA, 3);
+  const c = iso(x, y, 24 + Math.sin(t * 1.2) * 0.6);
+  const aleteo = 0.8 + 0.2 * Math.sin(t * 3);
+  ctx.save(); ctx.translate(c.x, c.y);
+  ctx.fillStyle = "#f5f5f0"; ctx.strokeStyle = "#c81e1e"; ctx.lineWidth = 0.5;
+  [-1, 1].forEach((s) => {
+    ctx.beginPath(); ctx.ellipse(s * 3 * aleteo, -1, 3.2 * aleteo, 2.4, s * 0.35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 2.4 * aleteo, 2, 2.2 * aleteo, 1.7, -s * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  });
+  ctx.fillStyle = "#111"; ctx.fillRect(-0.4, -2.6, 0.8, 5.4);
+  ctx.font = "700 1.6px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#111";
+  ctx.fillText("88", -2.8 * aleteo, 2.6); ctx.fillText("88", 2.8 * aleteo, 2.6);
+  ctx.textAlign = "start";
+  ctx.restore();
+}
+
+function guacamaya(ctx, x, y, t) {
+  caja(ctx, x - 0.25, y - 0.25, 0.5, 0.5, 1.5, { arriba: "#57534e", izq: "#44403c", der: "#292524" });
+  caja(ctx, x - 0.06, y - 0.06, 0.12, 0.12, 18, MADERA, 1.5);
+  const p = iso(x, y, 19.5);
+  ctx.strokeStyle = "#5a381c"; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(p.x - 4, p.y); ctx.lineTo(p.x + 4, p.y); ctx.stroke();
+  const b = Math.sin(t * 2) * 0.3;
+  ctx.save(); ctx.translate(p.x + 0.5, p.y - 0.4 + b);
+  ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(-0.6, 1); ctx.lineTo(-1.6, 8); ctx.lineTo(0.6, 7.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.ellipse(0, -2.6, 1.9, 3, 0.15, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#facc15"; ctx.beginPath(); ctx.ellipse(-0.6, -1.6, 1.1, 1.9, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#2563eb"; ctx.beginPath(); ctx.ellipse(-0.9, -0.4, 0.9, 1.6, 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.arc(0.4, -5.6, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#f5f5f4"; ctx.beginPath(); ctx.arc(0.9, -5.7, 0.7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(1, -5.8, 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#292524"; ctx.beginPath(); ctx.moveTo(1.6, -5.4); ctx.quadraticCurveTo(2.9, -5.3, 2.1, -3.9); ctx.lineTo(1.4, -4.7); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+export const POS_DECORACION = {
+  orquidea: { x: 8.2, y: 9.45 }, koi: { x: 2.8, y: 4.4 }, totem: { x: 10.65, y: 6.5 }, guacamaya: { x: 3.6, y: 2.2 },
+};
+const DIBUJO_DECORACION = { orquidea, koi: estanqueKoi, totem: totem88, guacamaya };
+
 function sillaReunion(ctx, x, y, color = "#334155") {
   caja(ctx, x - 0.22, y - 0.22, 0.44, 0.44, 5, { arriba: color, izq: "#1e293b", der: "#0f172a" });
 }
@@ -691,7 +766,7 @@ export function dibujarRetrato(canvas, a, look) {
  * estados: { [id]: { trabajando, enReunion: 0–1, enCafe: 0–1 } }
  * opciones: reunionPendiente (resalta tu silla), looks (avatares), kpis (tablero)
  */
-export function dibujarOficina(ctx, t, estados = {}, { reunionPendiente = false, looks = {}, kpis = {} } = {}) {
+export function dibujarOficina(ctx, t, estados = {}, { reunionPendiente = false, looks = {}, kpis = {}, decoracion = [] } = {}) {
   ctx.setTransform(ESCALA, 0, 0, ESCALA, 0, 0);
   ctx.imageSmoothingEnabled = true;
   dibujarHabitacion(ctx, t, { ...kpis, enReunion: reunionPendiente });
@@ -711,6 +786,12 @@ export function dibujarOficina(ctx, t, estados = {}, { reunionPendiente = false,
   cosas.push({ z: 9.6 + 3.2, f: () => planta(ctx, 9.5, 3.0, t) });
   cosas.push({ z: 9.6 + 5.8, f: () => suculenta(ctx, 9.5, 5.6) });
   cosas.push({ z: 4.5 + 4.8, f: () => cactus(ctx, 4.45, 4.75, t, 9, "#f472b6") });
+
+  // Recompensas compradas en el juego
+  decoracion.forEach((id) => {
+    const p = POS_DECORACION[id], dibujar = DIBUJO_DECORACION[id];
+    if (p && dibujar) cosas.push({ z: id === "koi" ? p.x + p.y - 1.2 : p.x + p.y, f: () => dibujar(ctx, p.x, p.y, t) });
+  });
 
   // Sala de reuniones
   AGENTES.forEach((a) => cosas.push({ z: a.asiento.x + a.asiento.y - 0.3, f: () => sillaReunion(ctx, a.asiento.x, a.asiento.y) }));

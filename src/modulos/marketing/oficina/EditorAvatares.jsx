@@ -19,6 +19,7 @@ export function useAvatares() {
     try { return JSON.parse(localStorage.getItem(CLAVE) || "{}"); } catch { return {}; }
   });
   const filaId = useRef(null);
+  const [listo, setListo] = useState(!supabase); // true cuando ya se leyó la configuración guardada
 
   useEffect(() => {
     if (!supabase) return;
@@ -27,6 +28,7 @@ export function useAvatares() {
       .then(({ data }) => {
         const f = data?.[0];
         if (f) { filaId.current = f.id; setCfg(f.resultado || {}); try { localStorage.setItem(CLAVE, JSON.stringify(f.resultado || {})); } catch { /* sin almacenamiento */ } }
+        setListo(true);
       });
   }, []);
 
@@ -45,7 +47,7 @@ export function useAvatares() {
   const agentes = AGENTES.map((a) => ({
     ...a, nombre: cfg[a.id]?.nombre || a.nombre, look: { ...a.look, ...(cfg[a.id]?.look || {}) },
   }));
-  return { cfg, guardar, agentes };
+  return { cfg, guardar, agentes, listo };
 }
 
 function Retrato({ agente, look, tam = 120 }) {

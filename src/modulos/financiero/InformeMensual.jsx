@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FileText, Printer, DollarSign, ArrowDownCircle, TrendingUp, Percent, Users, CalendarDays } from 'lucide-react';
+import { FileText, Printer, DollarSign, ArrowDownCircle, TrendingUp, Percent, Users, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { useReservas } from '../../compartido/contexto/ReservasContext';
 import { formatCOP } from '../../compartido/utilidades/formatCOP';
@@ -352,11 +352,23 @@ function GraficoComparativoAnual({ datosAnuales, mesActualKey, year }) {
 export default function InformeMensual() {
   const { state } = useReservas();
   const [mesSeleccionado, setMesSeleccionado] = useState(() =>
-    new Date().toISOString().slice(0, 7)
+    new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }).slice(0, 7)
   );
 
   const [yy, mm] = mesSeleccionado.split('-');
   const year = parseInt(yy, 10);
+  const moverMes = (paso) => {
+    const d = new Date(year, parseInt(mm, 10) - 1 + paso, 1);
+    setMesSeleccionado(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  };
+  // Años con datos (desde el primer registro hasta el año actual)
+  const anios = useMemo(() => {
+    const fechas = [...state.reservas.map((r) => r.fecha_inicio || r.fecha), ...state.egresos.map((e) => e.fecha)]
+      .map((f) => parseInt(String(f || '').slice(0, 4), 10)).filter((a) => a > 2000);
+    const hoy = new Date().getFullYear();
+    const desde = Math.min(hoy, year, ...fechas);
+    return Array.from({ length: Math.max(hoy, year) - desde + 1 }, (_, i) => desde + i).reverse();
+  }, [state.reservas, state.egresos, year]);
   const mesLabel = `${MESES[parseInt(mm, 10) - 1]} ${yy}`;
 
   const datos = useMemo(
@@ -411,12 +423,20 @@ export default function InformeMensual() {
             <CalendarDays className="w-4 h-4" />
             Mes a reportar
           </label>
-          <input
-            type="month"
-            value={mesSeleccionado}
-            onChange={(e) => setMesSeleccionado(e.target.value)}
-            className="bg-gray-900/60 border border-gray-700/60 text-gray-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-          />
+          <div className="flex items-center gap-2">
+            <button onClick={() => moverMes(-1)} aria-label="Mes anterior"
+              className="w-10 h-10 rounded-lg border border-gray-700/60 text-gray-300 hover:text-white flex items-center justify-center"><ChevronLeft className="w-5 h-5" /></button>
+            <select value={parseInt(mm, 10)} onChange={(e) => setMesSeleccionado(`${yy}-${String(e.target.value).padStart(2, '0')}`)}
+              className="bg-gray-900/60 border border-gray-700/60 text-gray-200 text-sm rounded-lg px-2 py-2 min-h-[40px] leading-normal">
+              {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <select value={year} onChange={(e) => setMesSeleccionado(`${e.target.value}-${mm}`)}
+              className="bg-gray-900/60 border border-gray-700/60 text-gray-200 text-sm rounded-lg px-2 py-2 min-h-[40px] leading-normal">
+              {anios.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <button onClick={() => moverMes(1)} aria-label="Mes siguiente"
+              className="w-10 h-10 rounded-lg border border-gray-700/60 text-gray-300 hover:text-white flex items-center justify-center"><ChevronRight className="w-5 h-5" /></button>
+          </div>
           <span className="text-gray-500 text-sm sm:ml-auto">{mesLabel}</span>
         </div>
 

@@ -13,6 +13,9 @@ import { ultimoInforme, informeVencido, investigarSemana, informeParaPlan } from
 import { estadoInstagram, publicarAhora } from "./instagram";
 import SubirALu from "./SubirALu";
 import { aInputLocal, desdeInputLocal } from "./planPrompt";
+import { useJuego } from "./useJuego";
+import { misionDeHoy } from "./juego";
+import { IndicadoresJuego, RutaSemana, MisionHoy, NivelAgente, Recompensas } from "./PanelJuego";
 
 const tarjeta = { background: "rgba(10,22,6,0.6)", border: "1px solid rgba(77,142,30,0.18)" };
 const DUR_CAMINATA = 3.5; // segundos para ir del escritorio a la mesa
@@ -62,7 +65,7 @@ export default function OficinaPage() {
   const [seleccion, setSeleccion] = useState(null);
   const [form, setForm] = useState({ semana: "proxima", cantidad: 4, indicaciones: "" });
 
-  const { cfg: cfgAvatares, guardar: guardarAvatares, agentes } = useAvatares();
+  const { cfg: cfgAvatares, guardar: guardarAvatares, agentes, listo: cfgListo } = useAvatares();
   const nombre = (id) => agentes.find((a) => a.id === id)?.nombre;
   const [inv, setInv] = useState({ fila: null, investigando: false, error: null, revisado: false });
   const [verInforme, setVerInforme] = useState(false);
@@ -92,8 +95,9 @@ export default function OficinaPage() {
       proxima: proximas[0] ? new Date(proximas[0].fecha_publicacion).toLocaleString("es-CO", { timeZone: "America/Bogota", weekday: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null,
     };
   }, [items]);
-  const datos = useRef({ equipo, hayReunion, looks, kpis });
-  datos.current = { equipo, hayReunion, looks, kpis };
+  const decoracion = cfgAvatares?._juego?.compradas;
+  const datos = useRef({ equipo, hayReunion, looks, kpis, decoracion });
+  datos.current = { equipo, hayReunion, looks, kpis, decoracion };
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -101,7 +105,7 @@ export default function OficinaPage() {
     let raf, previo = performance.now();
     const cuadro = (ahora) => {
       const dt = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
-      const { equipo: eq, hayReunion: hr, looks: lk, kpis: kp } = datos.current;
+      const { equipo: eq, hayReunion: hr, looks: lk, kpis: kp, decoracion: deco } = datos.current;
       const estados = {};
       // En reunión todos caminan a la mesa, uno detrás de otro; al terminar vuelven a su escritorio
       const objetivo = hr ? 1 : 0;
@@ -132,7 +136,7 @@ export default function OficinaPage() {
         oscarRef.current.style.left = `${(p.x / W) * 100}%`;
         oscarRef.current.style.top = `${(p.y / H) * 100}%`;
       }
-      dibujarOficina(ctx, ahora / 1000, estados, { reunionPendiente: hr, looks: lk, kpis: kp });
+      dibujarOficina(ctx, ahora / 1000, estados, { reunionPendiente: hr, looks: lk, kpis: kp, decoracion: deco || [] });
       raf = requestAnimationFrame(cuadro);
     };
     raf = requestAnimationFrame(cuadro);
@@ -166,6 +170,23 @@ export default function OficinaPage() {
     estadoInstagram().then((d) => setIg(d)).catch((e) => setIg({ error: e.message }));
   }, []);
   const [subir, setSubir] = useState(false);
+
+  /* ─── Juego: nivel, monedas, ruta y misión ─── */
+  const { juego, filas: historial, compradas, comprar, seguidores } = useJuego(items, cfgAvatares, guardarAvatares, ig.seguidores, cfgListo);
+  const mision = useMemo(() => misionDeHoy(historial, {
+    hayPlanProxima: items.some((i) => i.semana === lunesSiguiente() && i.estado !== "descartada"),
+    estratega: nombre("estratega"), lu: nombre("community"),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [historial, items, agentes]);
+  const planRef = useRef(null);
+  const formRef = useRef(null);
+  const verPlan = () => planRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const accionMision = () => {
+    if (mision.tipo === "reunion") setReunion(true);
+    else if (mision.tipo === "producir" && mision.fila) producir(mision.fila);
+    else if (mision.tipo === "programar") verPlan();
+    else if (mision.tipo === "plan") { setForm((f) => ({ ...f, semana: "proxima" })); formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  };
   const programar = (f) => {
     if (!f.fecha_publicacion) { actualizarFila(f.id, { error: "Ponle fecha y hora antes de programar" }); return; }
     if (new Date(f.fecha_publicacion) <= new Date()) { publicarYa(f); return; }
@@ -249,7 +270,9 @@ export default function OficinaPage() {
         </button>
       )}
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+        <div className="space-y-3 min-w-0">
+        <IndicadoresJuego juego={juego} seguidores={seguidores} />
         {/* Oficina */}
         <div className="rounded-2xl overflow-hidden relative select-none" style={{ ...tarjeta, background: "#0b1a0b" }}>
           <div className="relative w-full" style={{ aspectRatio: `${W} / ${H}` }}>
@@ -299,6 +322,9 @@ export default function OficinaPage() {
             </div>
           )}
         </div>
+        <RutaSemana juego={juego} onDia={verPlan} />
+        <MisionHoy mision={mision} onAccion={accionMision} />
+        </div>
 
         {/* Panel */}
         <div className="space-y-3">
@@ -312,9 +338,12 @@ export default function OficinaPage() {
                   <span className="block text-[11px] text-gray-400 truncate">{equipo[a.id]?.texto}</span>
                 </span>
                 {equipo[a.id]?.trabajando && <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />}
+                <NivelAgente n={juego.agentes[a.id]} />
               </button>
             ))}
           </div>
+
+          <Recompensas juego={juego} compradas={compradas} onComprar={comprar} />
 
           <div className="rounded-2xl p-3 flex items-center gap-2" style={tarjeta}>
             <Instagram className="w-5 h-5 text-pink-300 flex-shrink-0" />
@@ -328,7 +357,7 @@ export default function OficinaPage() {
             </button>
           </div>
 
-          <div className="rounded-2xl p-3 space-y-2" style={tarjeta}>
+          <div ref={formRef} className="rounded-2xl p-3 space-y-2" style={tarjeta}>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pedir plan a {nombre("estratega")}</p>
             <div className="flex gap-2">
               {[["esta", "Esta semana"], ["proxima", "Próxima"]].map(([id, t]) => (
@@ -354,7 +383,7 @@ export default function OficinaPage() {
       </div>
 
       {/* Plan aprobado */}
-      <div className="rounded-2xl p-3 sm:p-4 space-y-2" style={tarjeta}>
+      <div ref={planRef} className="rounded-2xl p-3 sm:p-4 space-y-2 scroll-mt-4" style={tarjeta}>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Plan aprobado</p>
         {cargando ? <Loader2 className="w-5 h-5 animate-spin text-emerald-300" />
           : !visibles.length ? <p className="text-sm text-gray-500">Todavía no hay publicaciones aprobadas. Pídele un plan a {nombre("estratega")}.</p>

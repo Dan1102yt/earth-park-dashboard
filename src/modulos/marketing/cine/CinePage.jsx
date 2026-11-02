@@ -135,8 +135,9 @@ function Reproductor({ guion, pista }) {
 
   return (
     <div className="space-y-2">
-      <canvas ref={canvasRef} width={ANCHO} height={ALTO} className="w-full max-w-[340px] mx-auto block rounded-2xl border border-emerald-900/50 bg-black" />
-      <div className="flex items-center gap-2 max-w-[340px] mx-auto">
+      <canvas ref={canvasRef} width={ANCHO} height={ALTO} className="mx-auto block rounded-2xl border border-emerald-900/50 bg-black"
+        style={{ width: "min(100%, calc(80dvh * 9 / 16), 460px)", aspectRatio: "9 / 16" }} />
+      <div className="flex items-center gap-2 mx-auto" style={{ width: "min(100%, calc(80dvh * 9 / 16), 460px)" }}>
         <button onClick={() => setReproduciendo((r) => !r)} className="p-2 rounded-lg text-white bg-emerald-700/70">
           {reproduciendo ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
         </button>
@@ -163,6 +164,7 @@ export default function CinePage() {
   const [color, setColor] = useState("bosque");
   const [maxVideo, setMaxVideo] = useState(+leer("ep_cine_maxvideo", "3"));
   const [dimension, setDimension] = useState(leer("ep_cine_dim", "doc"));
+  const [posSub, setPosSub] = useState(leer("ep_cine_subs", "arriba")); // ubicación de los subtítulos
   const [refsNuevas, setRefsNuevas] = useState([]); // fotos del protagonista subidas antes de crear el video
   const [crudo, setCrudoState] = useState(null);
   const crudoRef = useRef(null);
@@ -191,6 +193,7 @@ export default function CinePage() {
   useEffect(() => { if (vozId) escribir("ep_voz", vozId); }, [vozId]);
   useEffect(() => { escribir("ep_cine_maxvideo", String(maxVideo)); }, [maxVideo]);
   useEffect(() => { escribir("ep_cine_dim", dimension); }, [dimension]);
+  useEffect(() => { escribir("ep_cine_subs", posSub); }, [posSub]);
   useEffect(() => {
     listarVoces().then(({ voces: vs, porDefecto }) => {
       setVoces(vs || []);
@@ -236,9 +239,9 @@ export default function CinePage() {
   const vozPendiente = narraciones.filter((n, i) => n.trim() && !vigentes[i]).length;
 
   const guion = useMemo(
-    () => (crudo ? normalizarCine({ ...crudo, tema: color }, conVoz ? vigentes : [], recursos) : null),
+    () => (crudo ? normalizarCine({ ...crudo, tema: color, subtitulos: crudo.subtitulos || posSub }, conVoz ? vigentes : [], recursos) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [crudo, color, conVoz, audios, vozId, recursos],
+    [crudo, color, conVoz, audios, vozId, recursos, posSub],
   );
   useEffect(() => {
     let vivo = true;
@@ -476,6 +479,22 @@ export default function CinePage() {
   };
 
   const editarNarracion = (i, valor) => aplicar((g) => ({ ...g, escenas: g.escenas.map((e, j) => (j === i ? { ...e, narracion: valor } : e)) }), false);
+  // Quitar una escena que no gusta (también su voz); el bucle se reacomoda
+  const [quitando, setQuitando] = useState(null);
+  const quitarEscena = (i) => {
+    setQuitando(null);
+    const mover = (n) => { const k = Number(n); return !k ? n : k === i + 1 ? null : k > i + 1 ? k - 1 : k; };
+    aplicar((g) => ({
+      ...g,
+      escenas: g.escenas.filter((_, j) => j !== i),
+      ...(g.bucle ? { bucle: { ...g.bucle, escena_pregunta: mover(g.bucle.escena_pregunta), escena_respuesta: mover(g.bucle.escena_respuesta) } } : {}),
+    }));
+    audiosRef.current = audiosRef.current.filter((_, j) => j !== i);
+    setAudios([...audiosRef.current]);
+    setEstado({});
+    persistir(crudoRef.current);
+  };
+  const cambiarSubtitulos = (pos) => { setPosSub(pos); if (crudoRef.current) aplicar((g) => ({ ...g, subtitulos: pos })); };
   const editarCta = (campoN, valor) => aplicar((g) => ({ ...g, cta: { ...(g.cta || {}), [campoN]: valor } }), false);
   // Reutilizar la imagen (y el clip, si aplica) de otra escena — sin costo
   const usarDeEscena = (i, j) => {
@@ -615,10 +634,17 @@ export default function CinePage() {
       {fase && crudo && <p className="text-sm text-amber-300 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> {fase}</p>}
 
       {crudo && guion && (
-        <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[460px_minmax(0,1fr)] gap-6 items-start">
           {/* Vista previa y pasos */}
           <div className="space-y-3 lg:sticky lg:top-4">
             <Reproductor guion={guion} pista={conVoz ? pista : null} />
+            <div className="flex items-center justify-center gap-1.5 text-xs">
+              <span className="text-gray-400">Subtítulos:</span>
+              {[["arriba", "Arriba"], ["centro", "Centro"], ["abajo", "Abajo"]].map(([id, t]) => (
+                <button key={id} onClick={() => cambiarSubtitulos(id)}
+                  className={`px-2.5 py-1 rounded-lg border ${guion.subtitulos === id ? "bg-emerald-700/60 border-emerald-400 text-white" : "border-emerald-900/60 text-gray-400"}`}>{t}</button>
+              ))}
+            </div>
             <p className="text-center text-[11px] text-gray-500 flex items-center justify-center gap-1">
               {guion.escenas.length} escenas · {guion.total.toFixed(1)} s · <DollarSign className="w-3 h-3" /> gastado {usd(crudo.costo)}
             </p>
@@ -687,7 +713,7 @@ export default function CinePage() {
                 </button>
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-3">
               {crudo.escenas.map((e, i) => {
                 const v = e.visual || {};
                 const st = estado[i] || {};
@@ -702,21 +728,31 @@ export default function CinePage() {
                         {(st.foto || st.video) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-emerald-300" /></div>}
                       </div>
                       <div className="flex-1 min-w-0 space-y-1.5">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-emerald-400">Escena {i + 1}</span>
+                        <div className="flex items-center justify-between gap-1 flex-wrap">
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-emerald-400 whitespace-nowrap">Escena {i + 1}</span>
                             {e.parte && (
                               <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${PARTES[e.parte]?.clase || ""}`}>{PARTES[e.parte]?.texto || e.parte}</span>
                             )}
                             {crudo.bucle && Number(crudo.bucle.escena_pregunta) === i + 1 && <span className="text-[10px] text-amber-300" title={crudo.bucle.pregunta}>❓ abre bucle</span>}
                             {crudo.bucle && Number(crudo.bucle.escena_respuesta) === i + 1 && <span className="text-[10px] text-lime-300" title={crudo.bucle.respuesta}>✅ lo resuelve</span>}
                           </span>
+                          <span className="flex items-center gap-1">
+                          {quitando === i ? (
+                            <span className="flex items-center gap-1 text-[10px]">
+                              <button onClick={() => quitarEscena(i)} className="px-1.5 py-0.5 rounded bg-red-500 text-white font-semibold">Quitar</button>
+                              <button onClick={() => setQuitando(null)} className="text-gray-400 px-1">No</button>
+                            </span>
+                          ) : crudo.escenas.length > 2 && (
+                            <button onClick={() => setQuitando(i)} disabled={ocupado} title="Quitar esta escena" className="text-gray-500 hover:text-red-300 p-1 disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /></button>
+                          )}
                           <select value={v.modo || "imagen"} onChange={(ev) => cambiarModo(i, ev.target.value)} disabled={ocupado}
                             className="rounded-md bg-black/40 border border-emerald-900/50 text-[11px] text-white" style={{ width: 96, padding: "2px 6px" }}>
                             <option value="video">🎬 Video IA</option>
                             <option value="imagen">🖼️ Imagen IA</option>
                             <option value="foto">📷 Foto real</option>
                           </select>
+                          </span>
                         </div>
                         <textarea value={e.narracion || ""} rows={3} onChange={(ev) => editarNarracion(i, ev.target.value)} className={`${campo} text-xs`} style={{ padding: "6px 8px" }} />
                         <div className="flex flex-wrap gap-1.5 text-[11px]">

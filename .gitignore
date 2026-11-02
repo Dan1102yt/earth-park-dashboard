@@ -14,3 +14,15 @@ privado/
 *.docx
 *.pdf
 .claude/settings.local.json
+
+# Claves y material local: nunca se suben
+google-credentials.json
+*credentials*.json
+*.pem
+*.key
+# Editor de video local y archivos pesados (viven solo en el PC)
+video-engine/
+VIDEOS/
+content/
+*.mp4
+*.mov

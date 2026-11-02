@@ -58,11 +58,11 @@ const tabs = [
 const PRINCIPALES = ["/reservas", "/nueva", "/marketing", "/financiero"];
 const HERRAMIENTAS_MARKETING = [
   { path: "/marketing/oficina", label: "Oficina IA", icon: Users },
-  { path: "/marketing/agente", label: "Agente IA", icon: Bot },
-  { path: "/marketing/cine", label: "Videos cine", icon: Clapperboard },
+  { path: "/marketing/agente", label: "Carruseles", icon: LayoutGrid },
+  { path: "/marketing/cine", label: "Reels con IA", icon: Clapperboard },
   { path: "/marketing/animado", label: "Animados", icon: Film },
-  { path: "/marketing/editor-video", label: "Editor", icon: Scissors },
-  { path: "/marketing/galeria-web", label: "Galería web", icon: Images },
+  { path: "/marketing/editor-video", label: "Editar mis videos", icon: Scissors },
+  { path: "/marketing/galeria-web", label: "Fotos web", icon: Images },
 ];
 
 export default function NavBar() {

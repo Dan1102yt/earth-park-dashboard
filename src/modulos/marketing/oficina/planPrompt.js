@@ -24,7 +24,7 @@ async function preguntar(prompt, max = 4000) {
 
 const FORMATOS = `- "reel": video explicativo/documental (se produce en Videos cine IA). Curiosidades de naturaleza, ciencia del
   bienestar, el Valle de Tenza, la mariposa 88, la restauración de la tierra.
-- "carrusel": 6–8 slides guardables (se produce en Agente IA). Guías, listas, errores comunes, qué empacar, planes.`;
+- "carrusel": 6–8 slides guardables (se produce en Carruseles). Guías, listas, errores comunes, qué empacar, planes.`;
 
 /**
  * Plan de una semana.

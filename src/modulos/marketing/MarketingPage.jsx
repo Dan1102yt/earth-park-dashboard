@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Megaphone, Loader2, Sparkles, Calendar, Wand2,
   Copy, Check, RefreshCw, Camera, Palette, Hash, FileText,
-  AlertCircle, Images, Clapperboard, Bot, Film, Users,
+  AlertCircle, Images, Clapperboard, Bot, Film, Users, LayoutGrid, Scissors,
 } from "lucide-react";
 import { useMarketingStorage } from "./useMarketingStorage";
 
@@ -765,12 +765,12 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional:
         {/* Herramientas: mosaico uniforme (3 por fila en el celular) */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 -mt-6">
           {[
-            ["/marketing/oficina", Users, "Oficina IA", "Tu equipo de agentes", true],
-            ["/marketing/agente", Bot, "Agente IA", "Carruseles e historias"],
-            ["/marketing/cine", Clapperboard, "Videos cine", "Documental con IA"],
-            ["/marketing/animado", Film, "Animados", "Explicativos"],
-            ["/marketing/editor-video", Clapperboard, "Editor", "Edita tus videos"],
-            ["/marketing/galeria-web", Images, "Galería", "Fotos de la web"],
+            ["/marketing/oficina", Users, "Oficina IA", "Planea, aprueba y publica", true],
+            ["/marketing/agente", LayoutGrid, "Carruseles", "Imágenes, historias y estrategia"],
+            ["/marketing/cine", Clapperboard, "Reels con IA", "Video documental 9:16"],
+            ["/marketing/animado", Film, "Animados", "Videos explicativos"],
+            ["/marketing/editor-video", Scissors, "Editar mis videos", "Sube tu video y edítalo"],
+            ["/marketing/galeria-web", Images, "Fotos web", "Qué sale en la página"],
           ].map(([to, Icono, titulo, desc, destacado]) => (
             <Link key={to} to={to}
               className={`flex flex-col items-center sm:items-start gap-1 rounded-2xl p-3 text-center sm:text-left transition border ${destacado ? "bg-lime-300/15 border-lime-400/60" : "bg-white/5 border-emerald-900/50 hover:border-emerald-600/60"}`}>

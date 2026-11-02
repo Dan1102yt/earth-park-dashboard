@@ -20,3 +20,9 @@ Los agentes aparecen en `src/modulos/marketing/oficina/` (personajes en `mapaOfi
 3. Mateo, Valen y Claudia producen.
 4. Se envía a Lu ("Enviar a Lu"), que la deja lista o programada.
 5. El servidor publica en Instagram a la hora programada (revisa cada 5 minutos).
+
+## El juego
+
+Cada pieza da **XP** al equipo: 5 por aprobarla, 15 por producirla y 30 por publicarla. Completar la semana da 50 más. Cada agente sube de nivel con las piezas en las que trabajó.
+
+Las **monedas** (10 por publicación y 40 por semana completa) compran decoración para la oficina: orquídea, estanque koi, tótem de la mariposa 88 y guacamaya.

@@ -58,7 +58,8 @@ export function normalizarCine(crudo, voces = [], recursos = []) {
   escenas.forEach((e, i) => { e.transicion = elegidas[i]; e.durTrans = TRANSICIONES[e.transicion] || 0; });
   let t = 0;
   for (const e of escenas) { e.inicio = t; t += e.duracion; }
-  return { escenas, total: Math.max(1, t), tema: TEMAS[crudo?.tema] ? crudo.tema : "bosque", formato: doc ? "doc" : "reel" };
+  return { escenas, total: Math.max(1, t), tema: TEMAS[crudo?.tema] ? crudo.tema : "bosque", formato: doc ? "doc" : "reel",
+    subtitulos: ["arriba", "centro", "abajo"].includes(crudo?.subtitulos) ? crudo.subtitulos : "arriba" };
 }
 
 function palabrasRepartidas(texto, duracion) {
@@ -173,6 +174,15 @@ function clima(ctx, tipo, t, tema) {
 /* ─── Subtítulos estilo reel ──────────────────────────────── */
 // Las palabras aparecen a medida que se dicen; las palabras clave van en una "pastilla" de color.
 
+// Ubicación de los subtítulos (la elige el usuario): arriba, centro o abajo (fuera de la zona del caption de Instagram)
+let POS_SUB = "arriba";
+const ySubtitulos = (lineas, tam) => {
+  const alto = (lineas - 1) * tam * 1.3;
+  if (POS_SUB === "centro") return ALTO / 2 - alto / 2;
+  if (POS_SUB === "abajo") return 1380 - alto;
+  return 330;
+};
+
 function dibujarSubtitulos(ctx, escena, lt, tema) {
   const voz = escena.voz;
   if (!voz?.palabras?.length) return;
@@ -200,10 +210,11 @@ function dibujarSubtitulos(ctx, escena, lt, tema) {
     ancho += (lineas.at(-1).length > 1 ? esp : 0) + anchos[i];
   });
   const base = ctx.globalAlpha;
+  const yBase = ySubtitulos(lineas.length, tam);
   lineas.forEach((ids, li) => {
     const total = ids.reduce((s, i, j) => s + anchos[i] + (j ? esp : 0), 0);
     let x = (ANCHO - total) / 2;
-    const y = 330 + li * tam * 1.3;
+    const y = yBase + li * tam * 1.3;
     ids.forEach((i) => {
       const p = g[i];
       const a = easeOut((tv - p.ini + 0.06) / 0.16);
@@ -328,6 +339,7 @@ function dibujarEscena(ctx, escena, lt, tema) {
 }
 
 export function dibujarFrameCine(ctx, guion, tiempo) {
+  POS_SUB = guion.subtitulos || "arriba";
   if (guion.formato === "doc") return dibujarFrameDoc(ctx, guion, tiempo);
   const tema = TEMAS[guion.tema] || TEMAS.bosque;
   const t = clamp(tiempo, 0, guion.total - 1e-6);
@@ -420,7 +432,7 @@ function palabraDoc(ctx, escena, lt, tema) {
   const clave = escena.claves.has(limpiar(w));
   const k = easeOut((tv - p.ini + 0.03) / 0.09);
   ctx.save();
-  ctx.translate(ANCHO / 2, BANDA.y + BANDA.h / 2);
+  ctx.translate(ANCHO / 2, POS_SUB === "arriba" ? BANDA.y + 190 : POS_SUB === "abajo" ? BANDA.y + BANDA.h - 190 : BANDA.y + BANDA.h / 2);
   const s = 1.14 - 0.14 * k;
   ctx.scale(s, s);
   ctx.globalAlpha = clamp(k * 1.5);

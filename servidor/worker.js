@@ -538,8 +538,12 @@ async function igEstado(env) {
   const cta = await cuentaIG(env);
   let cupo = null;
   try { cupo = await ig(cta, `${cta.igId}/content_publishing_limit`, { params: { fields: "quota_usage,config" } }); } catch { /* opcional */ }
+  // Seguidores para los indicadores de la Oficina
+  let perfil = null;
+  try { perfil = await ig(cta, cta.igId, { params: { fields: "followers_count,media_count" } }); } catch { /* opcional */ }
   return {
     conectado: true, usuario: cta.usuario, pagina: cta.pagina || null, modo: cta.modo, cupo: cupo?.data?.[0] || null,
+    seguidores: perfil?.followers_count ?? null, publicaciones: perfil?.media_count ?? null,
     // Con token de Facebook (página) no hay que renovar nada
     renovacionAutomatica: cta.modo === "facebook" || !!env.EP_KV,
   };

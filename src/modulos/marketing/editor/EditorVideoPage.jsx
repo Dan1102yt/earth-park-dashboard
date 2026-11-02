@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Clapperboard, ArrowLeft, Loader2, AlertCircle, FolderOpen, RefreshCw, ExternalLink, Film,
-  ImageOff, Sparkles, Send, CheckCircle2, Download, RotateCcw, Clock, MessageSquare,
+  ImageOff, Sparkles, Send, CheckCircle2, Download, RotateCcw, Clock, MessageSquare, Upload,
 } from "lucide-react";
+import { subidaDisponible, crearCarpeta, subirArchivo } from "../../../compartido/servicios/driveSubida";
 import { listarSubcarpetas, listarFotosCarpeta } from "../../../compartido/servicios/driveService";
 import { useVideoPedidos, ESTADOS_ACTIVOS } from "./useVideoPedidos";
 
@@ -73,6 +74,69 @@ function minutosDesde(fecha) {
 }
 
 // ── Formulario de pedido nuevo ─────────────────────────────────────────
+/** Subir el video (y fotos) desde el celular o el PC: crea la carpeta en CONTENIDO y sube ahí. */
+function SubirDesdeEquipo({ titulo, onListo }) {
+  const [archivos, setArchivos] = useState([]);
+  const [progreso, setProgreso] = useState(null); // { i, total, avance }
+  const [error, setError] = useState(null);
+  const mb = (b) => `${(b / 1048576).toFixed(b > 104857600 ? 0 : 1)} MB`;
+
+  const subir = async () => {
+    setError(null);
+    try {
+      const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+      const carpeta = await crearCarpeta(`${hoy} ${titulo?.trim() || "video"}`.trim(), CONTENIDO_FOLDER_ID);
+      for (let i = 0; i < archivos.length; i++) {
+        setProgreso({ i, total: archivos.length, avance: 0 });
+        await subirArchivo(archivos[i], carpeta.id, (a) => setProgreso({ i, total: archivos.length, avance: a }));
+      }
+      setArchivos([]);
+      onListo(carpeta);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setProgreso(null);
+    }
+  };
+
+  if (!subidaDisponible()) {
+    return <p className="text-[11px] text-gray-500">Para subir desde el celular o el PC falta conectar Google una sola vez (guía en docs/subir-videos.md). Mientras tanto, súbelos a la carpeta en Drive.</p>;
+  }
+  const total = archivos.reduce((s, a) => s + a.size, 0);
+  return (
+    <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(52,211,153,0.06)", border: "1px dashed rgba(52,211,153,0.35)" }}>
+      <label className="flex items-center justify-center gap-2 text-sm font-semibold text-emerald-300 py-3 rounded-lg cursor-pointer border border-emerald-700/50 bg-black/20">
+        <Upload className="w-4 h-4" /> {archivos.length ? "Cambiar archivos" : "Subir video desde este celular o PC"}
+        <input type="file" accept="video/*,image/*" multiple className="hidden"
+          onChange={(e) => { setArchivos(Array.from(e.target.files || [])); setError(null); }} />
+      </label>
+      {archivos.length > 0 && (
+        <>
+          <p className="text-[11px] text-gray-400">
+            {archivos.filter((a) => a.type.startsWith("video/")).length} video(s) · {archivos.filter((a) => a.type.startsWith("image/")).length} foto(s) · {mb(total)}
+          </p>
+          {progreso ? (
+            <div className="space-y-1">
+              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-emerald-400 transition-all" style={{ width: `${Math.round(((progreso.i + progreso.avance) / progreso.total) * 100)}%` }} />
+              </div>
+              <p className="text-[11px] text-gray-400">Subiendo {progreso.i + 1} de {progreso.total}: {archivos[progreso.i]?.name} ({Math.round(progreso.avance * 100)}%). No cierres esta página.</p>
+            </div>
+          ) : (
+            <button onClick={subir} disabled={!archivos.some((a) => a.type.startsWith("video/"))}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-emerald-500 text-emerald-950 disabled:opacity-40">
+              <Upload className="w-4 h-4" /> Subir a Drive y usar este video
+            </button>
+          )}
+          {!archivos.some((a) => a.type.startsWith("video/")) && <p className="text-[11px] text-amber-300">Incluye al menos un video.</p>}
+        </>
+      )}
+      {error && <Aviso>{error}</Aviso>}
+      <p className="text-[10px] text-gray-500">La primera vez Google te pide entrar con la cuenta dueña de la carpeta CONTENIDO.</p>
+    </div>
+  );
+}
+
 function NuevoPedido({ onCrear }) {
   const [carpetas, setCarpetas] = useState([]);
   const [cargandoCarpetas, setCargandoCarpetas] = useState(true);
@@ -137,7 +201,7 @@ function NuevoPedido({ onCrear }) {
       {/* Paso 1: carpeta */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-gray-300"><span className="text-emerald-400 font-semibold">1.</span> Escoge la carpeta del video</p>
+          <p className="text-sm text-gray-300"><span className="text-emerald-400 font-semibold">1.</span> Sube tu video o escoge una carpeta de Drive</p>
           <div className="flex gap-2">
             <button onClick={cargarCarpetas}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-400 transition px-3 py-1.5 rounded-lg border border-gray-700">
@@ -153,6 +217,8 @@ function NuevoPedido({ onCrear }) {
           En Drive, dentro de CONTENIDO, crea una carpeta por video y sube ahí el video principal y las fotos que deben salir sí o sí.
           Luego dale a Actualizar.
         </p>
+
+        <SubirDesdeEquipo titulo={titulo} onListo={(c) => { setCarpeta(c); cargarCarpetas(); }} />
 
         {errorCarpetas && <Aviso>No se pudieron cargar las carpetas: {errorCarpetas}</Aviso>}
         {cargandoCarpetas ? (
@@ -369,7 +435,7 @@ export default function EditorVideoPage() {
             <Clapperboard className="w-5 h-5 text-emerald-400" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-white leading-tight">Editor de video</h1>
+            <h1 className="text-xl font-bold text-white leading-tight">Editar mis videos</h1>
             <p className="text-xs text-gray-500">Reels listos para publicar: voz mejorada, fotos del parque y subtítulos</p>
           </div>
           <Link to="/marketing"
