@@ -32,7 +32,7 @@ function Propuesta({ fila, onActualizar, sofia }) {
         tipo: r.tipo === "carrusel" ? "carrusel" : r.tipo === "reel" ? "reel" : fila.tipo,
         tema: r.tema || fila.tema,
         propuesta: { ...p, gancho: r.gancho || p.gancho, por_que: r.por_que || p.por_que, pilar: r.pilar || p.pilar, objetivo: r.objetivo || p.objetivo },
-        fecha_publicacion: fechaColombia(r.dia, r.hora) || fila.fecha_publicacion,
+        fecha_publicacion: (dentroDeSemana(r.dia, fila.semana) && fechaColombia(r.dia, r.hora)) || fila.fecha_publicacion,
         comentarios: [...conversacion, { de: "estratega", texto: r.respuesta || "Listo, lo ajusté.", at: new Date().toISOString() }],
       });
       setTexto("");
@@ -99,6 +99,14 @@ function Propuesta({ fila, onActualizar, sofia }) {
     </div>
   );
 }
+
+// La fecha que proponga Sofía al ajustar debe quedar dentro de la semana del plan
+const dentroDeSemana = (dia, semana) => {
+  if (!dia || !semana) return !!dia;
+  const [y, m, d] = semana.split("-").map(Number);
+  const fin = new Date(Date.UTC(y, m - 1, d + 6)).toISOString().slice(0, 10);
+  return dia >= semana && dia <= fin;
+};
 
 export default function ReunionSala({ agentes = AGENTES, propuestas, resumen, onActualizar, onCerrar }) {
   const sofia = agentes.find((a) => a.id === "estratega");

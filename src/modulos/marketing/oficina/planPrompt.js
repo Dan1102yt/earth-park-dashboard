@@ -26,6 +26,39 @@ const FORMATOS = `- "reel": video explicativo/documental (se produce en Videos c
   bienestar, el Valle de Tenza, la mariposa 88, la restauración de la tierra.
 - "carrusel": 6–8 slides guardables (se produce en Carruseles). Guías, listas, errores comunes, qué empacar, planes.`;
 
+const sumar = (ymd, n) => { const [y, m, d] = ymd.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+const hoyYmd = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+// Mejores horarios para Bogotá, en orden de preferencia (0 = lunes)
+const PREFERENCIA = [[1, "18:30"], [3, "18:30"], [6, "10:00"], [5, "10:00"], [2, "18:30"], [4, "18:30"], [0, "18:30"]];
+
+/** Días que se pueden usar en esa semana (si es la semana actual, solo de hoy en adelante). */
+export function diasDeSemana(semana, hoy = hoyYmd()) {
+  return DIAS.map((nombre, i) => ({ nombre, fecha: sumar(semana, i), i })).filter((d) => d.fecha >= hoy);
+}
+
+/**
+ * Deja el plan dentro de la semana pedida: máximo `cantidad` publicaciones, cada una en un día de esa semana
+ * y sin repetir día mientras haya días libres. Si la IA puso una fecha por fuera, se mueve al mejor día libre.
+ */
+export function ajustarALaSemana(propuestas, semana, cantidad, hoy = hoyYmd()) {
+  const dias = diasDeSemana(semana, hoy);
+  if (!dias.length) return [];
+  const validas = new Set(dias.map((d) => d.fecha));
+  const usados = new Set();
+  const libres = () => PREFERENCIA.map(([i, h]) => ({ fecha: sumar(semana, i), hora: h })).filter((x) => validas.has(x.fecha) && !usados.has(x.fecha));
+  const salida = [];
+  for (const p of propuestas.slice(0, cantidad)) {
+    let { dia, hora } = p;
+    if (!validas.has(dia) || usados.has(dia)) {
+      const l = libres()[0] || { fecha: dias[salida.length % dias.length].fecha, hora: "18:30" };
+      dia = l.fecha; hora = validas.has(p.dia) ? hora : l.hora;
+    }
+    usados.add(dia);
+    salida.push({ ...p, dia, hora: /^\d{1,2}:\d{2}$/.test(hora || "") ? hora : "18:30" });
+  }
+  return salida.sort((a, b) => `${a.dia}${a.hora}`.localeCompare(`${b.dia}${b.hora}`));
+}
+
 /**
  * Plan de una semana.
  * semana: "YYYY-MM-DD" (lunes) · cantidad: publicaciones · previas: temas ya publicados o planeados (para no repetir)
@@ -33,9 +66,14 @@ const FORMATOS = `- "reel": video explicativo/documental (se produce en Videos c
  */
 export async function pedirPlanSemana({ semana, cantidad = 4, previas = [], indicaciones = "", investigacion = "" }) {
   const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", dateStyle: "full" });
-  const prompt = `Hoy es ${hoy}. Arma el plan de Instagram de Earth Park para la semana que empieza el lunes ${semana}.
+  const dias = diasDeSemana(semana);
+  const n = Math.max(1, Math.min(cantidad, dias.length));
+  const prompt = `Hoy es ${hoy}. Arma el plan de Instagram de Earth Park SOLO para la semana del lunes ${semana} al domingo ${sumar(semana, 6)}.
 
-- ${cantidad} publicaciones, mezcla de formatos:
+FECHAS PERMITIDAS (usa únicamente estas en "dia", ninguna otra):
+${dias.map((d) => `- ${d.nombre} ${d.fecha}`).join("\n")}
+
+- EXACTAMENTE ${n} publicaciones (ni una más), mezcla de formatos:
 ${FORMATOS}
 - Cada una con un objetivo claro (alcance, guardados, conversación o reservas) y un pilar de contenido distinto.
 - Ten en cuenta la temporada (fechas especiales, festivos de Colombia, temporada alta de noviembre a enero).
@@ -54,8 +92,10 @@ Responde ÚNICAMENTE con JSON válido:
  "por_que":"por qué funciona (1 frase)","pilar":"educación|inspiración|comunidad|venta|detrás de cámaras",
  "objetivo":"alcance|guardados|conversación|reservas","dia":"YYYY-MM-DD","hora":"HH:MM"}]}
 Usa comillas simples dentro de los textos; nunca comillas dobles dentro de los valores.`;
+  if (!dias.length) throw new Error("Esa semana ya terminó. Pide el plan de la próxima.");
   const r = await preguntar(prompt, 3500);
   if (!Array.isArray(r.propuestas) || !r.propuestas.length) throw new Error("El plan llegó vacío. Intenta de nuevo.");
+  r.propuestas = ajustarALaSemana(r.propuestas, semana, n);
   return r;
 }
 
@@ -68,6 +108,7 @@ ${JSON.stringify(actual)}
 Oscar te dice: "${comentario}"
 
 Ajusta la propuesta según lo que pide (si pide otro tema, propón uno nuevo; si pide otro día u hora, cámbialo).
+${fila.semana ? `El día debe quedar dentro de la semana del ${fila.semana} al ${sumar(fila.semana, 6)}.` : ""}
 Responde ÚNICAMENTE con JSON válido:
 {"respuesta":"lo que le contestas a Oscar, 1 o 2 frases, cercano","tipo":"reel|carrusel","tema":"...","gancho":"...","por_que":"...",
  "pilar":"...","objetivo":"...","dia":"YYYY-MM-DD","hora":"HH:MM"}`;
