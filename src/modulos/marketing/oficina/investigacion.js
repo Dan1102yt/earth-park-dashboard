@@ -2,7 +2,7 @@
 // con búsqueda web + los números reales de Instagram de Earth Park y la competencia, y le deja el informe a Sofía.
 // Su perfil vive en cerebro/ivan.md y la lista de cuentas en cerebro/competencia.md.
 import { SISTEMA_AGENTE } from "../agente/agentePrompts";
-import { extraerObjetoJSON } from "../agente/agenteApi";
+import { extraerObjetoJSON, llamarClaudeStream } from "../agente/agenteApi";
 import { GUIA_GANCHOS } from "../agente/ganchos";
 import { supabase } from "../../../compartido/lib/supabaseClient";
 import IVAN from "@cerebro/ivan.md?raw";
@@ -71,17 +71,11 @@ Responde ÚNICAMENTE con JSON válido:
  "fuentes":["url"]}
 Ordena "acciones" de mayor a menor prioridad (máximo 6). Usa comillas simples dentro de los textos; nunca comillas dobles dentro de los valores.`;
 
-  const res = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5", max_tokens: 12000, system: SISTEMA_AGENTE,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }],
-      messages: [{ role: "user", content: prompt }],
-    }),
+  const data = await llamarClaudeStream(WORKER_URL, {
+    model: "claude-sonnet-4-5", max_tokens: 12000, system: SISTEMA_AGENTE,
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
+    messages: [{ role: "user", content: prompt }],
   });
-  if (!res.ok) throw new Error(`Worker error ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
   const texto = (data?.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   const informe = extraerObjetoJSON(texto);
   if (!informe?.resumen) throw new Error("Iván no pudo armar el informe. Intenta de nuevo.");

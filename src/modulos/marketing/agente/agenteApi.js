@@ -59,3 +59,39 @@ export async function llamarAgente(workerUrl, modo, tema, ctx = {}) {
   }
   return texto;
 }
+
+/**
+ * Llamada a Claude en modo "stream": la respuesta llega por partes, así Cloudflare no corta
+ * las tareas largas (búsquedas web) con el error 524 de los 100 segundos.
+ * Devuelve { content: [...] } igual que una respuesta normal.
+ */
+export async function llamarClaudeStream(workerUrl, cuerpo) {
+  const res = await fetch(workerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...cuerpo, stream: true }),
+  });
+  if (!res.ok || !res.body) throw new Error(`Worker error ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
+  const bloques = [];
+  const lector = res.body.getReader();
+  const dec = new TextDecoder();
+  let resto = "";
+  const procesar = (linea) => {
+    if (!linea.startsWith("data:")) return;
+    let ev;
+    try { ev = JSON.parse(linea.slice(5).trim()); } catch { return; }
+    if (ev.type === "content_block_start") bloques[ev.index] = { ...ev.content_block, ...(ev.content_block.type === "text" ? { text: ev.content_block.text || "" } : {}) };
+    else if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && bloques[ev.index]) bloques[ev.index].text += ev.delta.text;
+    else if (ev.type === "error") throw new Error(ev.error?.message || "Error de Claude");
+  };
+  for (;;) {
+    const { value, done } = await lector.read();
+    if (done) break;
+    resto += dec.decode(value, { stream: true });
+    const lineas = resto.split("\n");
+    resto = lineas.pop();
+    lineas.forEach(procesar);
+  }
+  if (resto) procesar(resto);
+  return { content: bloques.filter(Boolean) };
+}
