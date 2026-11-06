@@ -15,7 +15,6 @@ import {
   FileText,
   LayoutGrid,
   X,
-  Users,
   Clapperboard,
   Film,
   Images,
@@ -57,7 +56,6 @@ const tabs = [
 // En el celular: 4 accesos fijos + "Más" (el resto en una hoja que sube desde abajo)
 const PRINCIPALES = ["/reservas", "/nueva", "/marketing", "/financiero"];
 const HERRAMIENTAS_MARKETING = [
-  { path: "/marketing/oficina", label: "Oficina IA", icon: Users },
   { path: "/marketing/agente", label: "Carruseles", icon: LayoutGrid },
   { path: "/marketing/cine", label: "Reels con IA", icon: Clapperboard },
   { path: "/marketing/animado", label: "Animados", icon: Film },

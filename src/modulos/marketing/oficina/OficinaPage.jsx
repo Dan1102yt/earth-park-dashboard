@@ -2,7 +2,7 @@
 // El Estratega arma el plan semanal → reunión contigo (apruebas / cambias / descartas) → producción → publicación.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
+import { Clapperboard, Scissors, Images, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
 import { W, H, ESCALA, AGENTES, dibujarOficina, posicionAgente, POS_SILLA_OSCAR } from "./mapaOficina";
 import { usePlan, lunesDe, lunesSiguiente, ESTADOS } from "./usePlan";
 import { pedirPlanSemana, fechaColombia, fechaBonita } from "./planPrompt";
@@ -19,6 +19,14 @@ import { misionDeHoy } from "./juego";
 import { IndicadoresJuego, RutaSemana, MisionHoy, NivelAgente, Recompensas } from "./PanelJuego";
 
 const tarjeta = { background: "rgba(10,22,6,0.6)", border: "1px solid rgba(77,142,30,0.18)" };
+// Accesos a las secciones donde se produce el contenido
+const HERRAMIENTAS = [
+  ["/marketing/agente", LayoutGrid, "Carruseles", "Imágenes, historias y estrategia"],
+  ["/marketing/cine", Clapperboard, "Reels con IA", "Video documental 9:16"],
+  ["/marketing/animado", Film, "Animados", "Videos explicativos"],
+  ["/marketing/editor-video", Scissors, "Editar mis videos", "Sube tu video y edítalo"],
+  ["/marketing/galeria-web", Images, "Fotos web", "Qué sale en la página"],
+];
 const DUR_CAMINATA = 3.5; // segundos para ir del escritorio a la mesa
 
 /* Qué está haciendo cada agente según el plan */
@@ -273,15 +281,27 @@ export default function OficinaPage() {
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
       <div className="flex items-center gap-3">
-        <Link to="/marketing" className="text-gray-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-lime-300" /> Oficina IA</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-lime-300" /> Marketing · Oficina IA</h1>
           <p className="text-xs text-gray-500 hidden sm:block">Tu equipo de marketing: planea, te consulta en reunión, produce y publica</p>
         </div>
         <button onClick={() => setEditarEquipo(true)} className="flex items-center gap-1 text-xs text-lime-200 border border-lime-500/40 rounded-lg px-2 py-1" title="Diseñar avatares">
           <Palette className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Diseñar equipo</span>
         </button>
         <button onClick={recargar} className="text-gray-400 hover:text-white p-1" title="Actualizar"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+
+      {/* Herramientas de producción (deslizables en el celular) */}
+      <div className="flex gap-2 overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
+        {HERRAMIENTAS.map(([to, Icono, titulo, desc]) => (
+          <Link key={to} to={to} className="flex-shrink-0 flex items-center gap-2 rounded-xl px-3 py-2 border border-emerald-900/60 hover:border-emerald-600/60" style={{ background: "rgba(255,255,255,0.04)" }}>
+            <Icono className="w-4 h-4 text-emerald-400" />
+            <span className="leading-tight">
+              <span className="block text-xs font-semibold text-white whitespace-nowrap">{titulo}</span>
+              <span className="hidden sm:block text-[10px] text-gray-500 whitespace-nowrap">{desc}</span>
+            </span>
+          </Link>
+        ))}
       </div>
 
       {error && (
