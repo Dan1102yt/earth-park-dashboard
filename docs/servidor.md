@@ -12,6 +12,7 @@ Archivo: `servidor/worker.js` · Worker: `earth-park-proxy`.
 | `/image/generate` | Imágenes con IA (Gemini) |
 | `/visual/video` | Clips de video con IA |
 | `/tts`, `/tts/voices` | Voz (ElevenLabs) |
+| `/tiktok/conectar`, `/tiktok/estado`, `/tiktok/borrador` | TikTok: manda borradores a la bandeja (ver `docs/tiktok.md`) |
 | `/ig/estado`, `/ig/procesar`, `/ig/publicar-ahora` | Instagram (Lu). `/ig/estado` también da los seguidores para los indicadores de la Oficina. `/ig/kpis` trae los números de la competencia para Iván |
 
 Además tiene un **cron cada 5 minutos** (Settings → Triggers) que publica lo programado.

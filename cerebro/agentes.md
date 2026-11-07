@@ -9,7 +9,7 @@ Los agentes aparecen en `src/modulos/marketing/oficina/` (personajes en `mapaOfi
 | Mateo | Guionista | Escribe guiones de videos y textos de carruseles, con la estructura de `estructura-video.md` |
 | Valen | Diseñadora | Hace los carruseles: fotos reales de Drive, collage o imágenes IA, colores y textos |
 | Claudia | Editora de video | Produce los videos (Videos cine IA y animados): imágenes, voz, transiciones, sonido |
-| Lu | Community manager | Recibe las piezas terminadas y las publica o programa en Instagram (@earthpark.co) |
+| Lu | Community manager | Recibe las piezas terminadas, las publica o programa en Instagram (@earthpark.co) y las deja como borrador en la bandeja de TikTok |
 
 ## Flujo de una publicación
 

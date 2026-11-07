@@ -13,6 +13,7 @@ import { ultimoInforme, informeVencido, investigar as investigarIvan, informePar
 import { actualizarKpis, historialKpis, conVariacion, cuentasSeguidas, DIAS_ENTRE_KPIS } from "./kpisRedes";
 import { estadoInstagram, publicarAhora } from "./instagram";
 import SubirALu from "./SubirALu";
+import { estadoTikTok, enviarATikTok, conectarTikTok } from "./tiktok";
 import { aInputLocal, desdeInputLocal } from "./planPrompt";
 import { useJuego } from "./useJuego";
 import { misionDeHoy } from "./juego";
@@ -210,6 +211,19 @@ export default function OficinaPage() {
     estadoInstagram().then((d) => setIg(d)).catch((e) => setIg({ error: e.message }));
   }, []);
   const [subir, setSubir] = useState(false);
+  const [tt, setTt] = useState({ cargando: true });
+  const revisarTikTok = () => estadoTikTok().then(setTt).catch((e) => setTt({ error: e.message }));
+  useEffect(() => { revisarTikTok(); }, []);
+  const [aTikTok, setATikTok] = useState(null);
+  const [copiado, setCopiado] = useState(null);
+  const mandarTikTok = async (f) => {
+    setATikTok(f.id);
+    try { await enviarATikTok(f.id); } catch (e) { await actualizarFila(f.id, { tiktok_estado: "error", tiktok_error: e.message }).catch(() => {}); }
+    finally { setATikTok(null); recargar(); }
+  };
+  const copiarTexto = async (f) => {
+    try { await navigator.clipboard.writeText(f.caption || f.tema || ""); setCopiado(f.id); setTimeout(() => setCopiado(null), 2000); } catch { /* sin portapapeles */ }
+  };
 
   /* ─── Juego: nivel, monedas, ruta y misión ─── */
   const { juego, filas: historial, compradas, comprar, seguidores } = useJuego(items, cfgAvatares, guardarAvatares, ig.seguidores, cfgListo);
@@ -449,6 +463,20 @@ export default function OficinaPage() {
             </button>
           </div>
 
+          <div className="rounded-2xl p-3 flex items-center gap-2" style={tarjeta}>
+            <span className="w-5 h-5 flex items-center justify-center text-sm flex-shrink-0">🎵</span>
+            <div className="flex-1 min-w-0 text-xs">
+              {tt.cargando ? <span className="text-gray-400">Revisando TikTok…</span>
+                : tt.conectado ? <span className="text-gray-200">TikTok conectado{tt.nombre ? <> como <b className="text-white">{tt.nombre}</b></> : ""}<span className="block text-[10px] text-gray-400">{nombre("community")} te deja cada publicación en la bandeja de TikTok para que la termines</span></span>
+                : tt.configurado === false ? <span className="text-amber-300">TikTok sin configurar en el servidor (ver docs/tiktok.md)</span>
+                : <span className="text-amber-300">TikTok sin conectar{tt.error ? `: ${tt.error}` : ""}</span>}
+            </div>
+            {!tt.cargando && !tt.conectado && tt.configurado !== false && (
+              <button onClick={() => { conectarTikTok(); setTimeout(revisarTikTok, 20000); }} className="flex-shrink-0 text-[11px] font-semibold text-white bg-black border border-white/30 px-2 py-1.5 rounded-lg">Conectar TikTok</button>
+            )}
+            {!tt.cargando && !tt.conectado && <button onClick={revisarTikTok} className="text-gray-400 p-1" title="Revisar de nuevo"><RefreshCw className="w-3.5 h-3.5" /></button>}
+          </div>
+
           <div ref={formRef} className="rounded-2xl p-3 space-y-2" style={tarjeta}>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pedir plan a {nombre("estratega")}</p>
             <div className="flex gap-2">
@@ -509,6 +537,18 @@ export default function OficinaPage() {
                     {f.estado === "programada" && (
                       <button onClick={() => actualizarFila(f.id, { estado: "lista" })} className="text-[11px] text-gray-300 border border-white/15 px-2 py-1 rounded-lg">Cancelar</button>
                     )}
+                    {["lista", "programada", "publicada"].includes(f.estado) && f.media_urls?.length > 0 && tt.conectado && (
+                      f.tiktok_estado === "bandeja" ? (
+                        <button onClick={() => copiarTexto(f)} title="Copiar el texto para pegarlo en TikTok" className="text-[11px] text-gray-200 border border-white/20 px-2 py-1 rounded-lg">
+                          🎵 {copiado === f.id ? "Texto copiado" : "En tu bandeja · copiar texto"}
+                        </button>
+                      ) : (
+                        <button onClick={() => mandarTikTok(f)} disabled={aTikTok === f.id} className="flex items-center gap-1 text-[11px] font-semibold text-white bg-black border border-white/30 px-2 py-1 rounded-lg disabled:opacity-40">
+                          {aTikTok === f.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "🎵"} {f.tiktok_estado === "error" ? "Reintentar TikTok" : "A TikTok"}
+                        </button>
+                      )
+                    )}
+                    {f.tiktok_estado === "error" && f.tiktok_error && <p className="basis-full text-[11px] text-red-300">TikTok: {f.tiktok_error}</p>}
                     {f.estado === "publicada" && f.ig_permalink && (
                       <a href={f.ig_permalink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[11px] text-lime-300 border border-lime-500/40 px-2 py-1 rounded-lg">
                         Ver <ExternalLink className="w-3 h-3" />

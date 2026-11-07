@@ -10,7 +10,8 @@ Los archivos de `base-de-datos/` están numerados en el orden en que se crearon.
 | `04_marketing_agente.sql` | marketing_agente | Historial de los agentes (carruseles, guiones, investigación, avatares) |
 | `05_contenido_plan.sql` | contenido_plan | Plan semanal de contenido y su estado |
 | `06_contenido_plan_instagram.sql` | contenido_plan (cambios) | Columnas para publicar en Instagram |
+| `07_contenido_plan_tiktok.sql` | contenido_plan (cambios) | Columnas para mandar borradores a TikTok |
 
 **Almacenamiento:** el bucket `videos` (público) guarda los videos y fotos que se envían a Lu. El plan gratis permite archivos de máximo 50 MB y 1 GB en total.
 
-Una tabla nueva va en un archivo nuevo con el siguiente número: `07_...sql`.
+Una tabla nueva va en un archivo nuevo con el siguiente número: `08_...sql`.

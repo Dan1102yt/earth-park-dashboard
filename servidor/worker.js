@@ -21,6 +21,41 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ── TikTok (Lu): se manda como BORRADOR a la bandeja de TikTok; Oscar termina de publicar en la app ──
+    // GET  /tiktok/conectar     → abre la autorización de TikTok (una sola vez)
+    // GET  /tiktok/callback     → TikTok vuelve aquí con el permiso; se guarda en EP_KV
+    // GET  /tiktok/estado       → ¿está conectado?
+    // POST /tiktok/borrador     → {id} manda la publicación del plan a la bandeja de TikTok
+    // GET  /tiktok/foto/<ruta>  → sirve las fotos del carrusel desde un prefijo verificado en TikTok
+    if (path.startsWith("/tiktok/")) {
+      const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const pagina = (titulo, texto) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;background:#071407;color:#e5efe0;padding:32px;text-align:center"><h2>${titulo}</h2><p>${texto}</p><p>Ya puedes cerrar esta pestaña y volver al panel.</p></body>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      try {
+        if (path === "/tiktok/conectar") return Response.redirect(await tiktokUrlAutorizar(env, url.origin), 302);
+        if (path === "/tiktok/callback") {
+          if (url.searchParams.get("error")) return pagina("No se conectó TikTok", url.searchParams.get("error_description") || "Cancelaste el permiso.");
+          await tiktokGuardarPermiso(env, url.origin, url.searchParams.get("code"), url.searchParams.get("state"));
+          return pagina("✅ TikTok conectado", "Lu ya puede mandarte los videos a la bandeja de TikTok.");
+        }
+        if (path.startsWith("/tiktok/foto/")) return await tiktokFoto(env, path.slice("/tiktok/foto/".length));
+        const origen = request.headers.get("Origin") || "";
+        if (origen && !/^https:\/\/dan1102yt\.github\.io$|^http:\/\/localhost(:\d+)?$/.test(origen)) return json({ error: "Origen no permitido" }, 403);
+        if (path === "/tiktok/estado") return json(await tiktokEstado(env));
+        if (path === "/tiktok/borrador" && request.method === "POST") {
+          const { id } = await request.json();
+          if (!id) throw new Error("Falta el id de la publicación");
+          const r = await sb(env, `contenido_plan?select=*&id=eq.${encodeURIComponent(id)}`);
+          const [fila] = await r.json();
+          if (!fila) throw new Error("No encontré esa publicación");
+          return json(await tiktokBorrador(env, fila, url.origin));
+        }
+        return json({ error: "Ruta de TikTok desconocida" }, 404);
+      } catch (err) {
+        if (path === "/tiktok/callback") return pagina("No se conectó TikTok", err.message);
+        return json({ error: err.message }, 400);
+      }
+    }
+
     // ── Instagram (Lu, community manager) ────────────────
     // GET  /ig/estado            → cuenta conectada y cupo de publicaciones
     // POST /ig/publicar-ahora    → {id} publica ya una publicación del plan (lista o programada)
@@ -601,6 +636,121 @@ async function kpisRedes(env, usuarios) {
   return { fecha: new Date().toISOString(), cuentas };
 }
 
+/* ── TikTok ─────────────────────────────────────────────────
+   Secretos: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET. Almacenamiento: EP_KV (KV de Cloudflare).
+   Para carruseles (fotos), TikTok exige un prefijo de URL verificado: TIKTOK_VERIF_ARCHIVO + TIKTOK_VERIF_CONTENIDO. */
+const TT = "https://open.tiktokapis.com/v2";
+
+function tiktokKV(env) {
+  if (!env.EP_KV) throw new Error("Falta el almacenamiento EP_KV en el Worker (ver docs/tiktok.md)");
+  if (!env.TIKTOK_CLIENT_KEY || !env.TIKTOK_CLIENT_SECRET) throw new Error("Faltan TIKTOK_CLIENT_KEY y TIKTOK_CLIENT_SECRET en el Worker");
+  return env.EP_KV;
+}
+
+async function tiktokUrlAutorizar(env, origen) {
+  const kv = tiktokKV(env);
+  const estado = crypto.randomUUID();
+  await kv.put(`tiktok_state_${estado}`, "1", { expirationTtl: 600 });
+  const q = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, scope: "user.info.basic,video.upload", response_type: "code", redirect_uri: `${origen}/tiktok/callback`, state: estado });
+  return `https://www.tiktok.com/v2/auth/authorize/?${q}`;
+}
+
+async function tiktokToken(env, params) {
+  const r = await fetch(`${TT}/oauth/token/`, {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY, client_secret: env.TIKTOK_CLIENT_SECRET, ...params }),
+  });
+  const d = await r.json();
+  if (!d.access_token) throw new Error(`TikTok: ${d.error_description || d.error || "no dio permiso"}`);
+  return { access: d.access_token, vence: Date.now() + (d.expires_in || 86400) * 1000, refresh: d.refresh_token, open_id: d.open_id };
+}
+
+async function tiktokGuardarPermiso(env, origen, code, estado) {
+  const kv = tiktokKV(env);
+  if (!estado || !(await kv.get(`tiktok_state_${estado}`))) throw new Error("El enlace de conexión venció. Vuelve a tocar 'Conectar TikTok'.");
+  await kv.delete(`tiktok_state_${estado}`);
+  const t = await tiktokToken(env, { code, grant_type: "authorization_code", redirect_uri: `${origen}/tiktok/callback` });
+  await kv.put("tiktok", JSON.stringify(t));
+}
+
+/** Token vigente (se renueva solo; el permiso de renovación dura un año). */
+async function tiktokAcceso(env) {
+  const kv = tiktokKV(env);
+  const t = JSON.parse((await kv.get("tiktok")) || "null");
+  if (!t) throw new Error("TikTok no está conectado");
+  if (t.vence > Date.now() + 120000) return t.access;
+  const n = await tiktokToken(env, { grant_type: "refresh_token", refresh_token: t.refresh });
+  await kv.put("tiktok", JSON.stringify({ ...t, ...n, refresh: n.refresh || t.refresh }));
+  return n.access;
+}
+
+async function tiktokApi(env, ruta, cuerpo) {
+  const r = await fetch(`${TT}${ruta}`, {
+    method: cuerpo ? "POST" : "GET",
+    headers: { Authorization: `Bearer ${await tiktokAcceso(env)}`, "Content-Type": "application/json; charset=UTF-8" },
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (d.error?.code && d.error.code !== "ok") throw new Error(`TikTok: ${d.error.message || d.error.code}`);
+  return d.data || {};
+}
+
+async function tiktokEstado(env) {
+  if (!env.EP_KV || !env.TIKTOK_CLIENT_KEY) return { conectado: false, configurado: false };
+  if (!(await env.EP_KV.get("tiktok"))) return { conectado: false, configurado: true };
+  try {
+    const d = await tiktokApi(env, "/user/info/?fields=open_id,display_name,avatar_url");
+    return { conectado: true, configurado: true, nombre: d.user?.display_name || "", foto: d.user?.avatar_url || null };
+  } catch (e) {
+    return { conectado: false, configurado: true, error: e.message };
+  }
+}
+
+/** Manda la publicación a la bandeja de TikTok (video o fotos). Oscar recibe la notificación y publica. */
+async function tiktokBorrador(env, fila, origenWorker) {
+  const urls = fila.media_urls || [];
+  if (!urls.length) throw new Error("Esa publicación todavía no tiene archivos (envíala primero a Lu)");
+  let publishId;
+  if (fila.tipo === "reel") {
+    const v = await fetch(urls[0]);
+    if (!v.ok) throw new Error("No pude bajar el video de Supabase");
+    const bytes = await v.arrayBuffer();
+    const n = bytes.byteLength;
+    const d = await tiktokApi(env, "/post/publish/inbox/video/init/", {
+      source_info: { source: "FILE_UPLOAD", video_size: n, chunk_size: n, total_chunk_count: 1 },
+    });
+    const up = await fetch(d.upload_url, {
+      method: "PUT", headers: { "Content-Type": "video/mp4", "Content-Range": `bytes 0-${n - 1}/${n}` }, body: bytes,
+    });
+    if (!up.ok) throw new Error(`TikTok no recibió el video (${up.status})`);
+    publishId = d.publish_id;
+  } else {
+    // Fotos: TikTok las descarga desde el prefijo verificado del Worker
+    const base = "/storage/v1/object/public/videos/";
+    const fotos = urls.slice(0, 35).map((u) => `${origenWorker}/tiktok/foto/${u.split(base)[1] || ""}`);
+    const texto = String(fila.caption || fila.tema || "").trim();
+    const d = await tiktokApi(env, "/post/publish/content/init/", {
+      post_info: { title: (fila.tema || "Earth Park").slice(0, 90), description: texto.slice(0, 4000) },
+      source_info: { source: "PULL_FROM_URL", photo_cover_index: 0, photo_images: fotos },
+      post_mode: "MEDIA_UPLOAD", media_type: "PHOTO",
+    });
+    publishId = d.publish_id;
+  }
+  await sbActualizar(env, fila.id, { tiktok_estado: "bandeja", tiktok_publish_id: publishId || null, tiktok_error: null });
+  return { ok: true, publish_id: publishId };
+}
+
+/** Fotos del carrusel para TikTok (solo archivos del bucket "videos" de Supabase) + archivo de verificación. */
+async function tiktokFoto(env, ruta) {
+  if (env.TIKTOK_VERIF_ARCHIVO && ruta === env.TIKTOK_VERIF_ARCHIVO) {
+    return new Response(env.TIKTOK_VERIF_CONTENIDO || "", { headers: { "Content-Type": "text/plain" } });
+  }
+  if (!/^instagram\/[\w.-]+\.(jpg|jpeg|webp)$/i.test(ruta)) return new Response("No encontrado", { status: 404 });
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/public/videos/${ruta}`);
+  if (!r.ok) return new Response("No encontrado", { status: 404 });
+  return new Response(r.body, { headers: { "Content-Type": r.headers.get("Content-Type") || "image/jpeg", "Cache-Control": "public, max-age=86400" } });
+}
+
 /* Supabase (REST) */
 function sb(env, ruta, opciones = {}) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error("Faltan SUPABASE_URL y SUPABASE_KEY en el Worker");
@@ -676,6 +826,11 @@ async function procesarPublicaciones(env, soloId = null) {
         try { permalink = (await ig(cta, pub.id, { params: { fields: "permalink" } })).permalink; } catch { /* opcional */ }
         await sbActualizar(env, fila.id, { estado: "publicada", ig_media_id: pub.id, ig_permalink: permalink, error: null });
         resultados.push({ id: fila.id, estado: "publicada", permalink });
+        // También a TikTok (como borrador) si está conectado y no se mandó antes
+        if (!fila.tiktok_estado && env.EP_KV && (await env.EP_KV.get("tiktok"))) {
+          try { await tiktokBorrador(env, fila, env.WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev"); }
+          catch (e) { await sbActualizar(env, fila.id, { tiktok_estado: "error", tiktok_error: e.message.slice(0, 300) }).catch(() => {}); }
+        }
       } else if (estado === "ERROR" || estado === "EXPIRED") {
         await sbActualizar(env, fila.id, { estado: "lista", ig_contenedor: null, error: `Instagram no pudo procesar el archivo (${estado}). Revisa el formato y vuelve a programar.` });
         resultados.push({ id: fila.id, estado: "error" });
