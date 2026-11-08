@@ -4,7 +4,8 @@
 
 1. Corre `base-de-datos/08_precios_y_cotizaciones.sql` (crea las tablas).
 2. Corre `privado/08_datos_iniciales.sql` (actividades, costos, descuentos e itinerarios). Este archivo solo está en el PC: no se sube a GitHub.
-3. Corre `base-de-datos/09_datos_empresa.sql` y luego `privado/09_datos_empresa.sql` (medios de pago y redes que salen en la propuesta).
+3. Corre `base-de-datos/10_bucket_imagenes_pdf.sql` (deja subir logos PNG, fotos y los PDF).
+4. Corre `base-de-datos/09_datos_empresa.sql` y luego `privado/09_datos_empresa.sql` (medios de pago y redes que salen en la propuesta).
 
 ## Cómo se usa
 

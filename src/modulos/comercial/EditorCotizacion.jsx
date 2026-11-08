@@ -61,7 +61,7 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState("");
   const [eligiendo, setEligiendo] = useState(null); // { tipo: "portada" | "dias" | "tira", i }
-  const [vista, setVista] = useState(null); // { imgs, logo, mariposas } para la vista previa
+  const [vista, setVista] = useState(null); // { imgs, logo, animales, logosEmpresa } para la vista previa
   const [paraPdf, setParaPdf] = useState(null);
   const hojasRef = useRef(null);
 
@@ -339,7 +339,7 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
       {vista && <VistaPrevia onCerrar={() => setVista(null)}><DocumentoCotizacion cot={cot} plan={plan} totales={t} empresa={empresa} {...vista} /></VistaPrevia>}
       {paraPdf && createPortal(
         <div style={{ position: "fixed", left: "-10000px", top: 0, width: "210mm" }} aria-hidden>
-          <DocumentoCotizacion ref={hojasRef} cot={paraPdf.cot} plan={plan} totales={t} imgs={paraPdf.imgs} logo={paraPdf.logo} mariposas={paraPdf.mariposas} empresa={empresa} logosEmpresa={paraPdf.logosEmpresa} />
+          <DocumentoCotizacion ref={hojasRef} cot={paraPdf.cot} plan={plan} totales={t} imgs={paraPdf.imgs} logo={paraPdf.logo} animales={paraPdf.animales} empresa={empresa} logosEmpresa={paraPdf.logosEmpresa} />
         </div>,
         document.body,
       )}

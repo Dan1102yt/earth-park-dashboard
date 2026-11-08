@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { X, FolderOpen, Upload } from "lucide-react";
 import SelectorFotos from "../marketing/comun/SelectorFotos";
 import { supabase } from "../../compartido/lib/supabaseClient";
-import { FOTOS_INCLUIDAS, urlFoto } from "./datos";
+import { FOTOS_INCLUIDAS, urlFoto, explicarSubida } from "./datos";
 
 export default function ElegirFoto({ titulo, onElegir, onCerrar }) {
   const [drive, setDrive] = useState(false);
@@ -18,7 +18,7 @@ export default function ElegirFoto({ titulo, onElegir, onCerrar }) {
     const ruta = `cotizaciones/fotos/${Date.now()}-${archivo.name.replace(/[^\w.-]/g, "_")}`;
     const { error: e } = await supabase.storage.from("videos").upload(ruta, archivo, { contentType: archivo.type || "image/jpeg" });
     setSubiendo(false);
-    if (e) { setError(`No se pudo subir: ${e.message}`); return; }
+    if (e) { setError(`No se pudo subir: ${explicarSubida(e.message)}`); return; }
     onElegir(supabase.storage.from("videos").getPublicUrl(ruta).data.publicUrl);
   };
 

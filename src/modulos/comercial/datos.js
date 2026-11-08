@@ -50,9 +50,13 @@ export async function guardarCotizacion(cot) {
 export async function subirPdf(blob, cot) {
   const ruta = `cotizaciones/${cot.numero}-${cot.id}.pdf`;
   const { error } = await sb().storage.from("videos").upload(ruta, blob, { upsert: true, contentType: "application/pdf" });
-  if (error) throw new Error(`No se pudo guardar el PDF: ${error.message}`);
+  if (error) throw new Error(`No se pudo guardar el PDF: ${explicarSubida(error.message)}`);
   return sb().storage.from("videos").getPublicUrl(ruta).data.publicUrl;
 }
+
+/** Traduce el error de Supabase cuando el bucket no acepta ese tipo de archivo. */
+export const explicarSubida = (msg) =>
+  /mime type/i.test(msg) ? "ese tipo de archivo aún no está permitido. Corre base-de-datos/10_bucket_imagenes_pdf.sql en Supabase." : msg;
 
 // ── Fotos ──
 // Una foto se guarda como:  "cotizacion/macanal.jpg" (incluida en el panel) · "drive:<id>" (Drive) · "https://..." (otra)
@@ -100,6 +104,6 @@ export async function subirLogo(clave, archivo) {
   const ext = (archivo.name.split(".").pop() || "png").toLowerCase();
   const ruta = `marca/logos/${clave}-${Date.now()}.${ext}`;
   const { error } = await sb().storage.from("videos").upload(ruta, archivo, { contentType: archivo.type || "image/png" });
-  if (error) throw new Error(`No se pudo subir el logo: ${error.message}`);
+  if (error) throw new Error(`No se pudo subir el logo: ${explicarSubida(error.message)}`);
   return sb().storage.from("videos").getPublicUrl(ruta).data.publicUrl;
 }

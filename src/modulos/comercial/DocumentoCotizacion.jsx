@@ -61,12 +61,14 @@ const CSS = `
 .cz-red div{min-width:0}
 .cz-red span{display:block;font-size:6.8pt;color:#6b7a63;text-transform:uppercase;letter-spacing:.05em}
 .cz-red b{display:block;font-weight:600;white-space:nowrap;line-height:1.35}
-.cz h4.sub{margin:4mm 0 0;color:#2f5a1a;font-size:10pt}
+.cz h4.sub{margin:4mm 0 0;color:#2f5a1a;font-size:10pt;display:flex;align-items:center;gap:2mm}
+.cz-ani{display:inline-block;flex-shrink:0}
+.cz h2.con-ani{display:flex;align-items:center;gap:3mm}
 `;
 
 const Pie = ({ izq, der }) => <div className="cz-pie"><span>{izq}</span><span>{der}</span></div>;
 
-const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan, totales: t, imgs = {}, logo, mariposas = [], empresa: empresaGuardada, logosEmpresa = {} }, ref) {
+const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan, totales: t, imgs = {}, logo, animales = {}, empresa: empresaGuardada, logosEmpresa = {} }, ref) {
   const empresa = completarEmpresa(empresaGuardada || {});
   const conPagos = hayPagos(empresa);
   const { banco, nequi } = empresa.pagos;
@@ -119,7 +121,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
       </div>
       {conPagos && (
         <>
-          <h4 className="sub">Medios de pago</h4>
+          <h4 className="sub">Medios de pago{animales.cometa && <img className="cz-ani" src={animales.cometa} alt="" style={{ height: "6.5mm", transform: "rotate(-12deg)" }} />}</h4>
           <div className="cz-pagos">
             {banco.numero && (
               <div className="cz-pago"><img src={logosEmpresa.bancolombia} alt="" />
@@ -135,7 +137,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
       {conTira && imgs.tira?.some(Boolean) && <div className="cz-fotos">{imgs.tira.filter(Boolean).map((src, i) => <img key={i} src={src} alt="" />)}</div>}
       <p className="cz-msg" style={{ textAlign: "center", marginTop: "5mm" }}>¿Les gusta? Escríbannos por WhatsApp y con gusto les separamos la fecha o ajustamos lo que necesiten.</p>
       <p style={{ textAlign: "center", fontSize: "9pt", color: "#6b7a63", margin: 0 }}>Con cariño, Oscar Martín Roa C. y la familia Earth Park</p>
-      <h4 className="sub">Encuéntrennos en</h4>
+      <h4 className="sub">Encuéntrennos en{animales.colibriFlor && <img className="cz-ani" src={animales.colibriFlor} alt="" style={{ height: "9mm" }} />}</h4>
       <div className="cz-redes">
         {CANALES.filter((c) => empresa.contacto[c.clave]).map((c) => (
           <div key={c.clave} className="cz-red"><img src={logosEmpresa[c.clave]} alt="" /><div><span>{c.nombre}</span><b>{empresa.contacto[c.clave]}</b></div></div>
@@ -166,13 +168,13 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
             <p>{duracionTexto(plan)} · Earth Park, Macanal (Boyacá)</p>
           </div>
         </div>
-        {mariposas[0] && <img className="cz-mar" src={mariposas[0]} alt="" style={{ top: compacto ? "70mm" : "99mm", right: "16mm", width: "22mm", transform: "rotate(12deg)" }} />}
+        {animales.mariposaAzul && <img className="cz-mar" src={animales.mariposaAzul} alt="" style={{ top: compacto ? "70mm" : "99mm", right: "16mm", width: "20mm", transform: "rotate(12deg)" }} />}
         <div className="cz-sec">
           <div className="cz-datos" style={{ gridTemplateColumns: origen ? "1.1fr 1fr 1.7fr .8fr" : "1.2fr 1fr 1.8fr" }}>
             {datos.map(([k, v]) => <div key={k} className="cz-dato"><span>{k}</span><b>{v}</b></div>)}
           </div>
           <p className="cz-msg" style={compacto ? { fontSize: "11pt", margin: "4mm 0 1mm" } : undefined}>{saludo(cot.mensaje, nombre)}</p>
-          <h2 style={compacto ? { margin: "2mm 0 2.5mm" } : undefined}>Su plan, día a día</h2>
+          <h2 className="con-ani" style={compacto ? { margin: "2mm 0 2.5mm" } : undefined}>Su plan, día a día{animales.colibri && <img className="cz-ani" src={animales.colibri} alt="" style={{ height: "11mm", transform: "rotate(-8deg)" }} />}</h2>
           {t.porDia.map((d, i) => {
             const nombres = [...d.lineas.map((l) => l.actividad)];
             return (
@@ -190,9 +192,9 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
       </div>
 
       <div className="cz-p" data-hoja ref={hoja2}>
-        {mariposas[1] && <img className="cz-mar" src={mariposas[1]} alt="" style={{ top: "8mm", right: "12mm", width: "20mm", transform: "rotate(-14deg)" }} />}
+        {animales.ave && <img className="cz-mar" src={animales.ave} alt="" style={{ top: "7mm", right: "12mm", width: "22mm" }} />}
         <div className="cz-sec" style={{ paddingTop: "12mm" }}>
-          <h2>Valores de su plan</h2>
+          <h2 className="con-ani">Valores de su plan{animales.abeja && <img className="cz-ani" src={animales.abeja} alt="" style={{ height: "8mm", transform: "rotate(10deg)" }} />}</h2>
           <p className="cz-msg" style={{ fontSize: "10.5pt", margin: "-1mm 0 2mm" }}>
             Esta es nuestra propuesta para ustedes. Si quieren cambiar alguna actividad, con toda tranquilidad nos dicen y la ajustamos a su gusto.
           </p>
@@ -226,7 +228,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
 
       {cierreAparte && (
         <div className="cz-p" data-hoja>
-          {mariposas[0] && <img className="cz-mar" src={mariposas[0]} alt="" style={{ top: "8mm", right: "12mm", width: "20mm", transform: "rotate(10deg)" }} />}
+          {animales.monarca && <img className="cz-mar" src={animales.monarca} alt="" style={{ top: "7mm", right: "12mm", width: "18mm", transform: "rotate(8deg)" }} />}
           <div className="cz-sec" style={{ paddingTop: "12mm" }}>
             <h2>Su inversión y cómo reservar</h2>
             {cierre}
