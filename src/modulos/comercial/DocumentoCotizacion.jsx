@@ -1,6 +1,7 @@
 // La propuesta que recibe el cliente (diseño aprobado). Se dibuja en hojas A4 y de aquí sale el PDF.
 // Las fotos llegan ya recortadas (data URL) porque html2canvas no entiende object-fit.
-import { forwardRef } from "react";
+import { forwardRef, useLayoutEffect, useRef, useState } from "react";
+import { completarEmpresa, CANALES, hayPagos } from "./empresa";
 import { pesos, plural, quienesVienen, tituloDia, fechasTexto, duracionTexto, saludo } from "./calculo";
 
 export const TAM_FOTOS = { portada: [1240, 662], portadaCompacta: [1240, 484], dia: [540, 540], tira: [600, 300] };
@@ -48,18 +49,46 @@ const CSS = `
 .cz-pie{position:absolute;bottom:0;left:0;right:0;background:#2f5a1a;color:#fff;font-size:8.5pt;padding:3mm 12mm;display:flex;justify-content:space-between}
 .cz-fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:4mm}
 .cz-fotos img{width:100%;height:30mm;border-radius:3mm;display:block}
+.cz-pagos{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:4mm}
+.cz-pago{display:flex;align-items:center;gap:3mm;background:#fff;border:1px solid #e3ead9;border-radius:3mm;padding:2.5mm 3mm}
+.cz-pago img{width:11mm;height:11mm;object-fit:contain;flex-shrink:0}
+.cz-pago span{display:block;font-size:7.5pt;color:#6b7a63;text-transform:uppercase;letter-spacing:.05em}
+.cz-pago b{display:block;font-size:11.5pt;color:#2f5a1a;letter-spacing:.02em}
+.cz-pago small{display:block;font-size:8pt;color:#4b5a43}
+.cz-redes{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm 3mm;margin-top:3mm}
+.cz-red{display:flex;align-items:center;gap:2mm;font-size:9pt;color:#1f2a1f;min-width:0}
+.cz-red img{width:6mm;height:6mm;flex-shrink:0}
+.cz-red div{min-width:0}
+.cz-red span{display:block;font-size:6.8pt;color:#6b7a63;text-transform:uppercase;letter-spacing:.05em}
+.cz-red b{display:block;font-weight:600;white-space:nowrap;line-height:1.35}
+.cz h4.sub{margin:4mm 0 0;color:#2f5a1a;font-size:10pt}
 `;
 
 const Pie = ({ izq, der }) => <div className="cz-pie"><span>{izq}</span><span>{der}</span></div>;
 
-const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan, totales: t, imgs = {}, logo, mariposas = [] }, ref) {
+const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan, totales: t, imgs = {}, logo, mariposas = [], empresa: empresaGuardada, logosEmpresa = {} }, ref) {
+  const empresa = completarEmpresa(empresaGuardada || {});
+  const conPagos = hayPagos(empresa);
+  const { banco, nequi } = empresa.pagos;
   const dias = t.dias;
   const compacto = dias >= 3;
   const nombre = cot.cliente?.nombre?.trim() || "familia";
   const origen = cot.cliente?.origen?.trim();
   const filasTabla = t.porDia.reduce((s, d) => s + d.lineas.length + 1, 0) + t.extras.length;
-  const cierreAparte = filasTabla > 21;
   const apretado = filasTabla > 16;
+  // Si el cierre (totales, pagos, redes) no cabe en la hoja 2: primero se quitan las 3 fotos finales,
+  // y si aún no cabe, el cierre pasa a una hoja 3 (con fotos). Se mide de verdad en pantalla.
+  const [ajuste, setAjuste] = useState(filasTabla > 21 ? 2 : 0); // 0 normal · 1 sin fotos · 2 hoja aparte
+  const cierreAparte = ajuste === 2;
+  const conTira = ajuste !== 1;
+  const hoja2 = useRef(null);
+  useLayoutEffect(() => {
+    const h = hoja2.current;
+    if (!h || ajuste === 2) return;
+    const sec = h.querySelector(".cz-sec");
+    const pie = h.querySelector(".cz-pie");
+    if (sec && pie && sec.getBoundingClientRect().bottom > pie.getBoundingClientRect().top - 2) setAjuste((a) => a + 1);
+  });
 
   const cierre = (
     <>
@@ -72,8 +101,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
           <h4 style={{ marginTop: "2.5mm" }}>Para separar su fecha</h4>
           50 % de anticipo para reservar y el otro 50 % al llegar a Earth Park.<br />
           Si necesitan cambiar la fecha con más de 7 días de anticipación, la movemos sin costo. Con menos de 72 horas se retiene el anticipo.<br />
-          <h4 style={{ marginTop: "2.5mm" }}>Pagos</h4>
-          Bancolombia o Nequi. Les enviamos los datos cuando confirmen.
+          {!conPagos && (<><h4 style={{ marginTop: "2.5mm" }}>Pagos</h4>Bancolombia o Nequi. Les enviamos los datos cuando confirmen.</>)}
         </div>
         <div className="cz-tbox">
           <div><span>Actividades</span><span>{pesos(t.subtotal)}</span></div>
@@ -89,9 +117,30 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
           ) : null}
         </div>
       </div>
-      {imgs.tira?.some(Boolean) && <div className="cz-fotos">{imgs.tira.filter(Boolean).map((src, i) => <img key={i} src={src} alt="" />)}</div>}
+      {conPagos && (
+        <>
+          <h4 className="sub">Medios de pago</h4>
+          <div className="cz-pagos">
+            {banco.numero && (
+              <div className="cz-pago"><img src={logosEmpresa.bancolombia} alt="" />
+                <div><span>{banco.nombre} · {banco.tipo}</span><b>{banco.numero}</b>{banco.titular && <small>A nombre de {banco.titular}</small>}</div></div>
+            )}
+            {nequi.numero && (
+              <div className="cz-pago"><img src={logosEmpresa.nequi} alt="" />
+                <div><span>{nequi.nombre}</span><b>{nequi.numero}</b>{nequi.titular && <small>A nombre de {nequi.titular}</small>}</div></div>
+            )}
+          </div>
+        </>
+      )}
+      {conTira && imgs.tira?.some(Boolean) && <div className="cz-fotos">{imgs.tira.filter(Boolean).map((src, i) => <img key={i} src={src} alt="" />)}</div>}
       <p className="cz-msg" style={{ textAlign: "center", marginTop: "5mm" }}>¿Les gusta? Escríbannos por WhatsApp y con gusto les separamos la fecha o ajustamos lo que necesiten.</p>
       <p style={{ textAlign: "center", fontSize: "9pt", color: "#6b7a63", margin: 0 }}>Con cariño, Oscar Martín Roa C. y la familia Earth Park</p>
+      <h4 className="sub">Encuéntrennos en</h4>
+      <div className="cz-redes">
+        {CANALES.filter((c) => empresa.contacto[c.clave]).map((c) => (
+          <div key={c.clave} className="cz-red"><img src={logosEmpresa[c.clave]} alt="" /><div><span>{c.nombre}</span><b>{empresa.contacto[c.clave]}</b></div></div>
+        ))}
+      </div>
     </>
   );
 
@@ -137,14 +186,17 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
             );
           })}
         </div>
-        <Pie izq="Earth Park · Ecoturismo en Macanal, Valle de Tenza" der="WhatsApp 322 869 7438 · earthpark.com.co" />
+        <Pie izq="Earth Park · Ecoturismo en Macanal, Valle de Tenza" der={[empresa.contacto.whatsapp && `WhatsApp ${empresa.contacto.whatsapp}`, empresa.contacto.web].filter(Boolean).join(" · ")} />
       </div>
 
-      <div className="cz-p" data-hoja>
+      <div className="cz-p" data-hoja ref={hoja2}>
         {mariposas[1] && <img className="cz-mar" src={mariposas[1]} alt="" style={{ top: "8mm", right: "12mm", width: "20mm", transform: "rotate(-14deg)" }} />}
         <div className="cz-sec" style={{ paddingTop: "12mm" }}>
           <h2>Valores de su plan</h2>
-          <p style={{ fontSize: "9pt", margin: "-1mm 0 3mm", color: "#4b5a43" }}>
+          <p className="cz-msg" style={{ fontSize: "10.5pt", margin: "-1mm 0 2mm" }}>
+            Esta es nuestra propuesta para ustedes. Si quieren cambiar alguna actividad, con toda tranquilidad nos dicen y la ajustamos a su gusto.
+          </p>
+          <p style={{ fontSize: "9pt", margin: "0 0 3mm", color: "#4b5a43" }}>
             Calculado para {plural(t.pagan, "persona que paga", "personas que pagan")}
             {cot.menores5 > 0 ? ` (${plural(Number(cot.menores5), "menor de 5 años va", "menores de 5 años van")} sin costo)` : ""}.
           </p>
@@ -169,7 +221,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
           </table>
           {!cierreAparte && cierre}
         </div>
-        <Pie izq="Vereda El Dátil, Macanal, Boyacá" der="WhatsApp 322 869 7438 · @earthpark.co" />
+        <Pie izq="Vereda El Dátil, Macanal, Boyacá" der={[empresa.contacto.whatsapp && `WhatsApp ${empresa.contacto.whatsapp}`, empresa.contacto.instagram].filter(Boolean).join(" · ")} />
       </div>
 
       {cierreAparte && (
@@ -179,7 +231,7 @@ const DocumentoCotizacion = forwardRef(function DocumentoCotizacion({ cot, plan,
             <h2>Su inversión y cómo reservar</h2>
             {cierre}
           </div>
-          <Pie izq="Vereda El Dátil, Macanal, Boyacá" der="WhatsApp 322 869 7438 · @earthpark.co" />
+          <Pie izq="Vereda El Dátil, Macanal, Boyacá" der={[empresa.contacto.whatsapp && `WhatsApp ${empresa.contacto.whatsapp}`, empresa.contacto.instagram].filter(Boolean).join(" · ")} />
         </div>
       )}
     </div>

@@ -54,7 +54,7 @@ function Numero({ label, value, onChange, min = 0 }) {
   );
 }
 
-export default function EditorCotizacion({ inicial, catalogo, planes, descuentos, onVolver, onGuardada }) {
+export default function EditorCotizacion({ inicial, catalogo, planes, descuentos, empresa, onVolver, onGuardada }) {
   const { usuario } = useAuth();
   const [cot, setCot] = useState(inicial);
   const [aviso, setAviso] = useState("");
@@ -138,7 +138,7 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
 
   const verPrevia = async () => {
     setOcupado("previa");
-    setVista(await prepararImagenes(cot.fotos, t.dias));
+    setVista(await prepararImagenes(cot.fotos, t.dias, empresa));
     setOcupado("");
   };
 
@@ -148,7 +148,7 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
     if (!g) return;
     setOcupado("pdf");
     try {
-      const recursos = vista || (await prepararImagenes(g.fotos, t.dias));
+      const recursos = vista || (await prepararImagenes(g.fotos, t.dias, empresa));
       setParaPdf({ cot: g, ...recursos });
       await new Promise((r) => setTimeout(r, 400)); // esperar a que se dibujen las hojas fuera de pantalla
       const blob = await generarPdf(hojasRef.current);
@@ -336,10 +336,10 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
       </div>
 
       {eligiendo && <ElegirFoto titulo="Foto para la propuesta" onElegir={ponerFoto} onCerrar={() => setEligiendo(null)} />}
-      {vista && <VistaPrevia onCerrar={() => setVista(null)}><DocumentoCotizacion cot={cot} plan={plan} totales={t} {...vista} /></VistaPrevia>}
+      {vista && <VistaPrevia onCerrar={() => setVista(null)}><DocumentoCotizacion cot={cot} plan={plan} totales={t} empresa={empresa} {...vista} /></VistaPrevia>}
       {paraPdf && createPortal(
         <div style={{ position: "fixed", left: "-10000px", top: 0, width: "210mm" }} aria-hidden>
-          <DocumentoCotizacion ref={hojasRef} cot={paraPdf.cot} plan={plan} totales={t} imgs={paraPdf.imgs} logo={paraPdf.logo} mariposas={paraPdf.mariposas} />
+          <DocumentoCotizacion ref={hojasRef} cot={paraPdf.cot} plan={plan} totales={t} imgs={paraPdf.imgs} logo={paraPdf.logo} mariposas={paraPdf.mariposas} empresa={empresa} logosEmpresa={paraPdf.logosEmpresa} />
         </div>,
         document.body,
       )}

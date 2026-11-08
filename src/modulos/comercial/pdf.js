@@ -1,12 +1,13 @@
 // Prepara las fotos y convierte las hojas de DocumentoCotizacion en un PDF A4.
 import { fotoRecortada } from "./datos";
 import { TAM_FOTOS } from "./DocumentoCotizacion";
+import { CANALES, iconoGenerico } from "./empresa";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const seguro = (p) => p.catch(() => "");
 
 /** Recorta todas las fotos de la cotización. Si una falla, esa queda vacía (no daña el resto). */
-export async function prepararImagenes(fotos = {}, dias = 1) {
+export async function prepararImagenes(fotos = {}, dias = 1, empresa = null) {
   const [pw, ph] = dias >= 3 ? TAM_FOTOS.portadaCompacta : TAM_FOTOS.portada;
   const [portada, logo, m1, m2, ...resto] = await Promise.all([
     seguro(fotoRecortada(fotos.portada, pw, ph)),
@@ -16,7 +17,14 @@ export async function prepararImagenes(fotos = {}, dias = 1) {
     ...Array.from({ length: dias }, (_, i) => seguro(fotoRecortada(fotos.dias?.[i], ...TAM_FOTOS.dia))),
     ...[0, 1, 2].map((i) => seguro(fotoRecortada(fotos.tira?.[i], ...TAM_FOTOS.tira))),
   ]);
-  return { imgs: { portada, dias: resto.slice(0, dias), tira: resto.slice(dias) }, logo, mariposas: [m1, m2] };
+  return { imgs: { portada, dias: resto.slice(0, dias), tira: resto.slice(dias) }, logo, mariposas: [m1, m2], logosEmpresa: await prepararLogos(empresa) };
+}
+
+/** Logos de pagos y redes: el subido en Precios → Empresa, o un ícono genérico si no hay. */
+async function prepararLogos(empresa) {
+  const claves = ["bancolombia", "nequi", ...CANALES.map((c) => c.clave)];
+  const urls = await Promise.all(claves.map((k) => (empresa?.logos?.[k] ? seguro(cargarComoDataUrl(empresa.logos[k])) : Promise.resolve(""))));
+  return Object.fromEntries(claves.map((k, i) => [k, urls[i] || iconoGenerico(k)]));
 }
 
 async function cargarComoDataUrl(url) {

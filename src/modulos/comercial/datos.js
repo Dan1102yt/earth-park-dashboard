@@ -86,3 +86,20 @@ export async function fotoRecortada(ref, ancho, alto) {
   lienzo.getContext("2d").drawImage(bmp, (ancho - w) / 2, (alto - h) / 2, w, h);
   return lienzo.toDataURL("image/jpeg", 0.86);
 }
+
+// ── Datos de la empresa (pagos, redes, logos) ──
+export async function cargarEmpresa() {
+  const { data, error } = await sb().from("datos_empresa").select("datos").eq("id", "principal").maybeSingle();
+  if (error) return null; // si la tabla aún no existe, la propuesta sale con los datos iniciales
+  return data?.datos || null;
+}
+export async function guardarEmpresa(datos) {
+  return revisar(await sb().from("datos_empresa").upsert({ id: "principal", datos, actualizado_at: new Date().toISOString() }).select().single()).datos;
+}
+export async function subirLogo(clave, archivo) {
+  const ext = (archivo.name.split(".").pop() || "png").toLowerCase();
+  const ruta = `marca/logos/${clave}-${Date.now()}.${ext}`;
+  const { error } = await sb().storage.from("videos").upload(ruta, archivo, { contentType: archivo.type || "image/png" });
+  if (error) throw new Error(`No se pudo subir el logo: ${error.message}`);
+  return sb().storage.from("videos").getPublicUrl(ruta).data.publicUrl;
+}

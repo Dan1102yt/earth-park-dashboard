@@ -4,9 +4,11 @@
 
 1. Corre `base-de-datos/08_precios_y_cotizaciones.sql` (crea las tablas).
 2. Corre `privado/08_datos_iniciales.sql` (actividades, costos, descuentos e itinerarios). Este archivo solo está en el PC: no se sube a GitHub.
+3. Corre `base-de-datos/09_datos_empresa.sql` y luego `privado/09_datos_empresa.sql` (medios de pago y redes que salen en la propuesta).
 
 ## Cómo se usa
 
+- **Precios → Empresa**: cuentas de pago, redes y correo, y los logos de cada plataforma (se suben ahí; mientras tanto sale un ícono genérico).
 - **Precios**: aquí se cambian precios y costos de cada actividad, el itinerario y las fotos por defecto de cada plan, y los descuentos. Es la fuente única.
 - **Cotizaciones → Nueva**: eliges el plan, las fechas y quiénes vienen (adultos, niños de 5+ y menores de 5, que no pagan). Puedes quitar o agregar actividades por día, cambiar el precio solo para esa cotización, elegir fotos (web, Drive o subidas) y editar el saludo.
 - **PDF**: guarda la cotización, descarga la propuesta y deja una copia en Supabase Storage (`videos/cotizaciones/`) para enviarla por WhatsApp.

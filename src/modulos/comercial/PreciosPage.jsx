@@ -1,10 +1,11 @@
 // Precios: catálogo de actividades (precio y costo), itinerario y fotos de cada plan, y descuentos por tipo de cliente.
 // Es la fuente única: las cotizaciones copian de aquí el precio del momento.
 import { useCallback, useEffect, useState } from "react";
-import { Save, Plus, Trash2, ImageIcon } from "lucide-react";
+import { Save, Plus, Trash2, ImageIcon, Upload } from "lucide-react";
 import { useAuth } from "../../compartido/contexto/AuthContext";
 import PageHeader from "../../compartido/componentes/PageHeader";
-import { cargarCatalogo, cargarPlanes, cargarDescuentos, guardarCatalogo, guardarPlan, guardarDescuento, borrarCatalogo, urlFoto } from "./datos";
+import { cargarCatalogo, cargarPlanes, cargarDescuentos, guardarCatalogo, guardarPlan, guardarDescuento, borrarCatalogo, urlFoto, cargarEmpresa, guardarEmpresa, subirLogo } from "./datos";
+import { completarEmpresa, CANALES, iconoGenerico } from "./empresa";
 import { pesos, UNIDADES, CODIGO_GUIA } from "./calculo";
 import ElegirFoto from "./ElegirFoto";
 
@@ -34,8 +35,8 @@ export default function PreciosPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <PageHeader title="Precios" subtitle="Un solo lugar para los precios. Cambiarlos aquí no altera cotizaciones ya hechas." />
-      <div className="flex gap-2 mb-4">
-        {[["actividades", "Actividades"], ["planes", "Planes"], ["descuentos", "Descuentos"]].map(([k, v]) => (
+      <div className="flex gap-2 mb-4 overflow-x-auto">
+        {[["actividades", "Actividades"], ["planes", "Planes"], ["descuentos", "Descuentos"], ["empresa", "Empresa"]].map(([k, v]) => (
           <button key={k} onClick={() => setPestana(k)}
             className={`text-sm px-4 py-2 rounded-full border ${pestana === k ? "border-lime-400 text-lime-300 bg-lime-400/10" : "border-white/10 text-gray-400"}`}>{v}</button>
         ))}
@@ -65,6 +66,7 @@ export default function PreciosPage() {
             avisar(`${g.nombre} (${g.subtitulo}): guardado`);
           })} />
       ))}
+      {pestana === "empresa" && <Empresa onAviso={avisar} onError={setError} />}
       {pestana === "descuentos" && (
         <div className="glass-card p-4 space-y-2">
           {descuentos.map((d) => <FilaDescuento key={d.id} d={d} onGuardar={conError(async (x) => { const g = await guardarDescuento(x); setDescuentos((ds) => ds.map((y) => (y.id === g.id ? g : y))); avisar("Descuento guardado"); })} />)}
@@ -224,6 +226,75 @@ function FilaDescuento({ d, onGuardar }) {
         onChange={(e) => setX({ ...x, porcentaje: Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100 })} />
       <span className="text-gray-400 text-sm">%</span>
       {cambio && <button onClick={() => onGuardar(x)} className="p-2 rounded-lg bg-lime-400 text-emerald-950" aria-label="Guardar"><Save className="w-4 h-4" /></button>}
+    </div>
+  );
+}
+
+function Empresa({ onAviso, onError }) {
+  const [e, setE] = useState(null);
+  const [original, setOriginal] = useState(null);
+  const [subiendo, setSubiendo] = useState("");
+  useEffect(() => { cargarEmpresa().then((d) => { const c = completarEmpresa(d || {}); setE(c); setOriginal(c); }); }, []);
+  if (!e) return <p className="text-gray-400 text-sm">Cargando…</p>;
+  const cambio = JSON.stringify(e) !== JSON.stringify(original);
+  const pago = (k, campoP, v) => setE({ ...e, pagos: { ...e.pagos, [k]: { ...e.pagos[k], [campoP]: v } } });
+
+  const guardar = async () => {
+    onError("");
+    try { const g = completarEmpresa(await guardarEmpresa(e)); setE(g); setOriginal(g); onAviso("Datos de la empresa guardados"); } catch (x) { onError(x.message); }
+  };
+  const logo = async (clave, archivo) => {
+    if (!archivo) return;
+    setSubiendo(clave);
+    try { const url = await subirLogo(clave, archivo); setE((x) => ({ ...x, logos: { ...x.logos, [clave]: url } })); } catch (x) { onError(x.message); }
+    setSubiendo("");
+  };
+  const Logo = ({ clave }) => (
+    <label className="relative w-11 h-11 flex-shrink-0 rounded-lg bg-white/90 flex items-center justify-center cursor-pointer overflow-hidden" title="Subir logo">
+      <img src={e.logos[clave] || iconoGenerico(clave)} alt="" className="w-8 h-8 object-contain" />
+      <span className="absolute inset-x-0 bottom-0 bg-black/60 flex justify-center">{subiendo === clave ? <span className="text-[9px] text-white">…</span> : <Upload className="w-2.5 h-2.5 text-white" />}</span>
+      <input type="file" accept="image/*" className="hidden" onChange={(ev) => logo(clave, ev.target.files?.[0])} />
+    </label>
+  );
+
+  return (
+    <div className="space-y-4">
+      <section className="glass-card p-4 sm:p-5">
+        <h2 className="text-sm font-bold text-lime-300 uppercase tracking-wide mb-3">Medios de pago (salen en la propuesta)</h2>
+        <div className="space-y-3">
+          <div className="flex gap-3 items-start">
+            <Logo clave="bancolombia" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+              <input className={campo} value={e.pagos.banco.nombre} placeholder="Banco" onChange={(x) => pago("banco", "nombre", x.target.value)} />
+              <input className={campo} value={e.pagos.banco.tipo} placeholder="Tipo de cuenta" onChange={(x) => pago("banco", "tipo", x.target.value)} />
+              <input className={campo} value={e.pagos.banco.numero} placeholder="Número" onChange={(x) => pago("banco", "numero", x.target.value)} />
+              <input className={campo} value={e.pagos.banco.titular} placeholder="Titular (opcional)" onChange={(x) => pago("banco", "titular", x.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-3 items-start">
+            <Logo clave="nequi" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+              <input className={campo} value={e.pagos.nequi.nombre} placeholder="Billetera" onChange={(x) => pago("nequi", "nombre", x.target.value)} />
+              <input className={campo} value={e.pagos.nequi.numero} placeholder="Número" onChange={(x) => pago("nequi", "numero", x.target.value)} />
+              <input className={`${campo} col-span-2`} value={e.pagos.nequi.titular} placeholder="Titular (opcional)" onChange={(x) => pago("nequi", "titular", x.target.value)} />
+            </div>
+          </div>
+        </div>
+      </section>
+      <section className="glass-card p-4 sm:p-5">
+        <h2 className="text-sm font-bold text-lime-300 uppercase tracking-wide mb-3">Redes y contacto</h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {CANALES.map((c) => (
+            <div key={c.clave} className="flex gap-3 items-center">
+              <Logo clave={c.clave} />
+              <label className="flex-1"><span className="text-xs text-gray-400">{c.nombre} (vacío = no sale)</span>
+                <input className={campo} value={e.contacto[c.clave] || ""} onChange={(x) => setE({ ...e, contacto: { ...e.contacto, [c.clave]: x.target.value } })} /></label>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-3">Toca cada cuadro para subir el logo oficial (PNG con fondo transparente). Mientras no lo subas, sale un ícono genérico.</p>
+      </section>
+      {cambio && <button onClick={guardar} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> Guardar datos de la empresa</button>}
     </div>
   );
 }

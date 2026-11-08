@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, FileText } from "lucide-react";
 import { useAuth } from "../../compartido/contexto/AuthContext";
 import PageHeader from "../../compartido/componentes/PageHeader";
-import { cargarCatalogo, cargarDescuentos, cargarPlanes, listarCotizaciones } from "./datos";
+import { cargarCatalogo, cargarDescuentos, cargarPlanes, listarCotizaciones, cargarEmpresa } from "./datos";
 import { ESTADOS, pesos, fechasTexto } from "./calculo";
 import EditorCotizacion, { cotizacionNueva } from "./EditorCotizacion";
 
@@ -17,8 +17,8 @@ export default function CotizacionesPage() {
 
   const cargar = useCallback(async () => {
     try {
-      const [catalogo, planes, descuentos, cots] = await Promise.all([cargarCatalogo(), cargarPlanes(), cargarDescuentos(), listarCotizaciones()]);
-      setDatos({ catalogo, planes, descuentos });
+      const [catalogo, planes, descuentos, cots, empresa] = await Promise.all([cargarCatalogo(), cargarPlanes(), cargarDescuentos(), listarCotizaciones(), cargarEmpresa()]);
+      setDatos({ catalogo, planes, descuentos, empresa });
       setLista(cots);
       setError(planes.length ? "" : "No hay planes cargados. Corre privado/08_datos_iniciales.sql en Supabase → SQL Editor.");
     } catch (e) {
