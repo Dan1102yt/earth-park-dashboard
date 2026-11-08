@@ -20,6 +20,8 @@ import {
   Images,
   Scissors,
   Handshake,
+  FileSignature,
+  Tags,
 } from "lucide-react";
 
 function InstagramIcon({ className }) {
@@ -49,6 +51,8 @@ const tabs = [
   { path: "/hospedaje",     label: "Hospedaje",     icon: BedDouble    },
   { path: "/financiero",    label: "Financiero",    icon: TrendingUp   },
   { path: "/informe",       label: "Informe",       icon: FileText     },
+  { path: "/cotizaciones",  label: "Cotizaciones",  icon: FileSignature },
+  { path: "/precios",       label: "Precios",       icon: Tags         },
   { path: "/devoluciones",  label: "Devoluciones",  icon: RotateCcw    },
   { path: "/asistente",     label: "Asistente",     icon: Bot          },
   { path: "/marketing",     label: "Marketing",     icon: Megaphone    },

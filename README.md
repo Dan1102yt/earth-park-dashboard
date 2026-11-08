@@ -21,7 +21,7 @@ earth-park-dashboard/
 ├─ servidor/            ← el servidor en Cloudflare (Worker)
 ├─ base-de-datos/       ← tablas de Supabase, numeradas en el orden en que se crearon
 ├─ docs/                ← guías paso a paso
-├─ public/              ← íconos, logo y archivos que se publican tal cual
+├─ public/              ← íconos, logo, fotos de las cotizaciones (cotizacion/) y archivos que se publican tal cual
 └─ tests/               ← pruebas automáticas
 ```
 
@@ -63,6 +63,7 @@ Los planes y precios **no** se escriben en `marca.md`. Salen solos de `src/confi
 | `cocina/` | Cocina | Lista de compras y menú según las reservas |
 | `hospedaje/` | Hospedaje | Ocupación de las cabañas |
 | `financiero/` | Financiero, Informe, Devoluciones | Ingresos, egresos, márgenes, informe mensual |
+| `comercial/` | Cotizaciones, Precios | Catálogo de precios y costos, planes, descuentos y propuestas en PDF para el cliente |
 | `asistente/` | Asistente | Chat con IA sobre el negocio |
 | `marketing/` | Marketing | Todo el marketing con IA (ver abajo) |
 
@@ -116,8 +117,9 @@ Celular / PC  ──►  App (GitHub Pages)
 | Publicar cambios | `git add -A`, `git commit -m "..."`, `git push` → GitHub la publica sola en ~2 minutos |
 | Correr las pruebas | `npm test` |
 | Cambiar el tono o las reglas de los agentes | Editar `cerebro/marca.md` |
-| Cambiar precios o planes | Editar `src/configuracion/planesConfig.js` |
-| Crear una tabla nueva en Supabase | Agregar `base-de-datos/07_nombre.sql` y correrlo en Supabase → SQL Editor |
+| Cambiar precios de cotizaciones | Pantalla **Precios** del panel (se guarda en Supabase) |
+| Cambiar precios o planes de reservas | Editar `src/configuracion/planesConfig.js` |
+| Crear una tabla nueva en Supabase | Agregar `base-de-datos/09_nombre.sql` y correrlo en Supabase → SQL Editor |
 | Actualizar el servidor | Copiar `servidor/worker.js` en Cloudflare → Worker → Edit code → Deploy |
 
 Guías detalladas en `docs/`.
