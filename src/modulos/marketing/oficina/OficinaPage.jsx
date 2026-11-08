@@ -2,7 +2,7 @@
 // El Estratega arma el plan semanal → reunión contigo (apruebas / cambias / descartas) → producción → publicación.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Clapperboard, Scissors, Images, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
+import { Clapperboard, Scissors, Images, Handshake, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
 import { W, H, ESCALA, AGENTES, dibujarOficina, posicionAgente, POS_SILLA_OSCAR } from "./mapaOficina";
 import { usePlan, lunesDe, lunesSiguiente, ESTADOS } from "./usePlan";
 import { pedirPlanSemana, fechaColombia, fechaBonita } from "./planPrompt";
@@ -27,6 +27,7 @@ const HERRAMIENTAS = [
   ["/marketing/animado", Film, "Animados", "Videos explicativos"],
   ["/marketing/editor-video", Scissors, "Editar mis videos", "Sube tu video y edítalo"],
   ["/marketing/galeria-web", Images, "Fotos web", "Qué sale en la página"],
+  ["/marketing/cavipetrol", Handshake, "Cavipetrol", "Piezas CaviAliados (lunes)"],
 ];
 const DUR_CAMINATA = 3.5; // segundos para ir del escritorio a la mesa
 

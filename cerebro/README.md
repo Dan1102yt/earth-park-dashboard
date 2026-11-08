@@ -7,6 +7,7 @@ Aquí vive el conocimiento central del proyecto. Los agentes de IA leen estos ar
 - `estructura-video.md`: las 4 partes obligatorias de cada video.
 - `ivan.md`: el perfil experto de Iván (ecoturismo del Valle de Tenza y el modelo de solo reservas).
 - `competencia.md`: las cuentas de competencia y referentes que Iván sigue cada semana. Agrega o quita cuentas ahí.
+- `cavipetrol.md`: formatos y lineamientos de las piezas para Cavipetrol (entrega los lunes).
 - `agentes.md`: el equipo de la Oficina IA.
 - `decisiones.md`: registro de decisiones importantes y su porqué.
 

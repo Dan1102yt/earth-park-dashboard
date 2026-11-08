@@ -17,6 +17,7 @@ import AgentePage from "./modulos/marketing/agente/AgentePage";
 import AnimadoPage from "./modulos/marketing/animado/AnimadoPage";
 import CinePage from "./modulos/marketing/cine/CinePage";
 import OficinaPage from "./modulos/marketing/oficina/OficinaPage";
+import CavipetrolPage from "./modulos/marketing/cavipetrol/CavipetrolPage";
 import Devoluciones from "./modulos/financiero/Devoluciones";
 
 function AppContent() {
@@ -58,6 +59,7 @@ function AppContent() {
               <Route path="/marketing/animado" element={<AnimadoPage />} />
               <Route path="/marketing/cine" element={<CinePage />} />
               <Route path="/marketing/oficina" element={<OficinaPage />} />
+              <Route path="/marketing/cavipetrol" element={<CavipetrolPage />} />
               <Route path="/devoluciones" element={<Devoluciones />} />
               <Route path="*" element={<Navigate to="/reservas" replace />} />
             </Routes>

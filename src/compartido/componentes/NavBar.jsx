@@ -19,6 +19,7 @@ import {
   Film,
   Images,
   Scissors,
+  Handshake,
 } from "lucide-react";
 
 function InstagramIcon({ className }) {
@@ -61,6 +62,7 @@ const HERRAMIENTAS_MARKETING = [
   { path: "/marketing/animado", label: "Animados", icon: Film },
   { path: "/marketing/editor-video", label: "Editar mis videos", icon: Scissors },
   { path: "/marketing/galeria-web", label: "Fotos web", icon: Images },
+  { path: "/marketing/cavipetrol", label: "Cavipetrol", icon: Handshake },
 ];
 
 export default function NavBar() {

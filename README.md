@@ -76,6 +76,7 @@ Los planes y precios **no** se escriben en `marca.md`. Salen solos de `src/confi
 | `animado/` | Videos animados con íconos, voz y efectos de sonido |
 | `editor/` | Pedidos de edición de video |
 | `galeria/` | Qué fotos de Drive salen en la página web pública |
+| `cavipetrol/` | Piezas para Cavipetrol (CaviAliados): historias, posts y banner web con su plantilla y lineamientos |
 | `comun/` | Piezas que comparten: selector y explorador de fotos de Drive |
 
 ### `src/compartido/`
