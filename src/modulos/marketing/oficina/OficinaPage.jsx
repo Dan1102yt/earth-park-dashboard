@@ -2,7 +2,7 @@
 // El Estratega arma el plan semanal → reunión contigo (apruebas / cambias / descartas) → producción → publicación.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Clapperboard, Scissors, Images, Handshake, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
+import { Clapperboard, Video, Scissors, Images, Handshake, Loader2, Sparkles, Users, AlertCircle, Film, LayoutGrid, Play, RefreshCw, Palette, FileSearch, Send, CalendarClock, ExternalLink, Instagram } from "lucide-react";
 import { W, H, ESCALA, AGENTES, dibujarOficina, posicionAgente, POS_SILLA_OSCAR } from "./mapaOficina";
 import { usePlan, lunesDe, lunesSiguiente, ESTADOS } from "./usePlan";
 import { pedirPlanSemana, fechaColombia, fechaBonita } from "./planPrompt";
@@ -24,6 +24,7 @@ const tarjeta = { background: "rgba(10,22,6,0.6)", border: "1px solid rgba(77,14
 const HERRAMIENTAS = [
   ["/marketing/agente", LayoutGrid, "Carruseles", "Imágenes, historias y estrategia"],
   ["/marketing/cine", Clapperboard, "Reels con IA", "Video documental 9:16"],
+  ["/marketing/guion", Video, "Video con guion", "Tu guion, fotos reales, 9:16 y 16:9"],
   ["/marketing/animado", Film, "Animados", "Videos explicativos"],
   ["/marketing/editor-video", Scissors, "Editar mis videos", "Sube tu video y edítalo"],
   ["/marketing/galeria-web", Images, "Fotos web", "Qué sale en la página"],

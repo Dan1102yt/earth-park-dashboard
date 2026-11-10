@@ -18,6 +18,7 @@ import AnimadoPage from "./modulos/marketing/animado/AnimadoPage";
 import CinePage from "./modulos/marketing/cine/CinePage";
 import OficinaPage from "./modulos/marketing/oficina/OficinaPage";
 import CavipetrolPage from "./modulos/marketing/cavipetrol/CavipetrolPage";
+import GuionPropioPage from "./modulos/marketing/guion/GuionPropioPage";
 import Devoluciones from "./modulos/financiero/Devoluciones";
 import CotizacionesPage from "./modulos/comercial/CotizacionesPage";
 import PreciosPage from "./modulos/comercial/PreciosPage";
@@ -62,6 +63,7 @@ function AppContent() {
               <Route path="/marketing/cine" element={<CinePage />} />
               <Route path="/marketing/oficina" element={<OficinaPage />} />
               <Route path="/marketing/cavipetrol" element={<CavipetrolPage />} />
+              <Route path="/marketing/guion" element={<GuionPropioPage />} />
               <Route path="/devoluciones" element={<Devoluciones />} />
               <Route path="/cotizaciones" element={<CotizacionesPage />} />
               <Route path="/precios" element={<PreciosPage />} />

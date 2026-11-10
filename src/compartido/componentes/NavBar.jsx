@@ -20,6 +20,7 @@ import {
   Images,
   Scissors,
   Handshake,
+  Video,
   FileSignature,
   Tags,
 } from "lucide-react";
@@ -63,6 +64,7 @@ const PRINCIPALES = ["/reservas", "/nueva", "/marketing", "/financiero"];
 const HERRAMIENTAS_MARKETING = [
   { path: "/marketing/agente", label: "Carruseles", icon: LayoutGrid },
   { path: "/marketing/cine", label: "Reels con IA", icon: Clapperboard },
+  { path: "/marketing/guion", label: "Video con guion", icon: Video },
   { path: "/marketing/animado", label: "Animados", icon: Film },
   { path: "/marketing/editor-video", label: "Editar mis videos", icon: Scissors },
   { path: "/marketing/galeria-web", label: "Fotos web", icon: Images },

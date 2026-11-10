@@ -14,10 +14,10 @@ export function bitrateParaDuracion(segundos) {
   return Math.round(Math.max(2_500_000, Math.min(8_000_000, disponible)));
 }
 
-async function videoSoportado(bitrate = 8_000_000) {
+async function videoSoportado(bitrate = 8_000_000, width = ANCHO, height = ALTO) {
   if (typeof VideoEncoder === "undefined") return null;
   for (const codec of CODECS) {
-    const cfg = { codec, width: ANCHO, height: ALTO, bitrate, framerate: FPS };
+    const cfg = { codec, width, height, bitrate, framerate: FPS };
     try {
       if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg;
     } catch { /* siguiente */ }
@@ -44,15 +44,16 @@ async function audioSoportado(pista) {
 export async function exportarVideo(guion, pista = null, onProgreso = () => {}, opciones = {}) {
   // opciones.dibujar(ctx, guion, t): dibuja un fotograma (por defecto el motor ilustrado)
   // opciones.preparar(t): async, se llama antes de cada fotograma (ej. posicionar los clips de video)
+  // opciones.ancho / opciones.alto: tamaño del video (por defecto vertical 1080×1920)
   const dibujar = opciones.dibujar || dibujarFrame;
   const preparar = opciones.preparar || null;
   await cargarRecursos();
   const canvas = document.createElement("canvas");
-  canvas.width = ANCHO;
-  canvas.height = ALTO;
+  canvas.width = opciones.ancho || ANCHO;
+  canvas.height = opciones.alto || ALTO;
   const ctx = canvas.getContext("2d");
 
-  const vcfg = await videoSoportado(bitrateParaDuracion(guion.total || 60));
+  const vcfg = await videoSoportado(bitrateParaDuracion(guion.total || 60), canvas.width, canvas.height);
   const acfg = await audioSoportado(pista);
   // Si hay narración pero el navegador no puede codificar AAC, mejor grabar en vivo (con audio)
   if (vcfg && (!pista || acfg)) return exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso, dibujar, preparar);
@@ -85,7 +86,7 @@ async function codificarAudio(muxer, pista, cfg) {
 async function exportarMp4(guion, canvas, ctx, vcfg, pista, acfg, onProgreso, dibujar, preparar) {
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: { codec: "avc", width: ANCHO, height: ALTO, frameRate: FPS },
+    video: { codec: "avc", width: canvas.width, height: canvas.height, frameRate: FPS },
     ...(acfg ? { audio: { codec: acfg.muxCodec, sampleRate: acfg.sampleRate, numberOfChannels: acfg.numberOfChannels } } : {}),
     fastStart: "in-memory",
     firstTimestampBehavior: "offset",
