@@ -3,6 +3,7 @@ import { supabase } from "../../../compartido/lib/supabaseClient";
 import { posicionar } from "../cine/visuales";
 import { indiceEn, tiempoEnClip, FUNDIDO } from "./linea";
 
+const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
 const LIMITE_MB = 50; // límite por archivo del plan gratis de Supabase
 const locales = new Map(); // "local:…" → blob URL (solo en este equipo, mientras la página esté abierta)
 
@@ -22,7 +23,12 @@ export async function subirVideo(archivo) {
   return { ref: supabase.storage.from("videos").getPublicUrl(ruta).data.publicUrl, local: false };
 }
 
-export const urlVideo = (ref) => (ref?.startsWith("local:") ? locales.get(ref) || "" : ref);
+export function urlVideo(ref) {
+  if (!ref) return "";
+  if (ref.startsWith("local:")) return locales.get(ref) || "";
+  if (ref.startsWith("drive:")) return `${WORKER_URL}/drive/video?id=${encodeURIComponent(ref.slice(6))}`;
+  return ref;
+}
 
 /** Carga el video completo (para poder ponerlo en cualquier segundo sin esperas) → { el, dur } */
 export async function cargarVideo(ref) {
@@ -31,7 +37,15 @@ export async function cargarVideo(ref) {
   let src = url;
   if (!url.startsWith("blob:")) {
     const r = await fetch(url);
-    if (!r.ok) throw new Error(`Video ${r.status}`);
+    if (!r.ok) {
+      if (ref.startsWith("drive:")) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(r.status === 404 && !d.error
+          ? "El servidor aún no sabe traer videos de Drive: actualiza servidor/worker.js en Cloudflare"
+          : `Drive: ${d.error || r.status}`);
+      }
+      throw new Error(`Video ${r.status}`);
+    }
     src = URL.createObjectURL(await r.blob());
   }
   const el = document.createElement("video");

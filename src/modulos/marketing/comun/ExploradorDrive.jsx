@@ -1,7 +1,7 @@
 // Explorador de las fotos de Earth Park en Drive: categorías arriba (deslizables), subcarpetas como
 // tarjetas y una ruta para volver (ej. Fotos Experiencias › Senderismo). Se usa en todos los selectores de foto.
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Folder, ChevronRight, Check } from "lucide-react";
+import { Loader2, Folder, ChevronRight, Check, Play } from "lucide-react";
 import { obtenerCategorias, obtenerContenido } from "../agente/fotosCarrusel";
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || "https://earth-park-proxy.davidroa1102.workers.dev";
@@ -22,17 +22,33 @@ function Miniatura({ foto, marcada, orden, onClick }) {
   );
 }
 
+function MiniaturaVideo({ video, onClick }) {
+  const [falla, setFalla] = useState(false);
+  const min = video.segundos ? `${Math.floor(video.segundos / 60)}:${String(video.segundos % 60).padStart(2, "0")}` : "";
+  return (
+    <button onClick={onClick} className="relative aspect-square rounded-lg overflow-hidden bg-black/60 active:ring-2 ring-sky-400 text-left">
+      {video.urlMiniatura && !falla
+        ? <img src={video.urlMiniatura} alt={video.nombre} loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={() => setFalla(true)} />
+        : <span className="absolute inset-0 flex items-center justify-center p-2 text-[10px] text-gray-300 text-center break-all">{video.nombre}</span>}
+      <span className="absolute inset-0 flex items-center justify-center"><span className="w-8 h-8 rounded-full bg-black/55 flex items-center justify-center"><Play className="w-4 h-4 text-white" /></span></span>
+      <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white px-1.5 py-0.5 flex justify-between"><span>{min}</span><span>{video.mb ? `${video.mb} MB` : ""}</span></span>
+    </button>
+  );
+}
+
 /**
+ * tipo: "foto" (por defecto) o "video" · categoriasExtra: carpetas que se agregan al inicio (ej. CONTENIDO)
  * categoriaSugerida: nombre de carpeta para abrir de una vez
  * esMarcada(foto) → número de orden o true · onTocar(foto)
  */
-export default function ExploradorDrive({ categoriaSugerida, esMarcada = () => false, onTocar }) {
+export default function ExploradorDrive({ categoriaSugerida, esMarcada = () => false, onTocar, tipo = "foto", categoriasExtra = [] }) {
   const [cats, setCats] = useState(null);
   const [ruta, setRuta] = useState([]); // [{id, nombre}] desde la categoría hasta la carpeta abierta
   const [contenido, setContenido] = useState(null);
 
   useEffect(() => {
-    obtenerCategorias().then((cs) => {
+    obtenerCategorias().then((base) => {
+      const cs = [...categoriasExtra, ...base];
       setCats(cs);
       const n = (categoriaSugerida || "").toLowerCase();
       const c = cs.find((x) => n && (x.nombre.toLowerCase().includes(n) || n.includes(x.nombre.toLowerCase()))) || cs[0];
@@ -90,7 +106,13 @@ export default function ExploradorDrive({ categoriaSugerida, esMarcada = () => f
                 ))}
               </div>
             )}
-            {contenido.fotos.length > 0 ? (
+            {tipo === "video" ? (
+              contenido.videos?.length ? (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {contenido.videos.map((v) => <MiniaturaVideo key={v.id} video={v} onClick={() => onTocar(v)} />)}
+                </div>
+              ) : !contenido.carpetas.length && <p className="text-xs text-gray-500 py-6 text-center">Esta carpeta no tiene videos.</p>
+            ) : contenido.fotos.length > 0 ? (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                 {contenido.fotos.map((f) => {
                   const m = esMarcada(f);

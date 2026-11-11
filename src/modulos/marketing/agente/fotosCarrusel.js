@@ -28,7 +28,7 @@ export function obtenerContenido(folderId) {
     const p = listarCarpeta(folderId).catch((e) => {
       contenidoCache.delete(folderId);
       console.warn("[fotos] carpeta:", e.message);
-      return { carpetas: [], fotos: [] };
+      return { carpetas: [], fotos: [], videos: [] };
     });
     contenidoCache.set(folderId, p);
   }

@@ -9,6 +9,7 @@ import { exportarVideo } from "../animado/exportar";
 import { extraerObjetoJSON } from "../agente/agenteApi";
 import { useAgenteHistorial } from "../agente/useAgenteHistorial";
 import ElegirFoto from "../../comercial/ElegirFoto";
+import ExploradorDrive from "../comun/ExploradorDrive";
 import { urlFoto, cargarEmpresa } from "../../comercial/datos";
 import { completarEmpresa } from "../../comercial/empresa";
 import { armarLinea, vozVigente, aReloj, aSegundos, normalizarMedio, tiempoEnClip, tiempoPorMedio, revisarTramo, VELOCIDAD_MIN } from "./linea";
@@ -42,6 +43,7 @@ export default function GuionPropioPage() {
   const [subtitulos, setSubtitulos] = useState(leer("ep_guion_subs", "0") === "1");
   const [imagenes] = useState(() => new Map());
   const [videos] = useState(() => new Map()); // ref → { el, dur }
+  const [eligiendoVideo, setEligiendoVideo] = useState(null); // índice de escena
   const [recortando, setRecortando] = useState(null); // { escena, k (null = nuevo), medio }
   const [versionImg, setVersionImg] = useState(0);
   const [base, setBase] = useState({ logo: null, mariposa: null, contacto: [] });
@@ -268,6 +270,21 @@ export default function GuionPropioPage() {
     } catch (e) { setError(`Video: ${e.message}`); }
     setOcupado("");
   };
+  const usarVideoDrive = async (i, v) => {
+    setEligiendoVideo(null);
+    if (v.mb > 400 && !window.confirm(`Ese video pesa ${v.mb} MB y puede tardar en cargar. ¿Lo usamos igual?`)) return;
+    setError("");
+    setOcupado(`video-${i}`);
+    setAviso("Trayendo el video de Drive…");
+    try {
+      const ref = `drive:${v.id}`;
+      const cargado = videos.get(ref) || (await cargarVideo(ref));
+      videos.set(ref, cargado);
+      setAviso("");
+      setRecortando({ escena: i, k: null, medio: { tipo: "video", ref, inicio: 0, dur: cargado.dur, nombre: v.nombre } });
+    } catch (e) { setError(`Video: ${e.message}`); setAviso(""); }
+    setOcupado("");
+  };
   const guardarRecorte = (inicio) => {
     const { escena, k, medio } = recortando;
     const nuevo = { ...medio, inicio };
@@ -357,10 +374,9 @@ export default function GuionPropioPage() {
                       <button onClick={() => setEligiendo(i)} className="w-20 h-20 rounded-lg border border-dashed border-emerald-700 text-emerald-300 flex flex-col items-center justify-center text-[11px] gap-1">
                         <ImagePlus className="w-5 h-5" /> Foto
                       </button>
-                      <label className="w-20 h-20 rounded-lg border border-dashed border-sky-700 text-sky-300 flex flex-col items-center justify-center text-[11px] gap-1 cursor-pointer">
-                        {ocupado === `video-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <Film className="w-5 h-5" />} {ocupado === `video-${i}` ? "Subiendo" : "Video"}
-                        <input type="file" accept="video/*" className="hidden" disabled={!!ocupado} onChange={(x) => { cargarVideoEscena(i, x.target.files?.[0]); x.target.value = ""; }} />
-                      </label>
+                      <button onClick={() => setEligiendoVideo(i)} disabled={!!ocupado} className="w-20 h-20 rounded-lg border border-dashed border-sky-700 text-sky-300 flex flex-col items-center justify-center text-[11px] gap-1 disabled:opacity-60">
+                        {ocupado === `video-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <Film className="w-5 h-5" />} {ocupado === `video-${i}` ? "Cargando" : "Video"}
+                      </button>
                     </>
                   )}
                 </div>
@@ -455,6 +471,11 @@ export default function GuionPropioPage() {
           onElegir={(ref) => { cambiarEscena(eligiendo, { fotos: [...(proyecto.escenas[eligiendo].fotos || []), ref] }); setEligiendo(null); }}
           onCerrar={() => setEligiendo(null)} />
       )}
+      {eligiendoVideo !== null && (
+        <ElegirVideo escena={eligiendoVideo} onDrive={(v) => usarVideoDrive(eligiendoVideo, v)}
+          onArchivo={(a) => { const i = eligiendoVideo; setEligiendoVideo(null); cargarVideoEscena(i, a); }}
+          onCerrar={() => setEligiendoVideo(null)} />
+      )}
       {recortando && (
         <RecortarVideo medio={recortando.medio} video={videos.get(recortando.medio.ref)}
           necesita={necesitaPara(recortando.escena, (proyecto.escenas[recortando.escena].fotos || []).length + (recortando.k == null ? 1 : 0))}
@@ -537,6 +558,35 @@ function RecortarVideo({ medio, video, necesita, escena, onGuardar, onCerrar }) 
         <div className="flex gap-2">
           <button onClick={verTramo} className="btn-secondary flex-1 !py-2 text-sm flex items-center justify-center gap-1.5"><Play className="w-4 h-4" /> Ver tramo</button>
           <button onClick={() => onGuardar(Math.min(inicio, maximo))} className="btn-primary flex-1 !py-2 text-sm">Usar este tramo</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// Carpeta CONTENIDO de Drive (donde se suben los videos desde "Editar mis videos")
+const CONTENIDO_DRIVE = { id: "1XsRgtxFgGMfsA4FjyVk-gQs8CyipQGJh", nombre: "CONTENIDO (videos)" };
+
+function ElegirVideo({ escena, onDrive, onArchivo, onCerrar }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[60] bg-black/75 flex items-stretch sm:items-center justify-center sm:p-6" onClick={onCerrar}>
+      <div className="w-full sm:max-w-3xl h-[100dvh] sm:h-[85vh] flex flex-col sm:rounded-2xl p-4 gap-3 safe-area-top safe-area-bottom"
+        style={{ background: "#0b1f0b", border: "1px solid rgba(77,142,30,0.35)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-bold text-white">Video para la escena {escena + 1}</p>
+            <p className="text-xs text-gray-400">Elige uno de Drive o súbelo desde este equipo. Después escoges el tramo.</p>
+          </div>
+          <button onClick={onCerrar} className="text-gray-300 p-2 -m-2" aria-label="Cerrar"><X className="w-6 h-6" /></button>
+        </div>
+        <label className="btn-secondary !py-2 !px-3 text-sm flex items-center gap-2 cursor-pointer self-start">
+          <Film className="w-4 h-4" /> Subir desde este equipo
+          <input type="file" accept="video/*" className="hidden" onChange={(e) => onArchivo(e.target.files?.[0])} />
+        </label>
+        <p className="text-xs text-gray-400">O desde Drive:</p>
+        <div className="flex-1 min-h-0">
+          <ExploradorDrive tipo="video" categoriaSugerida="CONTENIDO" categoriasExtra={[CONTENIDO_DRIVE]} onTocar={onDrive} />
         </div>
       </div>
     </div>,

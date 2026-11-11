@@ -167,6 +167,7 @@ function logoEsquina(ctx, rec, alpha) {
   ctx.arc(W - s * 0.75 - 24, s * 0.75 + 24, s * 0.58, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255,255,255,0.92)";
   ctx.fill();
+  ctx.clip(); // el logo trae fondo blanco cuadrado: se recorta en círculo
   ctx.drawImage(rec.logo, W - s * 1.25 - 24, s * 0.25 + 24, s, s);
   ctx.restore();
 }
@@ -207,7 +208,12 @@ function cierre(ctx, escena, t, rec) {
     ctx.shadowBlur = 30;
     ctx.fill();
     ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, yLogo, tamLogo * 0.56, 0, Math.PI * 2);
+    ctx.clip();
     ctx.drawImage(rec.logo, cx - tamLogo / 2, yLogo - tamLogo / 2, tamLogo, tamLogo);
+    ctx.restore();
   }
 
   mariposa(ctx, rec, lt);

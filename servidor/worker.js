@@ -183,7 +183,7 @@ export default {
 
         const token = await getGoogleToken(env, "drive");
         const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-        const fields = encodeURIComponent("files(id,name,thumbnailLink,webContentLink,mimeType)");
+        const fields = encodeURIComponent("files(id,name,thumbnailLink,webContentLink,mimeType,size,videoMediaMetadata(durationMillis))");
         const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`;
 
         const res = await fetch(driveUrl, {
@@ -195,6 +195,33 @@ export default {
         return new Response(JSON.stringify({ files: data.files || [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Ruta: Google Drive - servir un video con CORS (Video con guion: usar clips de Drive) ──
+    // Pasa el archivo tal cual (en streaming, sin guardarlo) y respeta "Range" para poder adelantar.
+    if (path === "/drive/video") {
+      try {
+        const id = url.searchParams.get("id") || "";
+        if (!/^[\w-]{10,}$/.test(id)) throw new Error("id inválido");
+        const token = await getGoogleToken(env, "drive");
+        const meta = await (await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=mimeType`,
+          { headers: { Authorization: `Bearer ${token}` } })).json();
+        if (meta.error) throw new Error(meta.error.message);
+        if (!String(meta.mimeType || "").startsWith("video/")) throw new Error("No es un video");
+        const cab = { Authorization: `Bearer ${token}` };
+        const rango = request.headers.get("Range");
+        if (rango) cab.Range = rango;
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: cab });
+        if (!r.ok && r.status !== 206) throw new Error(`Drive ${r.status}`);
+        const h = { ...corsHeaders, "Content-Type": r.headers.get("Content-Type") || meta.mimeType, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400" };
+        for (const k of ["Content-Length", "Content-Range"]) if (r.headers.get(k)) h[k] = r.headers.get(k);
+        return new Response(r.body, { status: r.status, headers: h });
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), {
           status: 500,
