@@ -39,3 +39,34 @@ describe("video con guion propio", () => {
     expect(g).toHaveLength(2);
   });
 });
+
+import { tiempoEnClip, revisarTramo, normalizarMedio } from "../src/modulos/marketing/guion/linea";
+
+describe("videos en las escenas", () => {
+  const proyecto = { escenas: [{ desde: "00:00", hasta: "00:08", fotos: [{ tipo: "video", ref: "v.mp4", inicio: 12, dur: 30 }] }] };
+
+  it("el plano de video usa el tramo elegido y dura lo que pide la escena", () => {
+    const l = armarLinea(proyecto);
+    const p = l.planos[0];
+    expect(p.video.ref).toBe("v.mp4");
+    expect(p.duracion).toBe(8);
+    expect(tiempoEnClip(p, 0)).toBe(12);
+    expect(tiempoEnClip(p, 5)).toBe(17);
+    expect(tiempoEnClip(p, 8)).toBe(20);
+  });
+
+  it("si el clip no alcanza, va más lento y luego se congela", () => {
+    const l = armarLinea({ escenas: [{ desde: 0, hasta: 8, fotos: [{ tipo: "video", ref: "c.mp4", inicio: 0, dur: 4 }] }] });
+    const p = l.planos[0];
+    expect(tiempoEnClip(p, 4)).toBeCloseTo(2.8); // 0,7x
+    expect(tiempoEnClip(p, 8)).toBeCloseTo(3.95); // congelado al final
+    expect(revisarTramo(4, 0, 8)).toEqual({ alcanza: false, falta: 4 });
+    expect(revisarTramo(30, 12, 8).alcanza).toBe(true);
+  });
+
+  it("fotos y videos se mezclan en una escena", () => {
+    const l = armarLinea({ escenas: [{ desde: 0, hasta: 9, fotos: ["a.jpg", { tipo: "video", ref: "v.mp4", inicio: 2, dur: 20 }] }] });
+    expect(l.planos.map((p) => [p.foto, p.video?.ref ?? null, p.duracion])).toEqual([["a.jpg", null, 4.5], [null, "v.mp4", 4.5]]);
+    expect(normalizarMedio("x.jpg")).toEqual({ tipo: "foto", ref: "x.jpg" });
+  });
+});

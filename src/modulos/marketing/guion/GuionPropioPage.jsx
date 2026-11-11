@@ -2,7 +2,7 @@
 // para cada escena, se genera la voz, se agrega música y se descarga en 9:16 y 16:9.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Mic, Music, Download, Plus, Trash2, Wand2, Save, FileText, X, ImagePlus, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, Mic, Music, Download, Plus, Trash2, Wand2, Save, FileText, X, ImagePlus, Loader2, Film, Scissors } from "lucide-react";
 import { createPortal } from "react-dom";
 import { listarVoces, generarVoz, contextoAudio } from "../animado/voz";
 import { exportarVideo } from "../animado/exportar";
@@ -11,7 +11,8 @@ import { useAgenteHistorial } from "../agente/useAgenteHistorial";
 import ElegirFoto from "../../comercial/ElegirFoto";
 import { urlFoto, cargarEmpresa } from "../../comercial/datos";
 import { completarEmpresa } from "../../comercial/empresa";
-import { armarLinea, vozVigente, aReloj, aSegundos } from "./linea";
+import { armarLinea, vozVigente, aReloj, aSegundos, normalizarMedio, tiempoEnClip, tiempoPorMedio, revisarTramo, VELOCIDAD_MIN } from "./linea";
+import { subirVideo, cargarVideo, prepararVideos, planosVisibles, urlVideo } from "./medios";
 import { dibujarFrameGuion, FORMATOS } from "./motorGuion";
 import { mezclar, leerMusica } from "./audio";
 import { promptOrdenarGuion } from "./guionPrompt";
@@ -40,6 +41,8 @@ export default function GuionPropioPage() {
   const [volumen, setVolumen] = useState(Number(leer("ep_guion_vol", "0.35")));
   const [subtitulos, setSubtitulos] = useState(leer("ep_guion_subs", "0") === "1");
   const [imagenes] = useState(() => new Map());
+  const [videos] = useState(() => new Map()); // ref → { el, dur }
+  const [recortando, setRecortando] = useState(null); // { escena, k (null = nuevo), medio }
   const [versionImg, setVersionImg] = useState(0);
   const [base, setBase] = useState({ logo: null, mariposa: null, contacto: [] });
   const [t, setT] = useState(1.5);
@@ -82,35 +85,49 @@ export default function GuionPropioPage() {
 
   // Cargar las fotos que falten
   useEffect(() => {
-    const refs = [...new Set(proyecto.escenas.flatMap((e) => e.fotos || []).filter(Boolean))].filter((r) => !imagenes.has(r));
-    if (!refs.length) return;
+    const medios = proyecto.escenas.flatMap((e) => (e.fotos || []).filter(Boolean).map(normalizarMedio));
+    const refs = [...new Set(medios.filter((m) => m.tipo === "foto").map((m) => m.ref))].filter((r) => !imagenes.has(r));
+    const vids = [...new Set(medios.filter((m) => m.tipo === "video").map((m) => m.ref))].filter((r) => !videos.has(r));
+    if (!refs.length && !vids.length) return;
     refs.forEach((r) => imagenes.set(r, null));
-    Promise.all(refs.map(async (r) => { try { imagenes.set(r, await cargarImagen(urlFoto(r))); } catch { imagenes.delete(r); } }))
-      .then(() => setVersionImg((v) => v + 1));
-  }, [proyecto, imagenes]);
+    vids.forEach((r) => videos.set(r, null));
+    Promise.all([
+      ...refs.map(async (r) => { try { imagenes.set(r, await cargarImagen(urlFoto(r))); } catch { imagenes.delete(r); } }),
+      ...vids.map(async (r) => { try { videos.set(r, await cargarVideo(r)); } catch (e) { videos.delete(r); setError(e.message); } }),
+    ]).then(() => setVersionImg((v) => v + 1));
+  }, [proyecto, imagenes, videos]);
 
   const vigentes = proyecto.escenas.map((e) => vozVigente(e, e.voz, vozId));
   const linea = useMemo(() => armarLinea(proyecto, vigentes), [proyecto, vozId]); // eslint-disable-line react-hooks/exhaustive-deps
   const dims = FORMATOS[formato];
-  const rec = useMemo(() => ({ W: dims.ancho, H: dims.alto, imagenes, logo: base.logo, mariposa: base.mariposa, contacto: base.contacto, cta: proyecto.cta, subtitulos }),
-    [dims, imagenes, base, proyecto.cta, subtitulos, versionImg]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rec = useMemo(() => ({ W: dims.ancho, H: dims.alto, imagenes, videos, logo: base.logo, mariposa: base.mariposa, contacto: base.contacto, cta: proyecto.cta, subtitulos }),
+    [dims, imagenes, videos, base, proyecto.cta, subtitulos, versionImg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dibujar la vista previa cuando no está sonando
   useEffect(() => {
     if (sonando) return;
     const c = canvasRef.current;
     if (!c) return;
-    c.width = dims.ancho;
-    c.height = dims.alto;
-    dibujarFrameGuion(c.getContext("2d"), linea, Math.min(t, linea.total - 0.01), rec);
-  }, [linea, rec, t, sonando, dims]);
+    let vigente = true;
+    const tt = Math.min(t, linea.total - 0.01);
+    prepararVideos(linea, tt, videos).then(() => {
+      if (!vigente) return;
+      c.width = dims.ancho;
+      c.height = dims.alto;
+      dibujarFrameGuion(c.getContext("2d"), linea, tt, rec);
+    });
+    return () => { vigente = false; };
+  }, [linea, rec, t, sonando, dims, videos]);
+
+  const pausarVideos = useCallback(() => { videos.forEach((v) => v?.el && !v.el.paused && v.el.pause()); }, [videos]);
 
   const detener = useCallback(() => {
     const r = reproRef.current;
     if (r) { try { r.fuente.stop(); } catch { /* ya paró */ } cancelAnimationFrame(r.raf); }
     reproRef.current = null;
+    pausarVideos();
     setSonando(false);
-  }, []);
+  }, [pausarVideos]);
   useEffect(() => detener, [detener]);
 
   const reproducir = async () => {
@@ -131,6 +148,19 @@ export default function GuionPropioPage() {
       const paso = () => {
         const ahora = desde + Math.max(0, ac.currentTime - t0);
         if (ahora >= linea.total) { setT(linea.total); detener(); return; }
+        // Los videos siguen la línea de tiempo: se corrigen si se desfasan
+        const visibles = planosVisibles(linea, ahora);
+        const activos = new Set(visibles.map((p) => p.video.ref));
+        videos.forEach((v, ref) => { if (v?.el && !activos.has(ref) && !v.el.paused) v.el.pause(); });
+        visibles.forEach((p) => {
+          const v = videos.get(p.video.ref);
+          if (!v?.el) return;
+          const objetivo = tiempoEnClip(p, ahora);
+          const disponible = Math.max(0.1, (p.video.dur || v.dur) - p.video.inicio);
+          v.el.playbackRate = Math.min(1, Math.max(VELOCIDAD_MIN, disponible / p.duracion));
+          if (Math.abs(v.el.currentTime - objetivo) > 0.25) v.el.currentTime = objetivo;
+          if (v.el.paused && objetivo < (p.video.dur || v.dur) - 0.1) v.el.play().catch(() => {});
+        });
         dibujarFrameGuion(ctx, linea, ahora, rec);
         setT(ahora);
         reproRef.current.raf = requestAnimationFrame(paso);
@@ -213,7 +243,7 @@ export default function GuionPropioPage() {
       const f = FORMATOS[clave];
       const pista = await mezclar(linea, musica?.buffer, volumen);
       const recExp = { ...rec, W: f.ancho, H: f.alto };
-      const r = await exportarVideo(linea, pista, setProgreso, { dibujar: (ctx, g, tt) => dibujarFrameGuion(ctx, g, tt, recExp), ancho: f.ancho, alto: f.alto });
+      const r = await exportarVideo(linea, pista, setProgreso, { dibujar: (ctx, g, tt) => dibujarFrameGuion(ctx, g, tt, recExp), preparar: (tt) => prepararVideos(linea, tt, videos), ancho: f.ancho, alto: f.alto });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(r.blob);
       a.download = `${proyecto.titulo || "video"} - ${clave === "vertical" ? "9x16" : "16x9"}.${r.extension}`;
@@ -221,6 +251,31 @@ export default function GuionPropioPage() {
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (e) { setError(`Exportar: ${e.message}`); }
     setOcupado("");
+  };
+
+  // ── Videos ──
+  const necesitaPara = (i, cantidad) => tiempoPorMedio(linea.escenas[i]?.duracion || 6, cantidad);
+  const cargarVideoEscena = async (i, archivo) => {
+    if (!archivo) return;
+    setError("");
+    setOcupado(`video-${i}`);
+    try {
+      const { ref, local } = await subirVideo(archivo);
+      const v = await cargarVideo(ref);
+      videos.set(ref, v);
+      if (local) setAviso("Ese video pesa más de 50 MB: queda solo en este equipo. Si abres el proyecto en otro lado, vuelve a cargarlo.");
+      setRecortando({ escena: i, k: null, medio: { tipo: "video", ref, inicio: 0, dur: v.dur, nombre: archivo.name } });
+    } catch (e) { setError(`Video: ${e.message}`); }
+    setOcupado("");
+  };
+  const guardarRecorte = (inicio) => {
+    const { escena, k, medio } = recortando;
+    const nuevo = { ...medio, inicio };
+    const fotos = [...(proyecto.escenas[escena].fotos || [])];
+    if (k == null) fotos.push(nuevo); else fotos[k] = nuevo;
+    cambiarEscena(escena, { fotos });
+    setRecortando(null);
+    setT(linea.escenas[escena]?.inicio + 0.6 || 0);
   };
 
   const sinVoz = proyecto.escenas.filter((e, i) => e.locucion?.trim() && !vigentes[i]).length;
@@ -276,16 +331,37 @@ export default function GuionPropioPage() {
                     <textarea rows={3} className={campo} value={e.texto || ""} onChange={(x) => cambiarEscena(i, { texto: x.target.value })} /></label>
                 </div>
                 <div className="flex gap-2 mt-3 flex-wrap">
-                  {(e.fotos || []).map((ref, k) => (
-                    <div key={`${ref}${k}`} className="relative w-20 h-20 rounded-lg overflow-hidden border border-emerald-900/60">
-                      <img src={urlFoto(ref)} alt="" className="w-full h-full object-cover" />
-                      <button onClick={() => quitarFoto(i, k)} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5" aria-label="Quitar foto"><X className="w-3.5 h-3.5 text-white" /></button>
-                    </div>
-                  ))}
+                  {(e.fotos || []).map((crudo, k) => {
+                    const m = normalizarMedio(crudo);
+                    const n = (e.fotos || []).length;
+                    const necesita = necesitaPara(i, n);
+                    const corto = m.tipo === "video" && !revisarTramo(m.dur, m.inicio, necesita).alcanza;
+                    return (
+                      <div key={`${m.ref}${k}`} className={`relative w-20 h-20 rounded-lg overflow-hidden border ${corto ? "border-amber-400" : "border-emerald-900/60"}`}>
+                        {m.tipo === "video" ? (
+                          <button onClick={() => setRecortando({ escena: i, k, medio: m })} className="w-full h-full block" title="Elegir el tramo">
+                            <video src={urlVideo(m.ref) ? `${urlVideo(m.ref)}#t=${m.inicio}` : undefined} muted playsInline preload="metadata" className="w-full h-full object-cover bg-black" />
+                            <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white flex items-center justify-center gap-1 py-0.5">
+                              <Scissors className="w-2.5 h-2.5" /> {aReloj(m.inicio)}–{aReloj(m.inicio + necesita)}
+                            </span>
+                          </button>
+                        ) : (
+                          <img src={urlFoto(m.ref)} alt="" className="w-full h-full object-cover" />
+                        )}
+                        <button onClick={() => quitarFoto(i, k)} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5" aria-label="Quitar"><X className="w-3.5 h-3.5 text-white" /></button>
+                      </div>
+                    );
+                  })}
                   {(e.fotos || []).length < 3 && (
-                    <button onClick={() => setEligiendo(i)} className="w-20 h-20 rounded-lg border border-dashed border-emerald-700 text-emerald-300 flex flex-col items-center justify-center text-[11px] gap-1">
-                      <ImagePlus className="w-5 h-5" /> Foto
-                    </button>
+                    <>
+                      <button onClick={() => setEligiendo(i)} className="w-20 h-20 rounded-lg border border-dashed border-emerald-700 text-emerald-300 flex flex-col items-center justify-center text-[11px] gap-1">
+                        <ImagePlus className="w-5 h-5" /> Foto
+                      </button>
+                      <label className="w-20 h-20 rounded-lg border border-dashed border-sky-700 text-sky-300 flex flex-col items-center justify-center text-[11px] gap-1 cursor-pointer">
+                        {ocupado === `video-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <Film className="w-5 h-5" />} {ocupado === `video-${i}` ? "Subiendo" : "Video"}
+                        <input type="file" accept="video/*" className="hidden" disabled={!!ocupado} onChange={(x) => { cargarVideoEscena(i, x.target.files?.[0]); x.target.value = ""; }} />
+                      </label>
+                    </>
                   )}
                 </div>
               </div>
@@ -379,6 +455,11 @@ export default function GuionPropioPage() {
           onElegir={(ref) => { cambiarEscena(eligiendo, { fotos: [...(proyecto.escenas[eligiendo].fotos || []), ref] }); setEligiendo(null); }}
           onCerrar={() => setEligiendo(null)} />
       )}
+      {recortando && (
+        <RecortarVideo medio={recortando.medio} video={videos.get(recortando.medio.ref)}
+          necesita={necesitaPara(recortando.escena, (proyecto.escenas[recortando.escena].fotos || []).length + (recortando.k == null ? 1 : 0))}
+          escena={recortando.escena} onGuardar={guardarRecorte} onCerrar={() => setRecortando(null)} />
+      )}
       {pegando && <PegarGuion ocupado={ocupado === "ia"} onListo={ordenarConIA} onCerrar={() => setPegando(false)} />}
     </div>
   );
@@ -401,6 +482,62 @@ function PegarGuion({ ocupado, onListo, onCerrar }) {
         <button onClick={() => onListo(texto)} disabled={!texto.trim() || ocupado} className="btn-primary flex items-center justify-center gap-2 disabled:opacity-40">
           {ocupado ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} Ordenar en escenas
         </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * Elegir el tramo del video. La duración la pone la escena: aquí solo se escoge desde qué segundo arranca.
+ */
+function RecortarVideo({ medio, video, necesita, escena, onGuardar, onCerrar }) {
+  const [inicio, setInicio] = useState(medio.inicio || 0);
+  const ref = useRef(null);
+  const dur = medio.dur || video?.dur || 0;
+  const maximo = Math.max(0, dur - necesita);
+  const { alcanza, falta } = revisarTramo(dur, Math.min(inicio, maximo), necesita);
+  const src = video?.el?.src || urlVideo(medio.ref);
+  const pct = (x) => `${dur ? (x / dur) * 100 : 0}%`;
+
+  useEffect(() => { if (ref.current && Math.abs(ref.current.currentTime - inicio) > 0.05 && ref.current.paused) ref.current.currentTime = inicio; }, [inicio]);
+
+  const verTramo = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.currentTime = inicio;
+    el.play().catch(() => {});
+    const parar = () => { if (el.currentTime >= inicio + necesita - 0.05 || el.ended) { el.pause(); el.removeEventListener("timeupdate", parar); } };
+    el.addEventListener("timeupdate", parar);
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] bg-black/80 flex items-stretch sm:items-center justify-center sm:p-6" onClick={onCerrar}>
+      <div className="w-full sm:max-w-xl h-[100dvh] sm:h-auto overflow-y-auto flex flex-col sm:rounded-2xl p-4 gap-3 safe-area-top safe-area-bottom"
+        style={{ background: "#0b1f0b", border: "1px solid rgba(77,142,30,0.35)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start gap-3">
+          <div>
+            <p className="text-base font-bold text-white">Tramo del video · escena {escena + 1}</p>
+            <p className="text-xs text-gray-400">Esta parte del video dura <b className="text-lime-300">{necesita.toFixed(1)} s</b>. Mueve la barra para elegir desde dónde arranca.</p>
+          </div>
+          <button onClick={onCerrar} className="text-gray-300 p-2 -m-2" aria-label="Cerrar"><X className="w-6 h-6" /></button>
+        </div>
+        <video ref={ref} src={src} muted playsInline className="w-full max-h-[50vh] rounded-xl bg-black object-contain" />
+        <div className="relative h-8 rounded-lg bg-white/10 overflow-hidden">
+          <div className="absolute inset-y-0 bg-lime-400/40 border-x-2 border-lime-400" style={{ left: pct(Math.min(inicio, maximo)), width: pct(Math.min(necesita, dur)) }} />
+          <span className="absolute left-2 top-1.5 text-[11px] text-gray-300">0:00</span>
+          <span className="absolute right-2 top-1.5 text-[11px] text-gray-300">{aReloj(dur)}</span>
+        </div>
+        <input type="range" min={0} max={maximo} step={0.1} value={Math.min(inicio, maximo)} onChange={(e) => setInicio(Number(e.target.value))} className="w-full accent-lime-400" disabled={maximo <= 0} />
+        <p className="text-sm text-gray-200 text-center">Usa del <b>{aReloj(Math.min(inicio, maximo))}</b> al <b>{aReloj(Math.min(inicio, maximo) + Math.min(necesita, dur))}</b> del video</p>
+        {!alcanza && (
+          <p className="text-xs text-amber-300">El video dura {dur.toFixed(1)} s y la escena necesita {necesita.toFixed(1)} s (faltan {falta.toFixed(1)} s). Se pondrá un poco más lento y el final se queda quieto. Si prefieres, acorta la escena o agrega otra foto o video.</p>
+        )}
+        <p className="text-[11px] text-gray-500">Si después generas la voz y la escena se alarga, el tramo se alarga solo desde el mismo punto de inicio.</p>
+        <div className="flex gap-2">
+          <button onClick={verTramo} className="btn-secondary flex-1 !py-2 text-sm flex items-center justify-center gap-1.5"><Play className="w-4 h-4" /> Ver tramo</button>
+          <button onClick={() => onGuardar(Math.min(inicio, maximo))} className="btn-primary flex-1 !py-2 text-sm">Usar este tramo</button>
+        </div>
       </div>
     </div>,
     document.body,

@@ -44,6 +44,23 @@ function foto(ctx, img, W, H, variante, k, desenfoque = 0) {
 
 function plano(ctx, p, t, rec) {
   const k = (t - p.inicio) / p.duracion;
+  if (p.video) {
+    const v = rec.videos?.get(p.video.ref);
+    if (v?.el && v.el.readyState >= 2) {
+      // El video ya viene en movimiento: solo un acercamiento muy leve
+      const el = v.el;
+      const s = 1.02 + 0.04 * clamp(k);
+      const base = Math.max(rec.W / el.videoWidth, rec.H / el.videoHeight) * s;
+      const w = el.videoWidth * base;
+      const h = el.videoHeight * base;
+      if (p.cierre) ctx.filter = "blur(18px)";
+      ctx.drawImage(el, (rec.W - w) / 2, (rec.H - h) / 2, w, h);
+      if (p.cierre) ctx.filter = "none";
+      return;
+    }
+    foto(ctx, null, rec.W, rec.H, 0, 0);
+    return;
+  }
   foto(ctx, rec.imagenes.get(p.foto), rec.W, rec.H, p.variante, k, p.cierre ? 18 : 0);
 }
 
