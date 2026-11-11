@@ -9,6 +9,33 @@ export const FORMATOS = {
 };
 
 const VERDE = "#a3e635";
+
+// Dónde va cada cosa (fracción del alto). En vertical se respetan las zonas que tapan Instagram y TikTok
+// (arriba el nombre de la cuenta, abajo los botones y la descripción).
+export const POSICIONES = ["arriba", "centro", "abajo"];
+const ZONA_TEXTO = { vertical: { arriba: 0.2, centro: 0.5, abajo: 0.72 }, horizontal: { arriba: 0.16, centro: 0.52, abajo: 0.8 } };
+const ZONA_SUBS = { vertical: { arriba: 0.16, abajo: 0.84 }, horizontal: { arriba: 0.11, abajo: 0.92 } };
+
+/**
+ * Línea base de la primera línea del texto en pantalla.
+ * Si los subtítulos van arriba y el texto también, el texto baja para no chocar.
+ */
+export function yTexto({ W, H, pos = "centro", posSubs = "abajo", conSubs = false, lineas = 1, tam = 76 }) {
+  const f = H > W ? "vertical" : "horizontal";
+  const z = ZONA_TEXTO[f][pos] ?? ZONA_TEXTO[f].centro;
+  const alto = lineas * tam * 1.12;
+  if (pos === "arriba") {
+    const empuje = conSubs && posSubs === "arriba" ? tam * 1.4 : 0;
+    return H * z + tam * 1.25 + empuje;
+  }
+  if (pos === "abajo") {
+    const empuje = conSubs && posSubs === "abajo" && f === "horizontal" ? tam * 0.9 : 0;
+    return H * z - alto + tam - empuje;
+  }
+  return H * z - alto / 2 + tam * 0.85;
+}
+
+export const ySubtitulos = ({ W, H, posSubs = "abajo" }) => H * (ZONA_SUBS[H > W ? "vertical" : "horizontal"][posSubs] ?? 0.84);
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const suave = (k) => k * k * (3 - 2 * k);
 const salida = (k) => 1 - Math.pow(1 - k, 3);
@@ -76,6 +103,11 @@ function gradacion(ctx, W, H, cierre) {
   g.addColorStop(1, "rgba(5,15,5,0.78)");
   ctx.fillStyle = g;
   ctx.fillRect(0, H * 0.45, W, H * 0.55);
+  const arriba = ctx.createLinearGradient(0, 0, 0, H * 0.32);
+  arriba.addColorStop(0, "rgba(5,15,5,0.5)");
+  arriba.addColorStop(1, "rgba(5,15,5,0)");
+  ctx.fillStyle = arriba;
+  ctx.fillRect(0, 0, W, H * 0.32);
   if (cierre) {
     ctx.fillStyle = "rgba(6,20,6,0.55)";
     ctx.fillRect(0, 0, W, H);
@@ -121,8 +153,8 @@ function textoEnPantalla(ctx, escena, t, rec) {
   ctx.textBaseline = "alphabetic";
   const maxW = vertical ? W * 0.84 : W * 0.6;
   const ls = lineas(ctx, escena.texto, maxW);
-  const alto = ls.length * tam * 1.12;
-  const y0 = (vertical ? H * 0.66 : H * 0.8) - alto + (1 - entra) * 40;
+  const pos = escena.posTexto || rec.posTexto || "centro";
+  const y0 = yTexto({ W, H, pos, posSubs: rec.posSubs, conSubs: rec.subtitulos && !!escena.voz?.palabras?.length, lineas: ls.length, tam }) + (1 - entra) * 40;
   const x = vertical ? W / 2 : W * 0.07;
   ctx.textAlign = vertical ? "center" : "left";
   // Rayita verde arriba del texto
@@ -147,7 +179,7 @@ function subtitulos(ctx, escena, t, rec) {
   ctx.font = `600 ${tam}px Outfit, Arial, sans-serif`;
   ctx.textAlign = "center";
   const w = Math.min(ctx.measureText(g.texto).width, W * 0.86) + 44;
-  const y = vertical ? H * 0.82 : H * 0.92;
+  const y = ySubtitulos({ W, H, posSubs: rec.posSubs });
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.beginPath();
   ctx.roundRect(W / 2 - w / 2, y - tam - 6, w, tam + 26, 16);

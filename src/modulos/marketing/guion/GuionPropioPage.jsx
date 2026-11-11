@@ -14,7 +14,7 @@ import { urlFoto, cargarEmpresa } from "../../comercial/datos";
 import { completarEmpresa } from "../../comercial/empresa";
 import { armarLinea, vozVigente, aReloj, aSegundos, normalizarMedio, tiempoEnClip, tiempoPorMedio, revisarTramo, VELOCIDAD_MIN } from "./linea";
 import { subirVideo, cargarVideo, prepararVideos, planosVisibles, urlVideo } from "./medios";
-import { dibujarFrameGuion, FORMATOS } from "./motorGuion";
+import { dibujarFrameGuion, FORMATOS, POSICIONES } from "./motorGuion";
 import { mezclar, leerMusica } from "./audio";
 import { promptOrdenarGuion } from "./guionPrompt";
 import { PROMO_HOLLYWOOD, PROYECTO_VACIO } from "./plantillas";
@@ -102,8 +102,9 @@ export default function GuionPropioPage() {
   const vigentes = proyecto.escenas.map((e) => vozVigente(e, e.voz, vozId));
   const linea = useMemo(() => armarLinea(proyecto, vigentes), [proyecto, vozId]); // eslint-disable-line react-hooks/exhaustive-deps
   const dims = FORMATOS[formato];
-  const rec = useMemo(() => ({ W: dims.ancho, H: dims.alto, imagenes, videos, logo: base.logo, mariposa: base.mariposa, contacto: base.contacto, cta: proyecto.cta, subtitulos }),
-    [dims, imagenes, videos, base, proyecto.cta, subtitulos, versionImg]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rec = useMemo(() => ({ W: dims.ancho, H: dims.alto, imagenes, videos, logo: base.logo, mariposa: base.mariposa, contacto: base.contacto, cta: proyecto.cta, subtitulos,
+    posTexto: proyecto.posTexto || "centro", posSubs: proyecto.posSubs || "abajo" }),
+    [dims, imagenes, videos, base, proyecto.cta, subtitulos, proyecto.posTexto, proyecto.posSubs, versionImg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dibujar la vista previa cuando no está sonando
   useEffect(() => {
@@ -344,7 +345,16 @@ export default function GuionPropioPage() {
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block"><span className="text-xs text-gray-400">Locución {vigentes[i] ? <span className="text-lime-400">· voz lista</span> : e.locucion?.trim() ? <span className="text-amber-300">· falta voz</span> : null}</span>
                     <textarea rows={3} className={campo} value={e.locucion || ""} onChange={(x) => cambiarEscena(i, { locucion: x.target.value })} /></label>
-                  <label className="block"><span className="text-xs text-gray-400">Texto en pantalla</span>
+                  <label className="block">
+                    <span className="text-xs text-gray-400 flex items-center justify-between gap-2">Texto en pantalla
+                      {!e.cierre && (
+                        <select value={e.posTexto || ""} onChange={(x) => cambiarEscena(i, { posTexto: x.target.value || undefined })}
+                          className="!w-auto !py-0.5 !px-2 !text-xs !rounded-md !bg-black/30 !border-emerald-900/60 text-gray-300" aria-label="Posición del texto en esta escena">
+                          <option value="">Posición: como todo el video</option>
+                          {POSICIONES.map((p) => <option key={p} value={p}>Solo esta escena: {NOMBRE_POS[p]}</option>)}
+                        </select>
+                      )}
+                    </span>
                     <textarea rows={3} className={campo} value={e.texto || ""} onChange={(x) => cambiarEscena(i, { texto: x.target.value })} /></label>
                 </div>
                 <div className="flex gap-2 mt-3 flex-wrap">
@@ -444,9 +454,16 @@ export default function GuionPropioPage() {
             {musica && <input type="range" min={0} max={1} step={0.05} value={volumen} onChange={(e) => setVolumen(Number(e.target.value))} className="w-full accent-lime-400 mt-1" aria-label="Volumen de la música" />}
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input type="checkbox" className="accent-lime-400" checked={subtitulos} onChange={(e) => setSubtitulos(e.target.checked)} /> Subtítulos de la locución
-          </label>
+          <div>
+            <span className="text-xs text-gray-400">Texto en pantalla</span>
+            <Segmentos opciones={POSICIONES} valor={proyecto.posTexto || "centro"} onCambiar={(v) => setProyecto({ ...proyecto, posTexto: v })} />
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input type="checkbox" className="accent-lime-400" checked={subtitulos} onChange={(e) => setSubtitulos(e.target.checked)} /> Subtítulos de la locución
+            </label>
+            {subtitulos && <Segmentos opciones={["arriba", "abajo"]} valor={proyecto.posSubs || "abajo"} onCambiar={(v) => setProyecto({ ...proyecto, posSubs: v })} />}
+          </div>
 
           {(sinFoto > 0 || sinVoz > 0) && (
             <p className="text-xs text-amber-300">{[sinFoto && `${sinFoto} escena(s) sin foto`, sinVoz && `${sinVoz} sin voz`].filter(Boolean).join(" · ")}</p>
@@ -591,5 +608,18 @@ function ElegirVideo({ escena, onDrive, onArchivo, onCerrar }) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+const NOMBRE_POS = { arriba: "Arriba", centro: "Centro", abajo: "Abajo" };
+
+function Segmentos({ opciones, valor, onCambiar }) {
+  return (
+    <div className="flex gap-1 mt-1">
+      {opciones.map((o) => (
+        <button key={o} onClick={() => onCambiar(o)}
+          className={`flex-1 text-xs py-1.5 rounded-lg border ${valor === o ? "border-lime-400 text-lime-300 bg-lime-400/10" : "border-white/10 text-gray-400"}`}>{NOMBRE_POS[o]}</button>
+      ))}
+    </div>
   );
 }

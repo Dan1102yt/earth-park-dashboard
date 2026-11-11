@@ -70,3 +70,22 @@ describe("videos en las escenas", () => {
     expect(normalizarMedio("x.jpg")).toEqual({ tipo: "foto", ref: "x.jpg" });
   });
 });
+
+import { yTexto, ySubtitulos } from "../src/modulos/marketing/guion/motorGuion";
+
+describe("posición de textos", () => {
+  const V = { W: 1080, H: 1920, tam: 76 };
+  it("arriba, centro y abajo quedan en orden y dentro de la zona segura", () => {
+    const a = yTexto({ ...V, pos: "arriba" });
+    const c = yTexto({ ...V, pos: "centro" });
+    const b = yTexto({ ...V, pos: "abajo" });
+    expect(a).toBeLessThan(c);
+    expect(c).toBeLessThan(b);
+    expect(a - 76).toBeGreaterThan(250);   // no lo tapa el nombre de la cuenta
+    expect(b).toBeLessThan(1920 - 340);    // no lo tapan los botones
+  });
+  it("si los subtítulos van arriba, el texto de arriba baja", () => {
+    expect(yTexto({ ...V, pos: "arriba", posSubs: "arriba", conSubs: true })).toBeGreaterThan(yTexto({ ...V, pos: "arriba" }));
+    expect(ySubtitulos({ W: 1080, H: 1920, posSubs: "arriba" })).toBeLessThan(ySubtitulos({ W: 1080, H: 1920, posSubs: "abajo" }));
+  });
+});
