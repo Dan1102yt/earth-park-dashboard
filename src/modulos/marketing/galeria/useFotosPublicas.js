@@ -24,41 +24,27 @@ export function useFotosPublicas() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  async function aprobar(foto, categoria) {
+  // Usa la función set_foto_publica (SECURITY DEFINER) en vez de upsert/update
+  // directo: con RLS, la fila desaprobada deja de ser visible y el cambio fallaba.
+  async function toggle(foto, categoria) {
     if (!supabase) return { error: "Sin conexión a base de datos" };
-    const { error: err } = await supabase.from(TABLE).upsert(
-      {
-        drive_file_id: foto.id,
-        nombre: foto.nombre,
-        categoria,
-        url_miniatura: foto.urlMiniatura,
-        url_completa: foto.urlCompleta,
-        aprobada: true,
-      },
-      { onConflict: "drive_file_id" }
-    );
-    if (err) return { error: err.message };
-    setAprobadas((prev) => new Map(prev).set(foto.id, categoria));
-    return { ok: true };
-  }
-
-  async function desaprobar(foto) {
-    if (!supabase) return { error: "Sin conexión a base de datos" };
-    const { error: err } = await supabase
-      .from(TABLE)
-      .update({ aprobada: false })
-      .eq("drive_file_id", foto.id);
+    const aprobar = !aprobadas.has(foto.id);
+    const { error: err } = await supabase.rpc("set_foto_publica", {
+      p_drive_file_id: foto.id,
+      p_nombre: foto.nombre,
+      p_categoria: categoria,
+      p_url_miniatura: foto.urlMiniatura,
+      p_url_completa: foto.urlCompleta,
+      p_aprobada: aprobar,
+    });
     if (err) return { error: err.message };
     setAprobadas((prev) => {
       const next = new Map(prev);
-      next.delete(foto.id);
+      if (aprobar) next.set(foto.id, categoria);
+      else next.delete(foto.id);
       return next;
     });
     return { ok: true };
-  }
-
-  async function toggle(foto, categoria) {
-    return aprobadas.has(foto.id) ? desaprobar(foto) : aprobar(foto, categoria);
   }
 
   return { aprobadas, loading, error, toggle };
