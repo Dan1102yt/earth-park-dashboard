@@ -233,6 +233,10 @@ export default function EditorCotizacion({ inicial, catalogo, planes, descuentos
               <Numero label="Adultos" value={cot.adultos} onChange={(v) => cambiar({ adultos: v })} />
               <Numero label="Niños de 5+ años" value={cot.ninos5} onChange={(v) => cambiar({ ninos5: v })} />
               <Numero label="Menores de 5 (no pagan)" value={cot.menores5} onChange={(v) => cambiar({ menores5: v })} />
+              <label className="block col-span-2"><span className={etiqueta}>Fechas en la propuesta (opcional)</span>
+                <input className={campo} value={cot.cliente?.fechas_texto || ""} onChange={(e) => cambiarCliente("fechas_texto", e.target.value)} placeholder="12 y 13 de diciembre (25 personas cada día)" /></label>
+              <label className="block col-span-2"><span className={etiqueta}>Cantidad de personas en la propuesta (opcional)</span>
+                <input className={campo} value={cot.cliente?.grupo_texto || ""} onChange={(e) => cambiarCliente("grupo_texto", e.target.value)} placeholder="50 personas · 25 por día" /></label>
             </div>
           </Seccion>
 
